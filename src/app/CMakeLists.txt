@@ -215,13 +215,11 @@ else()
   if(UNIX)
     install(
       FILES ${CMAKE_SOURCE_DIR}/rsrc/linux/com.github.Pawmmit.Pawmmit.desktop
-      DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
-      RENAME ${PAWMMIT_EXECUTABLE_NAME}.desktop)
+      DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
     if(${GENERATE_APPDATA})
       install(
         FILES ${APPDATA}
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo
-        RENAME ${PAWMMIT_EXECUTABLE_NAME}.appdata.xml)
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
     endif()
   endif()
 
