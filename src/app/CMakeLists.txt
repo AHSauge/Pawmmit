@@ -217,9 +217,7 @@ else()
       FILES ${CMAKE_SOURCE_DIR}/rsrc/linux/com.github.Pawmmit.Pawmmit.desktop
       DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
     if(${GENERATE_APPDATA})
-      install(
-        FILES ${APPDATA}
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
+      install(FILES ${APPDATA} DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
     endif()
   endif()
 
