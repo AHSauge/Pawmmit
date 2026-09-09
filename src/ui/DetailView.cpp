@@ -1,9 +1,12 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
-//          Copyright (c) 2023, Gittyup Contributors
+//          Copyright (c) 2023, Pawmmit Contributors
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -178,13 +181,13 @@ public:
   void setAuthorCommitter(const QString &author, const QString &committer) {
     mSameAuthorCommitter = author == committer;
     if (mSameAuthorCommitter) {
-      mAuthor->setText(tr("Author/Committer: ") + author);
+      mAuthor->setText(tr("Author/Committer: %1").arg(author));
       mAuthor->adjustSize();
       mCommitter->setVisible(false);
     } else {
-      mAuthor->setText(tr("Author: ") + author);
+      mAuthor->setText(tr("Author: %1").arg(author));
       mAuthor->adjustSize();
-      mCommitter->setText(tr("Committer: ") + committer);
+      mCommitter->setText(tr("Committer: %1").arg(committer));
       mCommitter->adjustSize();
       mCommitter->setVisible(true);
     }

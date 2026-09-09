@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2018, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -14,6 +17,7 @@
 #include "RepoView.h"
 #include "TabWidget.h"
 #include "app/Application.h"
+#include "conf/Settings.h"
 #include "conf/RecentRepositories.h"
 #include "conf/RecentRepository.h"
 #include "dialogs/AccountDialog.h"
@@ -643,7 +647,11 @@ SideBar::SideBar(TabWidget *tabs, MainWindow *mainWindow, QWidget *parent)
       [tabs, this, mainWindow](const QModelIndex &index) {
         if (isRepoIndex(index)) {
           tabs->setCurrentIndex(index.row());
-          mainWindow->setSideBarVisible(false);
+          if (Settings::instance()
+                  ->value(Setting::Id::AutoHideRepoSiderbar)
+                  .toBool()) {
+            mainWindow->setSideBarVisible(false);
+          }
           return;
         }
 
@@ -651,7 +659,11 @@ SideBar::SideBar(TabWidget *tabs, MainWindow *mainWindow, QWidget *parent)
         QString path = index.data(PathRole).toString();
         if (!path.isEmpty()) {
           MainWindow::open(path);
-          mainWindow->setSideBarVisible(false);
+          if (Settings::instance()
+                  ->value(Setting::Id::AutoHideRepoSiderbar)
+                  .toBool()) {
+            mainWindow->setSideBarVisible(false);
+          }
           return;
         }
 
@@ -676,7 +688,11 @@ SideBar::SideBar(TabWidget *tabs, MainWindow *mainWindow, QWidget *parent)
             account->setRepositoryPath(account->indexOf(repo), dialog->path());
 
             // Open the repo.
-            mainWindow->setSideBarVisible(false);
+            if (Settings::instance()
+                    ->value(Setting::Id::AutoHideRepoSiderbar)
+                    .toBool()) {
+              mainWindow->setSideBarVisible(false);
+            }
             MainWindow::open(dialog->path());
           });
 

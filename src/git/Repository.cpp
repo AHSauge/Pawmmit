@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -64,7 +67,7 @@ namespace git {
 
 namespace {
 
-const QString kConfigDir = "gittyup";
+const QString kConfigDir = "pawmmit";
 const QString kConfigFile = "config";
 const QString kStarFile = "starred";
 
@@ -197,7 +200,7 @@ Config Repository::gitConfig() const {
 }
 
 // Config file used for app specific configs
-// config file in <Repository>/.git/gittyup/config
+// config file in <Repository>/.git/pawmmit/config
 Config Repository::appConfig() const {
   Config config = Config::appGlobal();
   QString path = appDir().filePath(kConfigFile);
