@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -41,6 +44,7 @@ bool Application::mIsInTest = false;
 
 #if defined(Q_OS_LINUX)
 #include <QtDBus/QtDBus>
+#include <unistd.h>
 
 #elif defined(Q_OS_MAC)
 #include <unistd.h>
@@ -68,13 +72,13 @@ static LONG WINAPI exceptionFilter(PEXCEPTION_POINTERS info) {
   GetTempPath(MAX_PATH, temp);
 
   wchar_t dir[MAX_PATH];
-  const wchar_t *gittyup_name = L"%sGittyup";
-  StringCchPrintf(dir, MAX_PATH, gittyup_name, temp);
+  const wchar_t *pawmmit_name = L"%sPawmmit";
+  StringCchPrintf(dir, MAX_PATH, pawmmit_name, temp);
   CreateDirectory(dir, NULL);
 
   wchar_t fileName[MAX_PATH];
   const wchar_t *s = L"%s\\%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp";
-  StringCchPrintf(fileName, MAX_PATH, s, dir, GITTYUP_NAME, GITTYUP_VERSION,
+  StringCchPrintf(fileName, MAX_PATH, s, dir, PAWMMIT_NAME, PAWMMIT_VERSION,
                   localTime.wYear, localTime.wMonth, localTime.wDay,
                   localTime.wHour, localTime.wMinute, localTime.wSecond,
                   GetCurrentProcessId(), GetCurrentThreadId());
@@ -99,11 +103,21 @@ Application::Application(int &argc, char **argv, bool haltOnParseError)
     : QApplication(argc, argv) {
   Q_INIT_RESOURCE(resources);
 
-  setApplicationName(GITTYUP_NAME);
-  setApplicationDisplayName(GITTYUP_NAME);
-  setApplicationVersion(GITTYUP_VERSION);
-  setOrganizationDomain(GITTYUP_ORGANIZATION_DOMAIN);
-  setDesktopFileName(GITTYUP_IDENTIFIER);
+  setApplicationName(PAWMMIT_NAME);
+  setApplicationDisplayName(PAWMMIT_NAME);
+  setApplicationVersion(PAWMMIT_VERSION);
+  setOrganizationDomain(PAWMMIT_ORGANIZATION_DOMAIN);
+  setDesktopFileName(PAWMMIT_IDENTIFIER);
+
+  // When in test mode, redirect QSettings to a private, per-process location.
+  // This prevents test cases from accidentially cluttering up the user
+  // environment and allows for test cases to run in parallel
+  if (isInTest()) {
+    mTempSettingsDir.reset(new QTemporaryDir);
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
+                       mTempSettingsDir->path());
+  }
 
   // Register types that are queued at runtime.
   qRegisterMetaType<git::Id>();
@@ -114,7 +128,7 @@ Application::Application(int &argc, char **argv, bool haltOnParseError)
 
   // Parse command line arguments.
   QCommandLineParser parser;
-  parser.setApplicationDescription("Gittyup" BUILD_DESCRIPTION);
+  parser.setApplicationDescription("Pawmmit" BUILD_DESCRIPTION);
   parser.addHelpOption();
   parser.addVersionOption();
   parser.addPositionalArgument("repository",
@@ -197,7 +211,7 @@ Application::Application(int &argc, char **argv, bool haltOnParseError)
 
     QLocale locale;
     QDir l10n = Settings::l10nDir();
-    QString name = QString(GITTYUP_NAME).toLower();
+    QString name = QString(PAWMMIT_NAME).toLower();
     QTranslator *translator = new QTranslator(this);
     if (translator->load(locale, name, "_", l10n.absolutePath())) {
       installTranslator(translator);
@@ -232,7 +246,7 @@ Application::Application(int &argc, char **argv, bool haltOnParseError)
   if (!dir.exists())
     dir.setPath("/Applications");
   dir.cd("Utilities/Terminal.app/Contents/Resources/Fonts");
-  foreach (const QString &name, dir.entryList({"SF*Mono-*.otf"}, QDir::Files))
+  for (const QString &name : dir.entryList({"SF*Mono-*.otf"}, QDir::Files))
     QFontDatabase::addApplicationFont(dir.filePath(name));
 
   // Create shared menu bar on macOS.
@@ -244,10 +258,10 @@ Application::Application(int &argc, char **argv, bool haltOnParseError)
 
 #elif defined(Q_OS_LINUX)
   QIcon icon;
-  icon.addPixmap(QPixmap(":/Gittyup.iconset/icon_16x16.png"));
-  icon.addPixmap(QPixmap(":/Gittyup.iconset/icon_32x32.png"));
-  icon.addPixmap(QPixmap(":/Gittyup.iconset/icon_64x64.png"));
-  icon.addPixmap(QPixmap(":/Gittyup.iconset/icon_128x128.png"));
+  icon.addPixmap(QPixmap(":/Pawmmit.iconset/icon_16x16.png"));
+  icon.addPixmap(QPixmap(":/Pawmmit.iconset/icon_32x32.png"));
+  icon.addPixmap(QPixmap(":/Pawmmit.iconset/icon_64x64.png"));
+  icon.addPixmap(QPixmap(":/Pawmmit.iconset/icon_128x128.png"));
   setWindowIcon(icon);
 #endif
 
@@ -283,7 +297,7 @@ void Application::autoUpdate() {
 }
 
 bool Application::restoreWindows() {
-#ifdef Q_OS_MAC
+#if defined(Q_OS_MAC) || defined(Q_OS_LINUX)
   // Check for connection to a terminal.
   if (!isatty(fileno(stdin)))
     QDir::setCurrent(Settings::appDir().path());
@@ -324,6 +338,8 @@ bool Application::restoreWindows() {
   return MainWindow::restoreWindows();
 }
 
+// Currently unused on MacOS
+#if defined(Q_OS_LINUX) || defined(Q_OS_WIN)
 static MainWindow *openOrSwitch(QDir repo) {
   repo.makeAbsolute();
 
@@ -344,27 +360,28 @@ static MainWindow *openOrSwitch(QDir repo) {
 
   return MainWindow::open(repo.path(), true);
 }
+#endif
 
 #if defined(Q_OS_LINUX)
-#define DBUS_SERVICE_NAME GITTYUP_IDENTIFIER
-#define DBUS_INTERFACE_NAME GITTYUP_DBUS_INTERFACE_NAME
-#define DBUS_OBJECT_PATH GITTYUP_DBUS_OBJECT_PATH
+#define DBUS_SERVICE_NAME PAWMMIT_IDENTIFIER
+#define DBUS_INTERFACE_NAME PAWMMIT_DBUS_INTERFACE_NAME
+#define DBUS_OBJECT_PATH PAWMMIT_DBUS_OBJECT_PATH
 
-DBusGittyup::DBusGittyup(QObject *parent) : QObject(parent) {}
+DBusPawmmit::DBusPawmmit(QObject *parent) : QObject(parent) {}
 
-void DBusGittyup::openRepository(const QString &repo) {
+void DBusPawmmit::openRepository(const QString &repo) {
   openOrSwitch(QDir(repo));
 }
 
-void DBusGittyup::openAndFocusRepository(const QString &repo) {
+void DBusPawmmit::openAndFocusRepository(const QString &repo) {
   openOrSwitch(QDir(repo))->activateWindow();
 }
 
-void DBusGittyup::setFocus() { MainWindow::activeWindow()->activateWindow(); }
+void DBusPawmmit::setFocus() { MainWindow::activeWindow()->activateWindow(); }
 
 #elif defined(Q_OS_WIN)
 #define COPYDATA_WINDOW_TITLE                                                  \
-  "Gittyup WM_COPYDATA receiver 16b8b3f6-6446-4fa7-8c72-53c25b1f206c"
+  "Pawmmit WM_COPYDATA receiver 16b8b3f6-6446-4fa7-8c72-53c25b1f206c"
 enum CopyDataCommand { Focus = 0, FocusAndOpen = 1 };
 
 namespace {
@@ -475,7 +492,7 @@ void Application::registerService() {
   if (!bus.registerService(DBUS_SERVICE_NAME))
     return;
 
-  bus.registerObject(DBUS_OBJECT_PATH, DBUS_INTERFACE_NAME, new DBusGittyup(),
+  bus.registerObject(DBUS_OBJECT_PATH, DBUS_INTERFACE_NAME, new DBusPawmmit(),
                      QDBusConnection::ExportScriptableSlots);
 
 #elif defined(Q_OS_WIN)
@@ -516,7 +533,7 @@ void Application::handleSslErrors(QNetworkReply *reply,
   QMessageBox msg(QMessageBox::Warning, title, text, buttons);
 
   QString message;
-  foreach (const QSslError &error, errors)
+  for (const QSslError &error : errors)
     message.append(QString("<p>%1</p>").arg(error.errorString()));
   msg.setInformativeText(message);
 

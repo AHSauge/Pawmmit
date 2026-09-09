@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2025
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Alf Henrik Sauge
 //
@@ -61,7 +64,7 @@ public:
     if (mStop)
       return std::nullopt;
     else {
-      T item = std::move(mQueue.dequeue());
+      T item = mQueue.dequeue();
       mNotFull.wakeOne();
       if (mQueue.size() == 0)
         mEmpty.wakeAll();

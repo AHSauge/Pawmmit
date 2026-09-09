@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Shane Gramlich
 //
@@ -37,7 +40,7 @@ PullRequestDialog::PullRequestDialog(RepoView *view) : QDialog(view) {
 
   QComboBox *fromRepo = new QComboBox(this);
   fromRepo->setEditable(true);
-  foreach (const git::Reference &ref, view->repo().branches(GIT_BRANCH_LOCAL))
+  for (const git::Reference &ref : view->repo().branches(GIT_BRANCH_LOCAL))
     fromRepo->addItem(ref.name(), QVariant::fromValue(ref));
   fromRepo->setCurrentIndex(fromRepo->findText(view->repo().head().name()));
   auto indexChanged = QOverload<int>::of(&QComboBox::currentIndexChanged);
@@ -63,7 +66,7 @@ PullRequestDialog::PullRequestDialog(RepoView *view) : QDialog(view) {
   remoteRepo->account()->requestForkParents(remoteRepo);
   connect(remoteRepo->account(), &Account::forkParentsReady, this,
           [toRepo](const QMap<QString, QString> &parents) {
-            foreach (const QString parent, parents.keys()) {
+            for (const QString &parent : parents.keys()) {
               toRepo->addItem(parent, parents.value(parent));
             }
           });

@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -221,6 +224,9 @@ public:
   // cherry-pick
   void cherryPick(const git::Commit &commit);
 
+  // diff
+  void promptToApplyDiff();
+
   // push
   void promptToForcePush(const git::Remote &remote = git::Remote(),
                          const git::Reference &src = git::Reference());
@@ -405,6 +411,8 @@ private:
   bool checkForConflicts(LogEntry *parent, const QString &action);
 
   git::Signature getSignature(const ContributorInfo &info);
+
+  void applyDiff(const QString &path);
 
   git::Repository mRepo;
 

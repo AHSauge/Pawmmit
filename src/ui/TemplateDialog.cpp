@@ -15,7 +15,7 @@
 
 namespace {
 const QString kTemplateFileExtension =
-    QStringLiteral(".GittyupCommitMessageTemplate");
+    QStringLiteral(".PawmmitCommitMessageTemplate");
 }
 
 TemplateDialog::TemplateDialog(QList<TemplateButton::Template> &templates,
@@ -241,7 +241,7 @@ void TemplateDialog::importTemplates(QString filename) {
   if (filename.isEmpty()) {
     filename = QFileDialog::getOpenFileName(
         this, tr("Open File"), "/home",
-        tr("Gittyup Templates (*%1)").arg(kTemplateFileExtension));
+        tr("Pawmmit Templates (*%1)").arg(kTemplateFileExtension));
   }
 
   mNew.clear();
@@ -255,21 +255,11 @@ void TemplateDialog::importTemplates(QString filename) {
       const int index = line.indexOf(QStringLiteral(":"));
       if (index == -1)
         continue;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+
       const QString name = line.sliced(0, index);
       if (index + 1 >= line.length())
         continue;
       QString value = line.sliced(index + 1);
-#else
-      const auto list = line.split(QStringLiteral(":"));
-      if (list.length() < 2)
-        continue;
-      const QString name = list.at(0);
-      QString value;
-      for (int i = 1; i < list.length() - 1; i++)
-        value += QStringLiteral("%1:").arg(list.at(i));
-      value += list.last();
-#endif
       value = value.replace(QStringLiteral("\\n"), QStringLiteral("\n"));
       value = value.replace(QStringLiteral("\\t"), QStringLiteral("\t"));
       TemplateButton::Template t;
@@ -293,8 +283,8 @@ void TemplateDialog::exportTemplates(QString filename) {
     filename = QFileDialog::getSaveFileName(
         this, tr("Save Templates"),
         QStringLiteral("/home/%1%2")
-            .arg("GittyupTemplates", kTemplateFileExtension),
-        tr("Gittyup Templates (*%1)").arg(kTemplateFileExtension));
+            .arg("PawmmitTemplates", kTemplateFileExtension),
+        tr("Pawmmit Templates (*%1)").arg(kTemplateFileExtension));
   }
 
   QString templatesStr;

@@ -1,8 +1,11 @@
 //
-//          Copyright (c) 2022, Gittyup Team
+//          Copyright (c) 2022, Pawmmit Team
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Martin Marmsoler
 //
@@ -24,8 +27,8 @@
 #include <QWizard>
 #include <QLineEdit>
 
-#define INIT_REPO(repoPath, /* bool */ useTempDir)                             \
-  QString path = Test::extractRepository(repoPath, useTempDir);                \
+#define INIT_REPO(repoPath)                                                    \
+  QString path = Test::extractRepository(repoPath);                            \
   QVERIFY(!path.isEmpty());                                                    \
   auto repo = git::Repository::open(path);                                     \
   QVERIFY(repo.isValid());                                                     \
@@ -53,7 +56,7 @@ private:
 
 void TestSubmodule::updateSubmoduleClone() {
   // Update submodules after cloning
-  QString remote = Test::extractRepository("SubmoduleTest.zip", true);
+  QString remote = Test::extractRepository("SubmoduleTest.zip");
   QCOMPARE(remote.isEmpty(), false);
 
   Settings *settings = Settings::instance();
@@ -105,7 +108,7 @@ void TestSubmodule::updateSubmoduleClone() {
 
 void TestSubmodule::noUpdateSubmoduleClone() {
   // Don't update submodules after cloning
-  QString remote = Test::extractRepository("SubmoduleTest.zip", true);
+  QString remote = Test::extractRepository("SubmoduleTest.zip");
   QCOMPARE(remote.isEmpty(), false);
 
   Settings *settings = Settings::instance();
@@ -154,7 +157,7 @@ void TestSubmodule::noUpdateSubmoduleClone() {
 
 void TestSubmodule::discardFile() {
   // Discarding a file should not reset the submodule
-  INIT_REPO("SubmoduleTest.zip", true);
+  INIT_REPO("SubmoduleTest.zip");
   repoView->updateSubmodules(repo.submodules(), true, true);
 
   qWait(1000); // Not needed if the test is long enough and the fetch operation

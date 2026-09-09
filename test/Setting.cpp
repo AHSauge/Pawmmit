@@ -23,14 +23,16 @@ private:
 
   template <class T, typename TId> QStringList settingsKeys() {
     QStringList settingsKeys;
-    foreach (const TId id, ids<TId>()) { settingsKeys.append(T::key(id)); }
+    for (const TId id : ids<TId>()) {
+      settingsKeys.append(T::key(id));
+    }
     return settingsKeys;
   }
 
   template <class T, typename TId> void verifyNonEmptySettingsKeyForEachId() {
     QMetaEnum metaEnum = QMetaEnum::fromType<TId>();
 
-    foreach (const TId id, ids<TId>()) {
+    for (const TId id : ids<TId>()) {
       const QString settingsKey = T::key(id);
 
       QVERIFY2(!settingsKey.isEmpty(),
@@ -52,7 +54,7 @@ void TestSetting::defines_each_settings_key_only_once() {
   allSettingsKeys.append(settingsKeys<Prompt, Prompt::Kind>());
 
   QStringList uniqueSettingsKeys;
-  foreach (const QString &settingsKey, allSettingsKeys) {
+  for (const QString &settingsKey : allSettingsKeys) {
     QVERIFY2(!uniqueSettingsKeys.contains(settingsKey),
              qPrintable(
                  QString("the settings key '%1' is used for multiple settings")

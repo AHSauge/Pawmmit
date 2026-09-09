@@ -1,0 +1,11 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=Pawmmit
+Comment=Graphical Git client for Windows, Linux and macOS
+Exec=pawmmit
+StartupWMClass=com.github.Pawmmit.Pawmmit
+Icon=pawmmit
+Terminal=false
+Type=Application
+Categories=Development;
+X-Desktop-File-Install-Version=0.1

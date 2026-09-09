@@ -1,19 +1,19 @@
 # https://docs.github.com/en/actions/learn-github-actions/contexts
 
 ---
-name: Gittyup
+name: Pawmmit
 on:
   push:
     branches:
     - master
     tags:
-    - 'gittyup_v*'
+    - 'v*'
   pull_request:
   page_build:
   workflow_dispatch:
 
 env:
-  IS_RELEASE: ${{ github.event_name == 'push' && github.ref_type == 'tag' && startswith(github.ref_name, 'gittyup_v') }}
+  IS_RELEASE: ${{ github.event_name == 'push' && github.ref_type == 'tag' && startswith(github.ref_name, 'v') }}
 
 
 jobs:
@@ -68,40 +68,40 @@ jobs:
     - name: Replace git tag by the commit id on which it runs
       if: github.ref_type != 'tag'
       run: >
-        sed -i 's@tag: .*@commit: "${{ (github.event.pull_request && github.event.pull_request.head.sha) || github.sha }}"@' com.github.Murmele.Gittyup.yml
+        sed -i 's@\(tag\|branch\|commit\): .*@commit: "${{ (github.event.pull_request && github.event.pull_request.head.sha) || github.sha }}"@' com.github.Pawmmit.Pawmmit.yml
 
     - name: Use correct git tag
       if: github.ref_type == 'tag'
       run: >
-        sed -i 's@tag: .*$@tag: "${{ github.ref_name }}"@' com.github.Murmele.Gittyup.yml
+        sed -i 's@\(tag\|branch\|commit\): .*$@tag: "${{ github.ref_name }}"@' com.github.Pawmmit.Pawmmit.yml
 
     - name: Replace source url
       run: >
-        sed -i "s@url: .*Gittyup.git@url: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY@" com.github.Murmele.Gittyup.yml
+        sed -i "s@url: .*Pawmmit.git@url: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY@" com.github.Pawmmit.Pawmmit.yml
 
     - name: Add dev build marker to cmake options
       if: github.ref_type != 'tag'
       run: >
-        sed -i 's@config-opts: \["\(.*\)"\]@config-opts: ["\1", "-DDEV_BUILD=${{ github.ref_name }}"]@' com.github.Murmele.Gittyup.yml
+        sed -i 's@config-opts: \["\(.*\)"\]@config-opts: ["\1", "-DDEV_BUILD=${{ github.ref_name }}"]@' com.github.Pawmmit.Pawmmit.yml
 
     - name: Replace desktop file name suffix
       if: github.ref_type != 'tag'
       run: >
-        sed -i 's@desktop-file-name-suffix: ""@desktop-file-name-suffix: " (Development)"@' com.github.Murmele.Gittyup.yml
+        sed -i 's@desktop-file-name-suffix: ""@desktop-file-name-suffix: " (Development)"@' com.github.Pawmmit.Pawmmit.yml
 
     - name: Enable automatic update
       if: github.ref_type != 'tag'
       run: >
-        sed -i 's@-DENABLE_UPDATE_OVER_GUI=OFF@-DENABLE_UPDATE_OVER_GUI=ON@' com.github.Murmele.Gittyup.yml
+        sed -i 's@-DENABLE_UPDATE_OVER_GUI=OFF@-DENABLE_UPDATE_OVER_GUI=ON@' com.github.Pawmmit.Pawmmit.yml
 
     - name: Show Flatpak manifest
-      run: cat com.github.Murmele.Gittyup.yml
+      run: cat com.github.Pawmmit.Pawmmit.yml
 
     - name: Build package
       uses: bilelmoussaoui/flatpak-github-actions/flatpak-builder@v6
       with:
-        bundle: Gittyup.flatpak
-        manifest-path: com.github.Murmele.Gittyup.yml
+        bundle: Pawmmit.flatpak
+        manifest-path: com.github.Pawmmit.Pawmmit.yml
         cache: false
         upload-artifact: true
         verbose: true
@@ -110,8 +110,8 @@ jobs:
     - name: Publish build artifacts
       uses: actions/upload-artifact@v6
       with:
-        path: Gittyup.flatpak
-        name: GittyupFlatpak
+        path: Pawmmit.flatpak
+        name: PawmmitFlatpak
 
 
   build:
@@ -196,7 +196,7 @@ jobs:
           host: ${{ matrix.env.qt_platform }}
           arch: ${{ matrix.env.qt_arch }}
           install-deps: true
-          modules: qtwebengine
+          modules: qtwebengine qt5compat
 
       - name: Install Ninja
         uses: seanmiddleditch/gha-setup-ninja@v6
@@ -239,7 +239,7 @@ jobs:
         run: |
           mkdir -p build/release
           cd build/release
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DUPDATE_TRANSLATIONS=ON -DGITTYUP_CI_TESTS=ON ${{ env.CMAKE_FLAGS }} ${{ matrix.env.cmake_flags }} ../..
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DUPDATE_TRANSLATIONS=ON -DPAWMMIT_CI_TESTS=ON ${{ env.CMAKE_FLAGS }} ${{ matrix.env.cmake_flags }} ../..
 
 
       - name: Build Information
@@ -259,19 +259,19 @@ jobs:
         if: matrix.env.ninja_platform == 'linux'
         run: |
           echo "Show generated appdata file"
-          cat ./build/release/rsrc/linux/com.github.Murmele.Gittyup.appdata.xml
+          cat ./build/release/rsrc/linux/com.github.Pawmmit.Pawmmit.appdata.xml
           echo "Start validating appdata file"
           sudo apt install flatpak
           sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
           sudo flatpak install -y flathub org.flatpak.Builder
-          flatpak run --command=flatpak-builder-lint org.flatpak.Builder appstream ./build/release/rsrc/linux/com.github.Murmele.Gittyup.appdata.xml
+          flatpak run --command=flatpak-builder-lint org.flatpak.Builder appstream ./build/release/rsrc/linux/com.github.Pawmmit.Pawmmit.appdata.xml
 
       - name: Publish build artifacts
         if: matrix.env.pack
         uses: actions/upload-artifact@v6
         with:
-          path: build/release/pack/Gittyup-*
-          name: Gittyup ${{ matrix.env.name }}
+          path: build/release/pack/Pawmmit-*
+          name: Pawmmit ${{ matrix.env.name }}
 
       # Publish only once!
       - name: Publish version file
@@ -279,7 +279,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           path: build/release/Version.txt
-          name: Gittyup-VERSION
+          name: Pawmmit-VERSION
 
       - name: Check Version file
         run: |
@@ -319,7 +319,7 @@ jobs:
           export QT_ROOT_DIR=$QTDIR
 
           rm -rf ./AppDir/usr/include/
-          strip ./AppDir/usr/bin/cmark ./AppDir/usr/bin/gittyup ./AppDir/usr/bin/gittyup-indexer ./AppDir/usr/bin/gittyup-relauncher
+          strip ./AppDir/usr/bin/cmark ./AppDir/usr/bin/pawmmit ./AppDir/usr/bin/pawmmit-indexer ./AppDir/usr/bin/pawmmit-relauncher
 
           wget -c https://github.com/$(wget -q https://github.com/probonopd/go-appimage/releases/expanded_assets/continuous -O - | grep "appimagetool-.*-x86_64.AppImage" | head -n 1 | cut -d '"' -f 2)
           chmod +x appimagetool-*.AppImage
@@ -336,17 +336,17 @@ jobs:
           mv ./AppDir/lib64/ld-${{ matrix.env.ld_library_arch }}.so.2 ./AppDir/usr/bin/
           sed -i -e 's@^LD_LINUX.*@LD_LINUX=$(find "$HERE/usr/bin" -name "ld-*.so.*" | head -n 1)@g' ./AppDir/AppRun
 
-          rm ./AppDir/usr/share/metainfo/gittyup.appdata.xml
+          rm ./AppDir/usr/share/metainfo/com.github.Pawmmit.Pawmmit.appdata.xml
           VERSION=$(cat ./Version.txt)
           VERSION="$VERSION" ./appimagetool-*.AppImage ./AppDir # turn AppDir into AppImage
-          #ls -lh Gittyup-*
+          #ls -lh Pawmmit-*
 
       - name: Publish Appimage
         if: matrix.env.ninja_platform == 'linux'
         uses: actions/upload-artifact@v6
         with:
-          path: build/release/Gittyup*.AppImage
-          name: GittyupAppImage
+          path: build/release/Pawmmit*.AppImage
+          name: PawmmitAppImage
 
   publish:
     needs: [flatpak, build]
@@ -358,7 +358,7 @@ jobs:
     # last condition is the same as IS_RELEASE,
     # but environment variables cannot be used outside of steps
     # so it was copied to here too
-    if: ${{ github.ref == 'refs/heads/master' || (github.event_name == 'push' && github.ref_type == 'tag' && startswith(github.ref_name, 'gittyup_v'))  }}
+    if: ${{ github.ref == 'refs/heads/master' || (github.event_name == 'push' && github.ref_type == 'tag' && startswith(github.ref_name, 'v'))  }}
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v6
@@ -369,7 +369,7 @@ jobs:
       - name: Retrieve version
         id: version
         run: |
-          echo "VERSION=$(cat artifacts/Gittyup-VERSION/Version.txt)" >> "$GITHUB_OUTPUT"
+          echo "VERSION=$(cat artifacts/Pawmmit-VERSION/Version.txt)" >> "$GITHUB_OUTPUT"
 
       # gh CLI avoids deprecated Node-based release actions (e.g. marvinpinto/action-automatic-releases).
       - name: Update GitHub release (development)
@@ -378,10 +378,10 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          flatpaks=(artifacts/GittyupFlatpak/*.flatpak)
-          appimages=(artifacts/GittyupAppImage/Gittyup*.AppImage)
-          windows_files=("artifacts/Gittyup win64"/Gittyup*.exe)
-          macos_files=("artifacts/Gittyup macos"/Gittyup*.dmg)
+          flatpaks=(artifacts/PawmmitFlatpak/*.flatpak)
+          appimages=(artifacts/PawmmitAppImage/Pawmmit*.AppImage)
+          windows_files=("artifacts/Pawmmit win64"/Pawmmit*.exe)
+          macos_files=("artifacts/Pawmmit macos"/Pawmmit*.dmg)
           files=("${flatpaks[@]}" "${appimages[@]}" "${windows_files[@]}")
           if [ ${#files[@]} -eq 0 ]; then
             echo "No assets to upload."
@@ -406,10 +406,10 @@ jobs:
           set -euo pipefail
           shopt -s nullglob
           TAG="${{ github.ref_name }}"
-          flatpaks=(artifacts/GittyupFlatpak/*.flatpak)
-          appimages=(artifacts/GittyupAppImage/Gittyup*.AppImage)
-          windows_files=("artifacts/Gittyup win64"/Gittyup*.exe)
-          macos_files=("artifacts/Gittyup macos"/Gittyup*.dmg)
+          flatpaks=(artifacts/PawmmitFlatpak/*.flatpak)
+          appimages=(artifacts/PawmmitAppImage/Pawmmit*.AppImage)
+          windows_files=("artifacts/Pawmmit win64"/Pawmmit*.exe)
+          macos_files=("artifacts/Pawmmit macos"/Pawmmit*.dmg)
           files=("${flatpaks[@]}" "${appimages[@]}" "${windows_files[@]}")
           if [ ${#files[@]} -eq 0 ]; then
             echo "No assets to upload."
@@ -418,7 +418,7 @@ jobs:
           if ! gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             gh release create "$TAG" \
               --repo "${{ github.repository }}" \
-              --title "Gittyup Release ${{ steps.version.outputs.VERSION }}" \
+              --title "Pawmmit Release ${{ steps.version.outputs.VERSION }}" \
               --target "${{ github.sha }}" \
               "${files[@]}"
           else

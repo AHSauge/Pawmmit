@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Shane Gramlich
 //
@@ -87,7 +90,7 @@ QVBoxLayout *ExternalToolsDialog::createUserDefinedLayout(const QString &type) {
 
   connect(footer, &Footer::minusClicked, [table, model] {
     QModelIndexList indexes = table->selectionModel()->selectedRows(0);
-    foreach (const QModelIndex &index, indexes)
+    for (const QModelIndex &index : indexes)
       model->remove(index.data(Qt::DisplayRole).toString());
     model->refresh();
     table->resizeColumnsToContents();
