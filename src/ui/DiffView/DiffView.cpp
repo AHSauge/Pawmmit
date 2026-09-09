@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -38,8 +41,8 @@ bool copy(const QString &source, const QDir &targetDir) {
   if (!targetDir.mkdir(name))
     return false;
 
-  foreach (const QFileInfo &entry,
-           QDir(source).entryInfoList(DiffViewStyle::kFilters)) {
+  for (const QFileInfo &entry :
+       QDir(source).entryInfoList(DiffViewStyle::kFilters)) {
     if (!copy(entry.filePath(), target))
       return false;
   }
@@ -81,9 +84,9 @@ DiffView::DiffView(const git::Repository &repo, QWidget *parent)
               mComments = comments;
 
               // Invalidate editors.
-              foreach (QWidget *widget, mFiles) {
-                foreach (HunkWidget *hunk,
-                         static_cast<FileWidget *>(widget)->hunks())
+              for (QWidget *widget : mFiles) {
+                for (HunkWidget *hunk :
+                     static_cast<FileWidget *>(widget)->hunks())
                   hunk->invalidate();
               }
 
@@ -114,7 +117,7 @@ void DiffView::setDiff(const git::Diff &diff) {
   git::Repository repo = view->repo();
 
   // Disconnect signals.
-  foreach (QMetaObject::Connection connection, mConnections)
+  for (const QMetaObject::Connection &connection : mConnections)
     disconnect(connection);
   mConnections.clear();
 
@@ -312,8 +315,8 @@ void DiffView::updateFiles() {
 QList<TextEditor *> DiffView::editors() {
   fetchAll();
   QList<TextEditor *> editors;
-  foreach (QWidget *widget, mFiles) {
-    foreach (HunkWidget *hunk, static_cast<FileWidget *>(widget)->hunks())
+  for (QWidget *widget : mFiles) {
+    for (HunkWidget *hunk : static_cast<FileWidget *>(widget)->hunks())
       editors.append(hunk->editor());
   }
 
@@ -349,7 +352,7 @@ void DiffView::dropEvent(QDropEvent *event) {
   // Copy files into the workdir.
   RepoView *view = RepoView::parentView(this);
   git::Repository repo = view->repo();
-  foreach (const QUrl &url, event->mimeData()->urls()) {
+  for (const QUrl &url : event->mimeData()->urls()) {
     if (url.isLocalFile())
       copy(url.toString(DiffViewStyle::kUrlFormat), repo.workdir());
   }

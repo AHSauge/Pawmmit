@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2018, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -56,7 +59,7 @@ bool GitCredential::get(const QString &url, QString &username,
   process.waitForFinished();
 
   QString output = process.readAllStandardOutput();
-  foreach (const QString &line, output.split('\n')) {
+  for (const QString &line : output.split('\n')) {
     int pos = line.indexOf('=');
     if (pos < 0)
       continue;
@@ -98,7 +101,7 @@ QString GitCredential::command() const {
   QDir appDir = QCoreApplication::applicationDirPath();
   appDir.cd("credential-helpers");
 
-  // Prefer credential helpers directly installed into Gittyup's app dir
+  // Prefer credential helpers directly installed into Pawmmit's app dir
   QString candidate =
       QStandardPaths::findExecutable(name, QStringList(appDir.path()));
   if (!candidate.isEmpty()) {

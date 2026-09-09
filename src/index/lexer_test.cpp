@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -92,7 +95,7 @@ int main(int argc, char *argv[]) {
   lexers.insert("null", &generic);
 
   QTextStream out(stdout);
-  foreach (const QString &arg, args) {
+  for (const QString &arg : args) {
     // Open file.
     QFile file(arg);
     if (!file.open(QIODevice::ReadOnly))

@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Shane Gramlich
 //
@@ -27,7 +30,7 @@ void setPaletteColors(QPalette &palette, QPalette::ColorRole role,
   }
 
   QVariantMap map = variant.toMap();
-  foreach (const QString &key, map.keys()) {
+  for (const QString &key : map.keys()) {
     QColor color(map.value(key).toString());
     if (!color.isValid()) {
       Q_ASSERT(false);
