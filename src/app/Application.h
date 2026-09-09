@@ -51,11 +51,11 @@ private:
 };
 
 #ifdef Q_OS_LINUX
-class DBusGittyup : public QObject {
+class DBusPawmmit : public QObject {
   Q_OBJECT
 
 public:
-  DBusGittyup(QObject *parent = nullptr);
+  DBusPawmmit(QObject *parent = nullptr);
 
 public slots:
   Q_SCRIPTABLE void openRepository(const QString &repo);

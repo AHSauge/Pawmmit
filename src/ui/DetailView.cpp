@@ -1,6 +1,6 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
-//          Copyright (c) 2023, Gittyup Contributors
+//          Copyright (c) 2023, Pawmmit Contributors
 //
 // This software is licensed under the GNU General Public License v3.0 or
 // (at your option) any later version. The LICENSE.md file describes the

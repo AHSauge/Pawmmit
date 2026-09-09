@@ -53,7 +53,7 @@ UpdateDialog::UpdateDialog(const QString &platform, const QString &version,
   setAttribute(Qt::WA_DeleteOnClose);
   setWindowTitle(tr("Update %1").arg(appName));
 
-  QIcon icon(":/Gittyup.iconset/icon_128x128.png");
+  QIcon icon(":/Pawmmit.iconset/icon_128x128.png");
   IconLabel *iconLabel = new IconLabel(icon, 128, 128, this);
 
   QVBoxLayout *iconLayout = new QVBoxLayout;
@@ -149,18 +149,12 @@ UpdateDialog::UpdateDialog(const QString &platform, const QString &version,
 #endif // ENABLE_UPDATE
 
   QHBoxLayout *l = new QHBoxLayout();
-  QPushButton *supportButton =
-      new QPushButton(QIcon(":/liberapay_icon_130890.png"), tr("Donate"), this);
   QSpacerItem *spacer =
       new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Minimum);
 #if ENABLE_UPDATE
   l->addWidget(download);
 #endif // ENABLE_UPDATE
   l->addItem(spacer);
-  l->addWidget(supportButton);
-  connect(supportButton, &QPushButton::pressed, []() {
-    QDesktopServices::openUrl(QUrl(MenuBar::donationUrlLiberapay));
-  });
 
   QVBoxLayout *content = new QVBoxLayout;
   content->addWidget(new QLabel(label, this));

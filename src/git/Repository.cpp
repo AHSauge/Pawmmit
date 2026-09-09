@@ -67,7 +67,7 @@ namespace git {
 
 namespace {
 
-const QString kConfigDir = "gittyup";
+const QString kConfigDir = "pawmmit";
 const QString kConfigFile = "config";
 const QString kStarFile = "starred";
 
@@ -198,7 +198,7 @@ Config Repository::gitConfig() const {
 }
 
 // Config file used for app specific configs
-// config file in <Repository>/.git/gittyup/config
+// config file in <Repository>/.git/pawmmit/config
 Config Repository::appConfig() const {
   Config config = Config::appGlobal();
   QString path = appDir().filePath(kConfigFile);

@@ -373,13 +373,13 @@ StartDialog::StartDialog(QWidget *parent) : QDialog(parent) {
   setAttribute(Qt::WA_DeleteOnClose);
   setWindowTitle(tr("Choose Repository"));
 
-  QIcon icon(":/Gittyup.iconset/icon_128x128.png");
+  QIcon icon(":/Pawmmit.iconset/icon_128x128.png");
   IconLabel *iconLabel = new IconLabel(icon, 128, 128, this);
 
   QIcon title(":/logo-type_light@2x.png");
   IconLabel *titleLabel = new IconLabel(title, 163, 38, this);
 
-  QString subtitleText = kSubtitleFmt.arg(tr("Understand your history!"));
+  QString subtitleText = kSubtitleFmt.arg(tr("Claw your way into your git history"));
   QLabel *subtitle = new QLabel(subtitleText, this);
   subtitle->setAlignment(Qt::AlignHCenter);
 

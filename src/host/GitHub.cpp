@@ -271,7 +271,7 @@ void GitHub::authorize() {
 bool GitHub::isAuthorizeSupported() {
   QByteArray id(GITHUB_CLIENT_ID);
   QByteArray secret(GITHUB_CLIENT_SECRET);
-  QByteArray env = qgetenv("GITTYUP_OAUTH");
+  QByteArray env = qgetenv("PAWMMIT_OAUTH");
   return (!id.isEmpty() && !secret.isEmpty() && !env.isEmpty());
 }
 

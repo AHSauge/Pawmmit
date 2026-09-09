@@ -835,7 +835,7 @@ ToolBar::ToolBar(MainWindow *parent) : QToolBar(parent) {
   connect(mRefreshButton, &Button::clicked,
           [this] { currentView()->refresh(); });
 
-  if (!qgetenv("GITTYUP_OAUTH").isEmpty()) {
+  if (!qgetenv("PAWMMIT_OAUTH").isEmpty()) {
     addWidget(new Spacer(4, this));
 
     mPullRequestButton = new PullRequestButton(this);

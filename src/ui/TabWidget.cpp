@@ -29,7 +29,7 @@
 namespace {
 
 const QString kLinkFmt = "<a href='%1'>%2</a>";
-const QString kSupportLink = "https://matrix.to/#/#Gittyup:matrix.org";
+const QString kSupportLink = "https://github.com/Pawmmit/Pawmmit/discussions";
 const QString kVideoLink = "TODO";
 
 class DefaultWidget : public QFrame {

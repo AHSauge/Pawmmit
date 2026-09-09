@@ -38,14 +38,14 @@ LONG WINAPI exceptionFilter(PEXCEPTION_POINTERS info) {
   GetTempPath(MAX_PATH, temp);
 
   wchar_t dir[MAX_PATH];
-  const wchar_t *gittyup_name = L"%sGittyup";
-  StringCchPrintf(dir, MAX_PATH, gittyup_name, temp);
+  const wchar_t *pawmmit_name = L"%sPawmmit";
+  StringCchPrintf(dir, MAX_PATH, pawmmit_name, temp);
   CreateDirectory(dir, NULL);
 
   wchar_t fileName[MAX_PATH];
   const wchar_t *s = L"%s\\%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp";
-  StringCchPrintf(fileName, MAX_PATH, s, dir, "gittyup-indexer",
-                  GITTYUP_VERSION, localTime.wYear, localTime.wMonth,
+  StringCchPrintf(fileName, MAX_PATH, s, dir, "pawmmit-indexer",
+                  PAWMMIT_VERSION, localTime.wYear, localTime.wMonth,
                   localTime.wDay, localTime.wHour, localTime.wMinute,
                   localTime.wSecond, GetCurrentProcessId(),
                   GetCurrentThreadId());

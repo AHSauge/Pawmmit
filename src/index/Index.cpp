@@ -132,7 +132,7 @@ bool Index::remove() {
 /*!
  * \brief Index::write
  * Write postings to the related files (kIdFile, kPostFile, kProxFile,
- * kDictFile) This is used by the indexer application not by gittyup. Gittyup
+ * kDictFile) This is used by the indexer application not by pawmmit. Pawmmit
  * just reads those files \param map \return
  */
 bool Index::write(const PostingMap &map) {

@@ -66,7 +66,7 @@ private:
   bool install(const DownloadRef &download, QString &error);
 
 #if defined(FLATPAK) || defined(DEBUG_FLATPAK)
-  bool uninstallGittyup(bool system);
+  bool uninstallPawmmit(bool system);
 #endif
 
   QNetworkAccessManager mMgr;

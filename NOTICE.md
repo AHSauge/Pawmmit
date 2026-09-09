@@ -1,15 +1,16 @@
 Licensing notice
 ================
 
-This project as a whole is distributed under the terms of the
-**GNU General Public License, version 3 or (at your option) any later
-version**. The full text is in [LICENSE.md](LICENSE.md).
+Pawmmit is a fork of the Gittyup project. It is distributed as a
+whole under the terms of GNU General Public License, version 3 or
+(at your option) any later version. The full text is in
+[LICENSE.md](LICENSE.md).
 
 Retained MIT notice
 -------------------
 
-Portions of this software originate in **GitAhead** (Copyright (c)
-Scientific Toolworks, Inc.) and its successor **Gittyup** (Copyright (c)
+Portions of this software originate in GitAhead (Copyright (c)
+Scientific Toolworks, Inc.) and its successor Gittyup (Copyright (c)
 the Gittyup contributors), which were published under the MIT License.
 The MIT License requires that its copyright notice and permission notice
 be retained. They are reproduced below and continue to apply to that

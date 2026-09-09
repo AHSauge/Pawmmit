@@ -271,7 +271,7 @@ void Gitea::authorize() {
 bool Gitea::isAuthorizeSupported() {
   QByteArray id(GITEA_CLIENT_ID);
   QByteArray secret(GITEA_CLIENT_SECRET);
-  QByteArray env = qgetenv("GITTYUP_OAUTH");
+  QByteArray env = qgetenv("PAWMMIT_OAUTH");
   return (!id.isEmpty() && !secret.isEmpty() && !env.isEmpty());
 }
 
