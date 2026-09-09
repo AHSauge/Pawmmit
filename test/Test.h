@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -56,7 +59,7 @@ private:
 
 void refresh(RepoView *repoView, bool expectDirty = true);
 void fetch(RepoView *repoView, git::Remote remote);
-QString extractRepository(const QString &filename, bool useTempDir);
+QString extractRepository(const QString &filename);
 void initRepo(git::Repository &repo);
 
 Application createApp(int &argc, char *argv[]);

@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -32,7 +35,7 @@ namespace {
 void countDirectoryEntries(const QString &file, int &count) {
   QDir dir(file);
   auto filters = QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot;
-  foreach (const QString &entry, dir.entryList(filters)) {
+  for (const QString &entry : dir.entryList(filters)) {
     QString file = dir.filePath(entry);
     if (QFileInfo(file).isDir()) {
       countDirectoryEntries(file, count);
@@ -143,7 +146,7 @@ void Index::setStaged(const QStringList &files, bool staged, bool yieldFocus) {
   QStringList changedFiles;
   Repository repo(git_index_owner(d->index));
   RepositoryNotifier *notifier = repo.notifier();
-  foreach (const QString &file, files) {
+  for (const QString &file : files) {
     QByteArray path = file.toUtf8();
 
     // Get the id and mode of the file in the HEAD commit.
@@ -288,7 +291,7 @@ void Index::setStaged(const QStringList &files, bool staged, bool yieldFocus) {
 
   if (!changedFiles.isEmpty()) {
     git_index_write(d->index);
-    foreach (const QString &changedFile, changedFiles)
+    for (const QString &changedFile : changedFiles)
       d->stagedCache.remove(changedFile);
     emit notifier->indexChanged(changedFiles, yieldFocus);
   }
@@ -346,7 +349,7 @@ bool Index::addDirectory(const QString &file) const {
   QDir dir(file);
   git_repository *repo = git_index_owner(d->index);
   auto filters = QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot;
-  foreach (const QString &entry, dir.entryList(filters)) {
+  for (const QString &entry : dir.entryList(filters)) {
     QString file = dir.filePath(entry);
     if (QFileInfo(file).isDir()) {
       if (!addDirectory(file))

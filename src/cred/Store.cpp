@@ -1,8 +1,11 @@
 //
-//          Copyright (c) 2022, Gittyup Community
+//          Copyright (c) 2022, Pawmmit Community
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Hessamoddin Hediehloo(H-4ND-H)
 //
@@ -86,11 +89,11 @@ bool Store::store(const QString &url, const QString &username,
   if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
     return false;
 
-  foreach (const auto &protocolKey, store.keys()) {
+  for (const auto &protocolKey : store.keys()) {
     auto protocol = store[protocolKey];
-    foreach (const auto &hostKey, protocol.keys()) {
+    for (const auto &hostKey : protocol.keys()) {
       auto host = protocol[hostKey];
-      foreach (const auto &usernameKey, host.keys()) {
+      for (const auto &usernameKey : host.keys()) {
         QUrl temp;
         temp.setScheme(protocolKey);
         temp.setHost(hostKey);

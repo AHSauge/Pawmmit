@@ -1,8 +1,11 @@
 //
-//          Copyright (c) 2021, Gittyup
+//          Copyright (c) 2021, Pawmmit
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Kas (https://github.com/exactly-one-kas)
 //
@@ -373,7 +376,7 @@ HotkeysPanel::HotkeysPanel(QWidget *parent) : QTreeView(parent) {
     QString label = hotkey.label().replace(slashRegex, "/");
     int lastSep = label.lastIndexOf('/');
 
-    HotkeyGroupData *group;
+    HotkeyGroupData *group = nullptr;
 
     // Look for existing group along hierarchy
     int pos = lastSep;

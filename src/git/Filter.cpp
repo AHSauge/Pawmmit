@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2017, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -97,7 +100,7 @@ static int stream_close(git_writestream *s) {
 
 static int stream_write(git_writestream *s, const char *buffer, size_t len) {
   struct Stream *stream = reinterpret_cast<struct Stream *>(s);
-  const auto res = stream->process.write(buffer, len);
+  const size_t res = stream->process.write(buffer, len);
   if (res != len)
     return -1;
   return 0;
@@ -173,7 +176,7 @@ void Filter::init() {
   }
 
   // Register filters.
-  foreach (const QString &key, filters.keys()) {
+  for (const QString &key : filters.keys()) {
     FilterInfo &info = filters[key];
     if (info.clean.isEmpty() || info.smudge.isEmpty())
       continue;

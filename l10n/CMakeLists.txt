@@ -9,6 +9,7 @@ set(LANGUAGES
     ja
     pt
     pt_BR
+    sv
     zh_CN)
 
 set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
@@ -17,7 +18,7 @@ file(GLOB_RECURSE SOURCE_FILES ${SRC_DIR}/*.h ${SRC_DIR}/*.cpp ${SRC_DIR}/*.mm)
 set(SYSTEM_LANG_KEY "System")
 set(SUPPORTED_LANGUAGES "{\"${SYSTEM_LANG_KEY}\", \"${SYSTEM_LANG_KEY}\"},")
 foreach(LANGUAGE ${LANGUAGES})
-  set(TS_FILES ${TS_FILES} gittyup_${LANGUAGE}.ts)
+  set(TS_FILES ${TS_FILES} pawmmit_${LANGUAGE}.ts)
   set(SUPPORTED_LANGUAGES
       "${SUPPORTED_LANGUAGES} {\"${LANGUAGE}\", \"${LANGUAGE}\"},")
 endforeach()
@@ -34,7 +35,7 @@ else()
 endif()
 
 add_custom_target(translations DEPENDS ${QM_FILES})
-add_dependencies(gittyup translations)
+add_dependencies(pawmmit translations)
 
 add_library(translation ${LANGUAGE_SOURCE_FILE})
 target_include_directories(translation PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -46,7 +47,7 @@ foreach(LANGUAGE ${LANGUAGES})
   set(QT_QM_FILES ${QT_QM_FILES} ${QT_TRANSLATIONS_DIR}/qtbase_${LANGUAGE}.qm)
 
   if(APPLE)
-    get_target_property(DIR gittyup RUNTIME_OUTPUT_DIRECTORY)
+    get_target_property(DIR pawmmit RUNTIME_OUTPUT_DIRECTORY)
     add_custom_command(
       TARGET translations
       POST_BUILD
@@ -60,7 +61,7 @@ foreach(QM_FILE ${QT_QM_FILES})
     install(
       FILES ${QM_FILE}
       DESTINATION ${L10N_INSTALL_DIR}
-      COMPONENT ${GITTYUP_NAME})
+      COMPONENT ${PAWMMIT_NAME})
   endif()
 endforeach()
 
@@ -68,5 +69,5 @@ foreach(QM_FILE ${QM_FILES})
   install(
     FILES ${QM_FILE}
     DESTINATION ${L10N_INSTALL_DIR}
-    COMPONENT ${GITTYUP_NAME})
+    COMPONENT ${PAWMMIT_NAME})
 endforeach()

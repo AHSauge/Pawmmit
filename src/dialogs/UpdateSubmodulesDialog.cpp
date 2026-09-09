@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -24,13 +27,13 @@ class Model : public QAbstractTableModel {
 public:
   Model(const git::Repository &repo, QObject *parent = nullptr)
       : QAbstractTableModel(parent) {
-    foreach (const git::Submodule &submodule, repo.submodules())
+    for (const git::Submodule &submodule : repo.submodules())
       mSubmodules.append({true, submodule});
   }
 
   QList<git::Submodule> enabledSubmodules() const {
     QList<git::Submodule> submodules;
-    foreach (const Entry &entry, mSubmodules) {
+    for (const Entry &entry : mSubmodules) {
       if (entry.enabled)
         submodules.append(entry.submodule);
     }

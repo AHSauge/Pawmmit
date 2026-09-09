@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2017, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -112,7 +115,7 @@ public:
     mWds[wd] = dir;
 
     // Watch subdirs.
-    foreach (const QString &name, dir.entryList(kFilters)) {
+    for (const QString &name : dir.entryList(kFilters)) {
       QString path = dir.filePath(name);
       if (!mRepo.isIgnored(path))
         watch(path);
