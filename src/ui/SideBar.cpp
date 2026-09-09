@@ -17,6 +17,7 @@
 #include "RepoView.h"
 #include "TabWidget.h"
 #include "app/Application.h"
+#include "conf/Settings.h"
 #include "conf/RecentRepositories.h"
 #include "conf/RecentRepository.h"
 #include "dialogs/AccountDialog.h"
@@ -646,7 +647,11 @@ SideBar::SideBar(TabWidget *tabs, MainWindow *mainWindow, QWidget *parent)
       [tabs, this, mainWindow](const QModelIndex &index) {
         if (isRepoIndex(index)) {
           tabs->setCurrentIndex(index.row());
-          mainWindow->setSideBarVisible(false);
+          if (Settings::instance()
+                  ->value(Setting::Id::AutoHideRepoSiderbar)
+                  .toBool()) {
+            mainWindow->setSideBarVisible(false);
+          }
           return;
         }
 
@@ -654,7 +659,11 @@ SideBar::SideBar(TabWidget *tabs, MainWindow *mainWindow, QWidget *parent)
         QString path = index.data(PathRole).toString();
         if (!path.isEmpty()) {
           MainWindow::open(path);
-          mainWindow->setSideBarVisible(false);
+          if (Settings::instance()
+                  ->value(Setting::Id::AutoHideRepoSiderbar)
+                  .toBool()) {
+            mainWindow->setSideBarVisible(false);
+          }
           return;
         }
 
@@ -679,7 +688,11 @@ SideBar::SideBar(TabWidget *tabs, MainWindow *mainWindow, QWidget *parent)
             account->setRepositoryPath(account->indexOf(repo), dialog->path());
 
             // Open the repo.
-            mainWindow->setSideBarVisible(false);
+            if (Settings::instance()
+                    ->value(Setting::Id::AutoHideRepoSiderbar)
+                    .toBool()) {
+              mainWindow->setSideBarVisible(false);
+            }
             MainWindow::open(dialog->path());
           });
 
