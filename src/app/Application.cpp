@@ -108,6 +108,16 @@ Application::Application(int &argc, char **argv, bool haltOnParseError)
   setOrganizationDomain(PAWMMIT_ORGANIZATION_DOMAIN);
   setDesktopFileName(PAWMMIT_IDENTIFIER);
 
+  // When in test mode, redirect QSettings to a private, per-process location.
+  // This prevents test cases from accidentially cluttering up the user
+  // environment and allows for test cases to run in parallel
+  if (isInTest()) {
+    mTempSettingsDir.reset(new QTemporaryDir);
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
+                       mTempSettingsDir->path());
+  }
+
   // Register types that are queued at runtime.
   qRegisterMetaType<git::Id>();
 

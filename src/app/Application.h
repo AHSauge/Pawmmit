@@ -15,6 +15,7 @@
 
 #include "Theme.h"
 #include <QApplication>
+#include <QTemporaryDir>
 
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -45,6 +46,7 @@ private:
 
   QString mPathspec = QString();
   QScopedPointer<Theme> mTheme;
+  QScopedPointer<QTemporaryDir> mTempSettingsDir;
   QStringList mPositionalArguments;
 
   static bool mIsInTest;
