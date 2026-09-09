@@ -14,7 +14,7 @@
 #define SIGNATURE_H
 
 #include "git2/signature.h"
-#include <QSharedPointer>
+#include <memory>
 
 struct git_signature;
 class QDateTime;
@@ -42,7 +42,7 @@ private:
   Signature(const QString &name, const QString &email, const QDateTime &date);
   operator const git_signature *() const;
 
-  QSharedPointer<git_signature> d;
+  std::shared_ptr<git_signature> d;
 
   friend class Blame;
   friend class Commit;

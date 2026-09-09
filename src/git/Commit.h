@@ -15,6 +15,7 @@
 
 #include "Object.h"
 #include "git2/commit.h"
+#include <QMetaType>
 #include "git2/revwalk.h"
 #include "git2/reset.h"
 #include "Blob.h"

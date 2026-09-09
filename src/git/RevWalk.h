@@ -13,7 +13,8 @@
 #ifndef REVWALK_H
 #define REVWALK_H
 
-#include <QSharedPointer>
+#include <QString>
+#include <memory>
 
 struct git_revwalk;
 
@@ -26,7 +27,7 @@ class RevWalk {
 public:
   RevWalk();
 
-  bool isValid() const { return !d.isNull(); }
+  bool isValid() const { return d != nullptr; }
 
   bool hide(const Commit &commit);
   bool hide(const Reference &ref);
@@ -40,7 +41,7 @@ public:
 protected:
   RevWalk(git_revwalk *walker);
 
-  QSharedPointer<git_revwalk> d;
+  std::shared_ptr<git_revwalk> d;
 
   friend class Commit;
   friend class Reference;

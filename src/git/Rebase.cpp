@@ -29,26 +29,26 @@ Rebase::Rebase(git_repository *repo, git_rebase *rebase,
       mOverrideEmail(overrideEmail) {}
 
 size_t Rebase::count() const {
-  return git_rebase_operation_entrycount(d.data());
+  return git_rebase_operation_entrycount(d.get());
 }
 
 size_t Rebase::currentIndex() const {
-  return git_rebase_operation_current(d.data());
+  return git_rebase_operation_current(d.get());
 }
 
 const git_rebase_operation *Rebase::operation(size_t index) {
-  return git_rebase_operation_byindex(d.data(), index);
+  return git_rebase_operation_byindex(d.get(), index);
 }
 
 bool Rebase::hasNext() const {
   size_t index = currentIndex();
-  size_t count = git_rebase_operation_entrycount(d.data());
+  size_t count = git_rebase_operation_entrycount(d.get());
   return (count > 0 && (index == GIT_REBASE_NO_OPERATION || index < count - 1));
 }
 
 Commit Rebase::commitToRebase() const {
   git_rebase_operation *op =
-      git_rebase_operation_byindex(d.data(), currentIndex());
+      git_rebase_operation_byindex(d.get(), currentIndex());
   if (!op)
     return Commit();
 
@@ -59,7 +59,7 @@ Commit Rebase::commitToRebase() const {
 
 Commit Rebase::next() const {
   git_rebase_operation *op = nullptr;
-  if (git_rebase_next(&op, d.data()))
+  if (git_rebase_next(&op, d.get()))
     return Commit();
 
   git_commit *commit = nullptr;
@@ -74,7 +74,7 @@ Commit Rebase::next() const {
  */
 Commit Rebase::commit(const QString &message) {
   git_oid id;
-  git_rebase *ptr = d.data();
+  git_rebase *ptr = d.get();
 
   Signature sig = Repository(mRepo).defaultSignature(nullptr, mOverrideUser,
                                                      mOverrideEmail);
@@ -101,7 +101,7 @@ Commit Rebase::commit(const QString &message) {
 void Rebase::abort() {
   Repository repo(mRepo);
   int state = repo.state();
-  git_rebase_abort(d.data());
+  git_rebase_abort(d.get());
   if (repo.state() != state)
     emit repo.notifier()->stateChanged();
 }
@@ -110,7 +110,7 @@ bool Rebase::finish() {
   Repository repo(mRepo);
 
   int error = git_rebase_finish(
-      d.data(), repo.defaultSignature(nullptr, mOverrideUser, mOverrideEmail));
+      d.get(), repo.defaultSignature(nullptr, mOverrideUser, mOverrideEmail));
 
   emit repo.notifier()->referenceUpdated(repo.head());
   return !error;

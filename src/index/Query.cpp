@@ -330,9 +330,9 @@ QueryRef parse(QList<Lexer::Lexeme> &lexemes, Index::Field start = Index::Any) {
 
       Index::Term term(field, text);
       if (field == Index::Before || field == Index::After) {
-        query = QSharedPointer<DateRangeQuery>::create(term);
+        query = std::make_shared<DateRangeQuery>(term);
       } else {
-        query = QSharedPointer<TermQuery>::create(term);
+        query = std::make_shared<TermQuery>(term);
       }
 
     } else if (lexeme.token == Lexer::String) {
@@ -350,7 +350,7 @@ QueryRef parse(QList<Lexer::Lexeme> &lexemes, Index::Field start = Index::Any) {
         }
 
         if (!terms.isEmpty())
-          query = QSharedPointer<PhraseQuery>::create(terms);
+          query = std::make_shared<PhraseQuery>(terms);
       }
 
     } else if (lexeme.token == Lexer::Identifier) {
@@ -367,21 +367,22 @@ QueryRef parse(QList<Lexer::Lexeme> &lexemes, Index::Field start = Index::Any) {
       Index::Term term(field, text);
       if (field == Index::Is) {
         if (text == "starred")
-          query = QSharedPointer<StarredQuery>::create();
+          query = std::make_shared<StarredQuery>();
       } else if (field == Index::Pathspec) {
-        query = QSharedPointer<PathspecQuery>::create(term);
+        query = std::make_shared<PathspecQuery>(term);
       } else if (text.contains('*') || text.contains('?')) {
-        query = QSharedPointer<WildcardQuery>::create(term);
+        query = std::make_shared<WildcardQuery>(term);
       } else {
-        query = QSharedPointer<TermQuery>::create(term);
+        query = std::make_shared<TermQuery>(term);
       }
     }
 
     // Form boolean query.
     if (query)
-      result = !result ? query
-                       : QueryRef(QSharedPointer<BooleanQuery>::create(
-                             kind, result, query));
+      result =
+          !result
+              ? query
+              : QueryRef(std::make_shared<BooleanQuery>(kind, result, query));
   }
 
   return result;

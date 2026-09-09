@@ -14,19 +14,19 @@
 #define FILTERLIST_H
 
 #include "git2/filter.h"
-#include <QSharedPointer>
+#include <memory>
 
 namespace git {
 
 class FilterList {
 public:
-  bool isValid() const { return !d.isNull(); }
+  bool isValid() const { return d != nullptr; }
 
 private:
   FilterList(git_filter_list *filter = nullptr);
   operator git_filter_list *() const;
 
-  QSharedPointer<git_filter_list> d;
+  std::shared_ptr<git_filter_list> d;
 
   friend class Patch;
   friend class Repository;

@@ -111,10 +111,10 @@ Patch::Patch(git_patch *patch) : d(patch, git_patch_free) {
   }
 }
 
-Repository Patch::repo() const { return git_patch_owner(d.data()); }
+Repository Patch::repo() const { return git_patch_owner(d.get()); }
 
 QString Patch::name(Diff::File file) const {
-  const git_diff_delta *delta = git_patch_get_delta(d.data());
+  const git_diff_delta *delta = git_patch_get_delta(d.get());
   return (file == Diff::NewFile) ? delta->new_file.path : delta->old_file.path;
 }
 
@@ -124,7 +124,7 @@ git_delta_t Patch::status() const {
     // so the staged patch is empty
     return GIT_DELTA_UNMODIFIED;
   }
-  return git_patch_get_delta(d.data())->status;
+  return git_patch_get_delta(d.get())->status;
 }
 
 bool Patch::isUntracked() const { return (status() == GIT_DELTA_UNTRACKED); }
@@ -132,7 +132,7 @@ bool Patch::isUntracked() const { return (status() == GIT_DELTA_UNTRACKED); }
 bool Patch::isConflicted() const { return (status() == GIT_DELTA_CONFLICTED); }
 
 bool Patch::isBinary() const {
-  return git_patch_get_delta(d.data())->flags & GIT_DIFF_FLAG_BINARY;
+  return git_patch_get_delta(d.get())->flags & GIT_DIFF_FLAG_BINARY;
 }
 
 bool Patch::isLfsPointer() const {
@@ -146,11 +146,11 @@ bool Patch::isLfsPointer() const {
 }
 
 Blob Patch::blob(Diff::File file) const {
-  git_repository *repo = git_patch_owner(d.data());
+  git_repository *repo = git_patch_owner(d.get());
   if (!repo)
     return Blob();
 
-  const git_diff_delta *dd = git_patch_get_delta(d.data());
+  const git_diff_delta *dd = git_patch_get_delta(d.get());
   const git_oid &id =
       (file == Diff::NewFile) ? dd->new_file.id : dd->old_file.id;
 
@@ -163,7 +163,7 @@ Patch::LineStats Patch::lineStats() const {
   size_t context;
   size_t additions;
   size_t deletions;
-  git_patch_line_stats(&context, &additions, &deletions, d.data());
+  git_patch_line_stats(&context, &additions, &deletions, d.get());
 
   LineStats stats;
   stats.additions = static_cast<int>(additions);
@@ -196,7 +196,7 @@ int Patch::count() const {
   if (isConflicted())
     return mConflicts.size();
 
-  return static_cast<int>(git_patch_num_hunks(d.data()));
+  return static_cast<int>(git_patch_num_hunks(d.get()));
 }
 
 QByteArray Patch::header(int hidx) const {
@@ -204,7 +204,7 @@ QByteArray Patch::header(int hidx) const {
     return QByteArray();
 
   const git_diff_hunk *hunk = nullptr;
-  int result = git_patch_get_hunk(&hunk, nullptr, d.data(), hidx);
+  int result = git_patch_get_hunk(&hunk, nullptr, d.get(), hidx);
   if (GIT_OK != result)
     return QByteArray();
 
@@ -216,7 +216,7 @@ const git_diff_hunk *Patch::header_struct(int hidx) const {
     return nullptr;
 
   const git_diff_hunk *hunk = nullptr;
-  int result = git_patch_get_hunk(&hunk, nullptr, d.data(), hidx);
+  int result = git_patch_get_hunk(&hunk, nullptr, d.get(), hidx);
   return (GIT_OK == result) ? hunk : nullptr;
 }
 
@@ -224,7 +224,7 @@ int Patch::lineCount(int hidx) const {
   if (isConflicted())
     return mConflicts.at(hidx).lines.size();
 
-  return static_cast<int>(git_patch_num_lines_in_hunk(d.data(), hidx));
+  return static_cast<int>(git_patch_num_lines_in_hunk(d.get(), hidx));
 }
 
 char Patch::lineOrigin(int hidx, int ln) const {
@@ -247,7 +247,7 @@ char Patch::lineOrigin(int hidx, int ln) const {
   }
 
   const git_diff_line *line = nullptr;
-  int result = git_patch_get_line_in_hunk(&line, d.data(), hidx, ln);
+  int result = git_patch_get_line_in_hunk(&line, d.get(), hidx, ln);
   return (GIT_OK == result) ? line->origin : GIT_DIFF_LINE_CONTEXT;
 }
 
@@ -256,7 +256,7 @@ int Patch::lineNumber(int hidx, int ln, Diff::File file) const {
     return mConflicts.at(hidx).line + ln;
 
   const git_diff_line *line = nullptr;
-  if (git_patch_get_line_in_hunk(&line, d.data(), hidx, ln))
+  if (git_patch_get_line_in_hunk(&line, d.get(), hidx, ln))
     return -1;
 
   return (file == Diff::NewFile) ? line->new_lineno : line->old_lineno;
@@ -267,7 +267,7 @@ git_off_t Patch::contentOffset(int hidx) const {
     return 0;
 
   const git_diff_line *line = nullptr;
-  int result = git_patch_get_line_in_hunk(&line, d.data(), hidx,
+  int result = git_patch_get_line_in_hunk(&line, d.get(), hidx,
                                           0); // TODO: line index 0?
   return (GIT_OK == result) ? line->content_offset : 0;
 }
@@ -277,13 +277,13 @@ QByteArray Patch::lineContent(int hidx, int ln) const {
     return mConflicts.at(hidx).lines.at(ln);
 
   const git_diff_line *line = nullptr;
-  int result = git_patch_get_line_in_hunk(&line, d.data(), hidx, ln);
+  int result = git_patch_get_line_in_hunk(&line, d.get(), hidx, ln);
   return (GIT_OK == result) ? QByteArray(line->content, line->content_len)
                             : QByteArray();
 }
 
 Patch::ConflictResolution Patch::conflictResolution(int hidx) {
-  Repository repo(git_patch_owner(d.data()));
+  Repository repo(git_patch_owner(d.get()));
   QMap<QString, QMap<int, int>> map = readConflictResolutions(repo);
   auto it = map.constFind(name());
   if (it == map.constEnd())
@@ -298,7 +298,7 @@ Patch::ConflictResolution Patch::conflictResolution(int hidx) {
 }
 
 void Patch::setConflictResolution(int hidx, ConflictResolution resolution) {
-  Repository repo(git_patch_owner(d.data()));
+  Repository repo(git_patch_owner(d.get()));
   QMap<QString, QMap<int, int>> map = readConflictResolutions(repo);
   map[name()][lineNumber(hidx, 0)] = resolution;
   writeConflictResolutions(repo, map);
@@ -376,7 +376,7 @@ void Patch::apply(QList<QList<QByteArray>> &image, int hidx,
                   QByteArray &hunkData) const {
   size_t lines = 0;
   const git_diff_hunk *hunk = nullptr;
-  if (git_patch_get_hunk(&hunk, &lines, d.data(),
+  if (git_patch_get_hunk(&hunk, &lines, d.get(),
                          hidx)) // returns hunk_idx hunk
     return;
 
@@ -415,7 +415,7 @@ void Patch::apply(QList<QList<QByteArray>> &image, int hidx, int start_line,
 
   size_t lines = 0;
   const git_diff_hunk *hunk = nullptr;
-  if (git_patch_get_hunk(&hunk, &lines, d.data(),
+  if (git_patch_get_hunk(&hunk, &lines, d.get(),
                          hidx)) // returns hunk_idx hunk
     return;
 
@@ -425,7 +425,7 @@ void Patch::apply(QList<QList<QByteArray>> &image, int hidx, int start_line,
   bool prepend = (index == 0);
   for (int j = start_line; j < end_line; ++j) {
     const git_diff_line *line = nullptr;
-    if (git_patch_get_line_in_hunk(&line, d.data(), hidx, j))
+    if (git_patch_get_line_in_hunk(&line, d.get(), hidx, j))
       continue;
 
     if (line->old_lineno > 0)

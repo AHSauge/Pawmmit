@@ -110,7 +110,7 @@ int insert_stash_id(size_t index, const char *message, const git_oid *id,
 
 } // namespace
 
-QMap<git_repository *, QWeakPointer<Repository::Data>> Repository::registry;
+QMap<git_repository *, std::weak_ptr<Repository::Data>> Repository::registry;
 
 Repository::Data::Data(git_repository *repo)
     : repo(repo), notifier(new RepositoryNotifier) {
@@ -139,17 +139,17 @@ void Repository::unregisterRepository(Data *data) {
   delete data;
 }
 
-QSharedPointer<Repository::Data>
+std::shared_ptr<Repository::Data>
 Repository::registerRepository(git_repository *repo) {
   if (!repo)
-    return QSharedPointer<Data>();
+    return std::shared_ptr<Data>();
 
   auto it = registry.find(repo);
   if (it != registry.end())
-    return *it;
+    return it.value().lock();
 
-  QSharedPointer<Data> ref(new Data(repo), unregisterRepository);
-  registry[repo] = ref.toWeakRef();
+  std::shared_ptr<Data> ref(new Data(repo), unregisterRepository);
+  registry[repo] = ref;
   return ref;
 }
 

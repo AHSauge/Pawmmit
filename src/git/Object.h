@@ -14,7 +14,8 @@
 #define OBJECT_H
 
 #include "git2/object.h"
-#include <QSharedPointer>
+#include <QString>
+#include <memory>
 
 namespace git {
 
@@ -23,7 +24,7 @@ class Repository;
 
 class Object {
 public:
-  bool isValid() const { return !d.isNull(); }
+  bool isValid() const { return d != nullptr; }
   explicit operator bool() const { return isValid(); }
 
   Repository repo() const;
@@ -42,7 +43,7 @@ protected:
   operator const git_oid *() const;
   operator const git_object *() const;
 
-  QSharedPointer<git_object> d;
+  std::shared_ptr<git_object> d;
 
   friend class Branch;
   friend class Reference;

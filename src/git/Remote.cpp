@@ -197,13 +197,13 @@ public:
 
 private:
   bool mValid = false;
-  QScopedPointer<QFile> mFile;
+  std::unique_ptr<QFile> mFile;
 
   QList<Host> parse() const {
     Q_ASSERT(isValid());
 
     QList<Host> hosts;
-    QTextStream in(mFile.data());
+    QTextStream in(mFile.get());
     hosts.append(Host{});
     while (!in.atEnd()) {
       // Skip comments and empty lines.
@@ -515,14 +515,14 @@ Remote::Remote() {}
 Remote::Remote(git_remote *remote) : d(remote, git_remote_free) {}
 
 QString Remote::name() const {
-  QString name = git_remote_name(d.data());
+  QString name = git_remote_name(d.get());
   return !name.isEmpty() ? name : url();
 }
 
 void Remote::setName(const QString &name) {
   git_strarray problems;
-  const char *current = git_remote_name(d.data());
-  git_repository *repo = git_remote_owner(d.data());
+  const char *current = git_remote_name(d.get());
+  git_repository *repo = git_remote_owner(d.get());
   if (git_remote_rename(&problems, repo, current, name.toUtf8()))
     return;
 
@@ -530,11 +530,11 @@ void Remote::setName(const QString &name) {
   git_strarray_dispose(&problems);
 }
 
-QString Remote::url() const { return git_remote_url(d.data()); }
+QString Remote::url() const { return git_remote_url(d.get()); }
 
 void Remote::setUrl(const QString &url) {
-  git_repository *repo = git_remote_owner(d.data());
-  git_remote_set_url(repo, git_remote_name(d.data()), url.toUtf8());
+  git_repository *repo = git_remote_owner(d.get());
+  git_remote_set_url(repo, git_remote_name(d.get()), url.toUtf8());
 }
 
 Result Remote::fetch(Callbacks *callbacks, bool tags, bool prune) {
@@ -563,7 +563,7 @@ Result Remote::fetch(Callbacks *callbacks, bool tags, bool prune) {
   // Write reflog message.
   QString msg = QString("fetch: %1").arg(name());
 
-  return git_remote_fetch(d.data(), nullptr, &opts, msg.toUtf8());
+  return git_remote_fetch(d.get(), nullptr, &opts, msg.toUtf8());
 }
 
 Result Remote::push(Callbacks *callbacks, const QStringList &refspecs) {
@@ -597,12 +597,12 @@ Result Remote::push(Callbacks *callbacks, const QStringList &refspecs) {
   git_strarray array;
   array.strings = raw.data();
   array.count = raw.size();
-  return git_remote_push(d.data(), &array, &opts);
+  return git_remote_push(d.get(), &array, &opts);
 }
 
 Result Remote::push(Callbacks *callbacks, const Reference &src,
                     const QString &dst, bool force, bool tags) {
-  Repository repo(git_remote_owner(d.data()));
+  Repository repo(git_remote_owner(d.get()));
   QString prefix = force ? "+" : QString();
   QString refspec = prefix + src.qualifiedName();
   if (!dst.isEmpty()) {

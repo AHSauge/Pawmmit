@@ -13,7 +13,7 @@
 #ifndef ANNOTATEDCOMMIT_H
 #define ANNOTATEDCOMMIT_H
 
-#include <QSharedPointer>
+#include <memory>
 
 struct git_annotated_commit;
 struct git_repository;
@@ -27,7 +27,7 @@ class AnnotatedCommit {
 public:
   AnnotatedCommit();
 
-  bool isValid() const { return !d.isNull(); }
+  bool isValid() const { return d != nullptr; }
 
   Commit commit() const;
 
@@ -38,7 +38,7 @@ private:
   operator git_annotated_commit *() const;
 
   git_repository *repo;
-  QSharedPointer<git_annotated_commit> d;
+  std::shared_ptr<git_annotated_commit> d;
 
   friend class Commit;
   friend class Branch;

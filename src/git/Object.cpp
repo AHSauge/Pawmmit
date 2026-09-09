@@ -18,19 +18,19 @@ namespace git {
 
 Object::Object(git_object *obj) : d(obj, git_object_free) {}
 
-Object::operator const git_oid *() const { return git_object_id(d.data()); }
+Object::operator const git_oid *() const { return git_object_id(d.get()); }
 
-Object::operator const git_object *() const { return d.data(); }
+Object::operator const git_object *() const { return d.get(); }
 
-Repository Object::repo() const { return git_object_owner(d.data()); }
+Repository Object::repo() const { return git_object_owner(d.get()); }
 
-git_object_t Object::type() const { return git_object_type(d.data()); }
+git_object_t Object::type() const { return git_object_type(d.get()); }
 
-Id Object::id() const { return git_object_id(d.data()); }
+Id Object::id() const { return git_object_id(d.get()); }
 
 QString Object::shortId() const {
   git_buf buf = GIT_BUF_INIT;
-  git_object_short_id(&buf, d.data());
+  git_object_short_id(&buf, d.get());
   QByteArray result(buf.ptr, buf.size);
   git_buf_dispose(&buf);
   return result;

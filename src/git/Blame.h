@@ -17,7 +17,8 @@ struct git_signature;
 struct git_repository;
 
 #include "git2/blame.h"
-#include <QSharedPointer>
+#include <QString>
+#include <memory>
 
 namespace git {
 
@@ -35,7 +36,7 @@ public:
 
   Blame();
 
-  bool isValid() const { return !d.isNull(); }
+  bool isValid() const { return d != nullptr; }
 
   int count() const;
   int index(int line) const;
@@ -53,7 +54,7 @@ protected:
   Blame(git_blame *blame, git_repository *repo);
 
   git_repository *repo;
-  QSharedPointer<git_blame> d;
+  std::shared_ptr<git_blame> d;
 
   friend class Repository;
 };

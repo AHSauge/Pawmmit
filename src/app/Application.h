@@ -45,8 +45,8 @@ private:
   void handleSslErrors(QNetworkReply *reply, const QList<QSslError> &errors);
 
   QString mPathspec = QString();
-  QScopedPointer<Theme> mTheme;
-  QScopedPointer<QTemporaryDir> mTempSettingsDir;
+  std::unique_ptr<Theme> mTheme;
+  std::unique_ptr<QTemporaryDir> mTempSettingsDir;
   QStringList mPositionalArguments;
 
   static bool mIsInTest;

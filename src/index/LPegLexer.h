@@ -14,7 +14,7 @@
 #define LPEGLEXER_H
 
 #include "Lexer.h"
-#include <QSharedPointer>
+#include <memory>
 
 struct lua_State;
 
@@ -31,7 +31,7 @@ public:
   Lexeme next() override;
 
 private:
-  QSharedPointer<lua_State> mL;
+  std::shared_ptr<lua_State> mL;
   QByteArray mName;
 
   int mIndex;

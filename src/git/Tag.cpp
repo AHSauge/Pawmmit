@@ -19,14 +19,12 @@ Tag::Tag() : Object() {}
 
 Tag::Tag(const Object &rhs) : Object(rhs) {
   if (isValid() && type() != GIT_OBJECT_TAG)
-    d.clear();
+    d.reset();
 }
 
 Tag::Tag(git_tag *tag) : Object(reinterpret_cast<git_object *>(tag)) {}
 
-Tag::operator git_tag *() const {
-  return reinterpret_cast<git_tag *>(d.data());
-}
+Tag::operator git_tag *() const { return reinterpret_cast<git_tag *>(d.get()); }
 
 Signature Tag::tagger() const {
   return const_cast<git_signature *>(git_tag_tagger(*this));
