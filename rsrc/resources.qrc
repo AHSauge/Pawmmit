@@ -1,13 +1,13 @@
 <RCC>
     <qresource prefix="/">
-        <file>Gittyup.iconset/icon_128x128.png</file>
-        <file>Gittyup.iconset/icon_128x128@2x.png</file>
-        <file>Gittyup.iconset/icon_16x16.png</file>
-        <file>Gittyup.iconset/icon_16x16@2x.png</file>
-        <file>Gittyup.iconset/icon_32x32.png</file>
-        <file>Gittyup.iconset/icon_32x32@2x.png</file>
-        <file>Gittyup.iconset/icon_64x64.png</file>
-        <file>Gittyup.iconset/icon_64x64@2x.png</file>
+        <file>Pawmmit.iconset/icon_128x128.png</file>
+        <file>Pawmmit.iconset/icon_128x128@2x.png</file>
+        <file>Pawmmit.iconset/icon_16x16.png</file>
+        <file>Pawmmit.iconset/icon_16x16@2x.png</file>
+        <file>Pawmmit.iconset/icon_32x32.png</file>
+        <file>Pawmmit.iconset/icon_32x32@2x.png</file>
+        <file>Pawmmit.iconset/icon_64x64.png</file>
+        <file>Pawmmit.iconset/icon_64x64@2x.png</file>
         <file>beanstalk.png</file>
         <file>bitbucket.png</file>
         <file>branches.png</file>
@@ -67,6 +67,5 @@
         <file>misc.png</file>
         <file>misc@2x.png</file>
         <file>logo-type_light@2x.png</file>
-        <file>liberapay_icon_130890.png</file>
     </qresource>
 </RCC>

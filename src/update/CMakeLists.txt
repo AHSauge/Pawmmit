@@ -19,21 +19,21 @@ target_link_libraries(
 
 set_target_properties(update PROPERTIES AUTOMOC ON)
 
-add_executable(gittyup-relauncher relauncher.cpp)
-target_link_libraries(gittyup-relauncher Qt6::Core)
+add_executable(pawmmit-relauncher relauncher.cpp)
+target_link_libraries(pawmmit-relauncher Qt6::Core)
 
-set_target_properties(gittyup-relauncher PROPERTIES RUNTIME_OUTPUT_DIRECTORY
-                                                    $<TARGET_FILE_DIR:gittyup>)
+set_target_properties(pawmmit-relauncher PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+                                                    $<TARGET_FILE_DIR:pawmmit>)
 
 if(APPLE)
   set_target_properties(
-    gittyup-relauncher PROPERTIES INSTALL_RPATH
+    pawmmit-relauncher PROPERTIES INSTALL_RPATH
                                   "/usr/local/qt;@loader_path/../Frameworks")
 elseif(UNIX)
-  set_target_properties(gittyup-relauncher PROPERTIES INSTALL_RPATH "$ORIGIN")
+  set_target_properties(pawmmit-relauncher PROPERTIES INSTALL_RPATH "$ORIGIN")
 
   install(
-    TARGETS gittyup-relauncher
+    TARGETS pawmmit-relauncher
     DESTINATION ${CMAKE_INSTALL_BINDIR}
-    COMPONENT ${GITTYUP_NAME})
+    COMPONENT ${PAWMMIT_NAME})
 endif()

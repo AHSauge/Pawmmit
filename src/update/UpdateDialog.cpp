@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -50,7 +53,7 @@ UpdateDialog::UpdateDialog(const QString &platform, const QString &version,
   setAttribute(Qt::WA_DeleteOnClose);
   setWindowTitle(tr("Update %1").arg(appName));
 
-  QIcon icon(":/Gittyup.iconset/icon_128x128.png");
+  QIcon icon(":/Pawmmit.iconset/icon_128x128.png");
   IconLabel *iconLabel = new IconLabel(icon, 128, 128, this);
 
   QVBoxLayout *iconLayout = new QVBoxLayout;
@@ -146,18 +149,12 @@ UpdateDialog::UpdateDialog(const QString &platform, const QString &version,
 #endif // ENABLE_UPDATE
 
   QHBoxLayout *l = new QHBoxLayout();
-  QPushButton *supportButton =
-      new QPushButton(QIcon(":/liberapay_icon_130890.png"), tr("Donate"), this);
   QSpacerItem *spacer =
       new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Minimum);
 #if ENABLE_UPDATE
   l->addWidget(download);
 #endif // ENABLE_UPDATE
   l->addItem(spacer);
-  l->addWidget(supportButton);
-  connect(supportButton, &QPushButton::pressed, []() {
-    QDesktopServices::openUrl(QUrl(MenuBar::donationUrlLiberapay));
-  });
 
   QVBoxLayout *content = new QVBoxLayout;
   content->addWidget(new QLabel(label, this));
