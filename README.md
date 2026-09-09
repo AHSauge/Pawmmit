@@ -205,4 +205,11 @@ regressions. These are run using `ctest` in `<build-dir>`.
 License
 -------
 
-Gittyup and its predecessor GitAhead are licensed under the MIT license. See LICENSE.md for details.
+This project is licensed under the GNU General Public License, version 3 or
+(at your option) any later version. See [LICENSE.md](LICENSE.md) for the full
+text.
+
+Portions originate in Gittyup and its predecessor GitAhead, which were
+published under the MIT license. That MIT notice is retained in
+[NOTICE.md](NOTICE.md) and continues to apply to the pre-existing code; the
+combined work is distributed under the GPL as stated above.
