@@ -24,6 +24,7 @@
 #include "app/Theme.h"
 #include <QMap>
 #include <QScrollArea>
+#include <QTimer>
 
 class QCheckBox;
 class QVBoxLayout;
@@ -102,6 +103,14 @@ public:
    * \param enable
    */
   void enable(bool enable);
+
+  /*!
+   * \brief Set whether or not to show a spinner. This is useful to indicate
+   * waiting for slow-content to arrive
+   * \param loading Indicator whether we wait for something to load
+   */
+  void setLoading(bool loading);
+
   void setModel(DiffTreeModel *model);
   void diffTreeModelDataChanged(const QModelIndex &topLeft,
                                 const QModelIndex &bottomRight,
@@ -122,6 +131,7 @@ signals:
 protected:
   void dropEvent(QDropEvent *event) override;
   void dragEnterEvent(QDragEnterEvent *event) override;
+  void paintEvent(QPaintEvent *event) override;
 
 private:
   bool canFetchMore();
@@ -145,6 +155,10 @@ private:
   DiffTreeModel *mDiffTreeModel{nullptr};
   QWidget *mParent{nullptr};
   QVBoxLayout *mFileWidgetLayout{nullptr};
+
+  float mLoadingFadein = 0;
+  int mProgress{0};
+  QTimer mTimer;
 };
 
 #endif

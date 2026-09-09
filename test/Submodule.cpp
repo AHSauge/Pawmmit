@@ -97,13 +97,13 @@ void TestSubmodule::updateSubmoduleClone() {
     QVERIFY(s.isInitialized());
   }
 
-  // Close the window so it doesn't outlive this test: MainWindow::open()
-  // heap-allocates it, and while alive it stays connected to the global
-  // RecentRepositories signal, reacting to later tests' clones by
-  // re-reading this repo's directory after tempdir (above) has been
+  // Close the window (and its tabs) now, before tempdir's destructor below
+  // deletes the cloned repo out from under it -- otherwise it lingers as a
+  // dangling tab that later tests' sidebar refreshes can trip over. Window
+  // actually gone before this function (and tempdir) returns.
   // deleted.
   window->close();
-  qWait(0); // let the WA_DeleteOnClose deferred deletion run now
+  qWait(0);
 }
 
 void TestSubmodule::noUpdateSubmoduleClone() {
@@ -149,7 +149,7 @@ void TestSubmodule::noUpdateSubmoduleClone() {
     QCOMPARE(s.isInitialized(), false);
   }
 
-  // Close the window so it doesn't outlive this test; see comment in
+  // Close the window (and its tabs) now, before tempdir's destructor below
   // updateSubmoduleClone().
   window->close();
   qWait(0); // let the WA_DeleteOnClose deferred deletion run now

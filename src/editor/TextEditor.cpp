@@ -77,7 +77,7 @@ QString expandThemeMacro(QString value, const QVariantMap &props) {
 // NOTE: This is AI generated code
 void applyThemeStyleSpec(ScintillaEdit *editor, int style,
                          const QString &spec) {
-  foreach (QString token, spec.split(',', Qt::SkipEmptyParts)) {
+  for (QString token : spec.split(',', Qt::SkipEmptyParts)) {
     token = token.trimmed();
     int colon = token.indexOf(':');
     if (colon < 0) {
