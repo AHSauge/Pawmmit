@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -113,7 +116,7 @@ QVariant TreeModel::data(const QModelIndex &index, int role) const {
 
       int count = 0;
       git::Index index = mDiff.index();
-      foreach (const QString &path, paths) {
+      for (const QString &path : paths) {
         // isStaged on folders does not work, because folder cannot be staged
         switch (index.isStaged(path)) {
           case git::Index::Disabled:

@@ -5,12 +5,12 @@ set(MAC $<PLATFORM_ID:Darwin>)
 
 # Windows packaging is x64-only. (CMake's WIN32 is true for any Windows ABI,
 # including obsolete 32-bit toolchains.)
-set(GITTYUP_PACK_WIN64 OFF)
+set(PAWMMIT_PACK_WIN64 OFF)
 if(WIN32)
   if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
-    message(FATAL_ERROR "Gittyup packaging: Windows is 64-bit (x64) only.")
+    message(FATAL_ERROR "Pawmmit packaging: Windows is 64-bit (x64) only.")
   endif()
-  set(GITTYUP_PACK_WIN64 ON)
+  set(PAWMMIT_PACK_WIN64 ON)
 endif()
 
 # Install Qt plugins.
@@ -18,7 +18,7 @@ set(QT_PLUGINS QJpegPlugin)
 
 if(APPLE)
   set(QT_PLUGINS ${QT_PLUGINS} QCocoaIntegrationPlugin QMacStylePlugin)
-elseif(GITTYUP_PACK_WIN64)
+elseif(PAWMMIT_PACK_WIN64)
   set(QT_PLUGINS ${QT_PLUGINS} QWindowsIntegrationPlugin
                  QModernWindowsStylePlugin)
 else()
@@ -26,7 +26,7 @@ else()
                  QComposePlatformInputContextPlugin)
 endif()
 
-if(GITTYUP_PACK_WIN64)
+if(PAWMMIT_PACK_WIN64)
   set(INSTALL_LIBDIR ${CMAKE_INSTALL_BINDIR})
 elseif(NOT APPLE)
   set(INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
@@ -35,7 +35,7 @@ else()
 endif()
 
 if(FLATPAK)
-  qt_import_plugins(gittyup INCLUDE ${QT_PLUGINS})
+  qt_import_plugins(pawmmit INCLUDE ${QT_PLUGINS})
 elseif(NOT USE_SYSTEM_QT)
   foreach(QT_PLUGIN ${QT_PLUGINS})
     if(NOT TARGET Qt6::${QT_PLUGIN})
@@ -59,9 +59,9 @@ elseif(NOT USE_SYSTEM_QT)
         GROUP_EXECUTE
         WORLD_READ
         WORLD_EXECUTE
-      COMPONENT ${GITTYUP_NAME})
+      COMPONENT ${PAWMMIT_NAME})
 
-    if(GITTYUP_PACK_WIN64)
+    if(PAWMMIT_PACK_WIN64)
       # Copy into build dir.
       execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PLUGIN}
                               ${CMAKE_BINARY_DIR}/${PLUGIN_PATH})
@@ -74,13 +74,13 @@ elseif(NOT USE_SYSTEM_QT)
             -s \"${CODESIGN_IDENTITY}\"
             \${CMAKE_INSTALL_PREFIX}/${CONTENTS_DIR}/${PLUGIN_PATH}
           )"
-          COMPONENT ${GITTYUP_NAME})
+          COMPONENT ${PAWMMIT_NAME})
       endif()
     else()
       # Delete runpath.
       install(CODE "execute_process(COMMAND chrpath --delete
           \${CMAKE_INSTALL_PREFIX}/${PLUGIN_PATH}
-        )" COMPONENT ${GITTYUP_NAME})
+        )" COMPONENT ${PAWMMIT_NAME})
     endif()
   endforeach()
 
@@ -100,13 +100,13 @@ elseif(NOT USE_SYSTEM_QT)
       install(
         DIRECTORY ${QT_FRAMEWORK}
         DESTINATION ${DEST_DIR}
-        COMPONENT ${GITTYUP_NAME}
+        COMPONENT ${PAWMMIT_NAME}
         PATTERN "*.prl" EXCLUDE
         PATTERN "*_debug" EXCLUDE
         PATTERN "Headers" EXCLUDE
         PATTERN ".DS_Store" EXCLUDE)
     else()
-      if(GITTYUP_PACK_WIN64)
+      if(PAWMMIT_PACK_WIN64)
         get_filename_component(TARGET_NAME ${QT_LIBRARY} NAME)
 
         # Copy into build dir.
@@ -129,14 +129,14 @@ elseif(NOT USE_SYSTEM_QT)
           GROUP_EXECUTE
           WORLD_READ
           WORLD_EXECUTE
-        COMPONENT ${GITTYUP_NAME}
+        COMPONENT ${PAWMMIT_NAME}
         RENAME ${TARGET_NAME})
 
-      if(NOT GITTYUP_PACK_WIN64)
+      if(NOT PAWMMIT_PACK_WIN64)
         # Delete runpath.
         install(CODE "execute_process(COMMAND chrpath --delete
             \${CMAKE_INSTALL_PREFIX}/${TARGET_NAME}
-          )" COMPONENT ${GITTYUP_NAME})
+          )" COMPONENT ${PAWMMIT_NAME})
       endif()
     endif()
   endforeach()
@@ -145,7 +145,7 @@ endif()
 # Install SSL libraries.
 if(NOT APPLE)
   if(NOT USE_SYSTEM_OPENSSL)
-    if(GITTYUP_PACK_WIN64)
+    if(PAWMMIT_PACK_WIN64)
       set(SSL_LIB_SUFFIX "-3-x64.dll")
     else()
       set(SSL_LIB_SUFFIX ".so.3")
@@ -169,14 +169,14 @@ if(NOT APPLE)
           GROUP_EXECUTE
           WORLD_READ
           WORLD_EXECUTE
-        COMPONENT ${GITTYUP_NAME})
+        COMPONENT ${PAWMMIT_NAME})
     endforeach()
   endif()
 
-  # libssh2 (submodule) installs its DLL without COMPONENT ${GITTYUP_NAME};
-  # CPack only installs that component, so ship the DLL from Gittyup's pack
+  # libssh2 (submodule) installs its DLL without COMPONENT ${PAWMMIT_NAME};
+  # CPack only installs that component, so ship the DLL from Pawmmit's pack
   # rules.
-  if(GITTYUP_PACK_WIN64
+  if(PAWMMIT_PACK_WIN64
      AND NOT USE_SYSTEM_LIBSSH2
      AND TARGET libssh2_shared)
     install(
@@ -190,33 +190,33 @@ if(NOT APPLE)
         GROUP_EXECUTE
         WORLD_READ
         WORLD_EXECUTE
-      COMPONENT ${GITTYUP_NAME})
+      COMPONENT ${PAWMMIT_NAME})
   endif()
 
-  if(GITTYUP_PACK_WIN64 OR APPLE)
+  if(PAWMMIT_PACK_WIN64 OR APPLE)
     # Install config files.
     set(QT_CONF ${CONF_DIR}/qt.conf)
     install(
       FILES ${QT_CONF}
       DESTINATION
         $<${MAC}:${RESOURCES_DIR}>$<$<PLATFORM_ID:Windows>:${INSTALL_LIBDIR}>
-      COMPONENT ${GITTYUP_NAME})
+      COMPONENT ${PAWMMIT_NAME})
   endif()
 endif()
 
 if(UNIX AND NOT APPLE)
   foreach(icon 16 32 64 128 256 512)
     install(
-      FILES ${RSRC_DIR}/Gittyup.iconset/icon_${icon}x${icon}.png
+      FILES ${RSRC_DIR}/Pawmmit.iconset/icon_${icon}x${icon}.png
       DESTINATION share/icons/hicolor/${icon}x${icon}/apps
-      COMPONENT ${GITTYUP_NAME}
-      RENAME ${GITTYUP_EXECUTABLE_NAME}.png)
+      COMPONENT ${PAWMMIT_NAME}
+      RENAME ${PAWMMIT_EXECUTABLE_NAME}.png)
   endforeach()
   install(
-    FILES ${RSRC_DIR}/Gittyup.iconset/gittyup_logo.svg
+    FILES ${RSRC_DIR}/Pawmmit.iconset/pawmmit_logo.svg
     DESTINATION share/icons/hicolor/scalable/apps
-    COMPONENT ${GITTYUP_NAME}
-    RENAME ${GITTYUP_EXECUTABLE_NAME}.svg)
+    COMPONENT ${PAWMMIT_NAME}
+    RENAME ${PAWMMIT_EXECUTABLE_NAME}.svg)
 endif()
 
 # Sign bundle on macOS.
@@ -225,31 +225,31 @@ if(APPLE AND CODESIGN_IDENTITY)
     CODE "execute_process(COMMAND
       codesign --deep --timestamp --options runtime
         -s \"${CODESIGN_IDENTITY}\"
-        \${CMAKE_INSTALL_PREFIX}/${GITTYUP_EXECUTABLE_NAME}.app
+        \${CMAKE_INSTALL_PREFIX}/${PAWMMIT_EXECUTABLE_NAME}.app
     )"
-    COMPONENT ${GITTYUP_NAME})
+    COMPONENT ${PAWMMIT_NAME})
 endif()
 
 # Add package rule.
 if(APPLE)
   set(CPACK_GENERATOR DragNDrop)
-  set(CPACK_DMG_VOLUME_NAME ${GITTYUP_NAME})
-  set(CPACK_DMG_DS_STORE ${RSRC_DIR}/DS_Store)
+  set(CPACK_DMG_VOLUME_NAME ${PAWMMIT_NAME})
   set(CPACK_DMG_BACKGROUND_IMAGE ${RSRC_DIR}/dmg-background.png)
-elseif(GITTYUP_PACK_WIN64)
+  set(CPACK_DMG_DS_STORE_SETUP_SCRIPT ${RSRC_DIR}/dmg-setup.applescript)
+elseif(PAWMMIT_PACK_WIN64)
   set(CPACK_GENERATOR NSIS)
   set(CPACK_NSIS_CREATE_ICONS_EXTRA
       "CreateShortCut \
-    \\\"$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\${GITTYUP_NAME}.lnk\\\" \
-    \\\"$INSTDIR\\\\${CMAKE_INSTALL_BINDIR}\\\\${GITTYUP_EXECUTABLE_NAME}.exe\\\""
+    \\\"$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\${PAWMMIT_NAME}.lnk\\\" \
+    \\\"$INSTDIR\\\\${CMAKE_INSTALL_BINDIR}\\\\${PAWMMIT_EXECUTABLE_NAME}.exe\\\""
   )
   set(CPACK_NSIS_EXECUTABLES_DIRECTORY ${CMAKE_INSTALL_BINDIR})
-  set(CPACK_NSIS_MUI_FINISHPAGE_RUN ${GITTYUP_EXECUTABLE_NAME}.exe)
+  set(CPACK_NSIS_MUI_FINISHPAGE_RUN ${PAWMMIT_EXECUTABLE_NAME}.exe)
 
   install(
     FILES ${RSRC_DIR}/vcredist_x64.exe
     DESTINATION .
-    COMPONENT ${GITTYUP_NAME})
+    COMPONENT ${PAWMMIT_NAME})
   set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS
       "ExecWait '\\\"$INSTDIR\\\\vcredist_x64.exe\\\" /q /norestart'")
   set(PLATFORM "-win64")
@@ -263,50 +263,50 @@ else()
   set(BUILD_TAG "")
 endif()
 set(PACKAGE_FILE_NAME
-    "${GITTYUP_NAME}${PLATFORM}-${GITTYUP_VERSION}${BUILD_TAG}")
+    "${PAWMMIT_NAME}${PLATFORM}-${PAWMMIT_VERSION}${BUILD_TAG}")
 
 set(CPACK_MONOLITHIC_INSTALL true)
-set(CPACK_INSTALL_CMAKE_PROJECTS ${CMAKE_BINARY_DIR} ${GITTYUP_NAME}
-                                 ${GITTYUP_NAME} /)
+set(CPACK_INSTALL_CMAKE_PROJECTS ${CMAKE_BINARY_DIR} ${PAWMMIT_NAME}
+                                 ${PAWMMIT_NAME} /)
 
 # Add Context Menu Shortcuts
-if(GITTYUP_PACK_WIN64)
+if(PAWMMIT_PACK_WIN64)
   set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS
       "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
-    WriteRegStr HKCR 'Directory\\\\Background\\\\shell\\\\Gittyup' '' 'Open with Gittyup'
-    WriteRegStr HKCR 'Directory\\\\Background\\\\shell\\\\Gittyup' 'Icon' '\\\"$INSTDIR\\\\${CMAKE_INSTALL_BINDIR}\\\\${GITTYUP_EXECUTABLE_NAME}.exe\\\"'
-    WriteRegStr HKCR 'Directory\\\\Background\\\\shell\\\\Gittyup\\\\command' '' '\\\"$INSTDIR\\\\${CMAKE_INSTALL_BINDIR}\\\\${GITTYUP_EXECUTABLE_NAME}.exe\\\" \\\"%V\\\"'
-    WriteRegStr HKCR 'Directory\\\\shell\\\\Gittyup' '' 'Open with Gittyup'
-    WriteRegStr HKCR 'Directory\\\\shell\\\\Gittyup' 'Icon' '\\\"$INSTDIR\\\\${CMAKE_INSTALL_BINDIR}\\\\${GITTYUP_EXECUTABLE_NAME}.exe\\\"'
-    WriteRegStr HKCR 'Directory\\\\shell\\\\Gittyup\\\\command' '' '\\\"$INSTDIR\\\\${CMAKE_INSTALL_BINDIR}\\\\${GITTYUP_EXECUTABLE_NAME}.exe\\\" \\\"%L\\\"'"
+    WriteRegStr HKCR 'Directory\\\\Background\\\\shell\\\\Pawmmit' '' 'Open with Pawmmit'
+    WriteRegStr HKCR 'Directory\\\\Background\\\\shell\\\\Pawmmit' 'Icon' '\\\"$INSTDIR\\\\${CMAKE_INSTALL_BINDIR}\\\\${PAWMMIT_EXECUTABLE_NAME}.exe\\\"'
+    WriteRegStr HKCR 'Directory\\\\Background\\\\shell\\\\Pawmmit\\\\command' '' '\\\"$INSTDIR\\\\${CMAKE_INSTALL_BINDIR}\\\\${PAWMMIT_EXECUTABLE_NAME}.exe\\\" \\\"%V\\\"'
+    WriteRegStr HKCR 'Directory\\\\shell\\\\Pawmmit' '' 'Open with Pawmmit'
+    WriteRegStr HKCR 'Directory\\\\shell\\\\Pawmmit' 'Icon' '\\\"$INSTDIR\\\\${CMAKE_INSTALL_BINDIR}\\\\${PAWMMIT_EXECUTABLE_NAME}.exe\\\"'
+    WriteRegStr HKCR 'Directory\\\\shell\\\\Pawmmit\\\\command' '' '\\\"$INSTDIR\\\\${CMAKE_INSTALL_BINDIR}\\\\${PAWMMIT_EXECUTABLE_NAME}.exe\\\" \\\"%L\\\"'"
   )
   set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS
       "${CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS}
-    DeleteRegKey HKCR 'Directory\\\\Background\\\\shell\\\\Gittyup'
-    DeleteRegKey HKCR 'Directory\\\\shell\\\\Gittyup'")
+    DeleteRegKey HKCR 'Directory\\\\Background\\\\shell\\\\Pawmmit'
+    DeleteRegKey HKCR 'Directory\\\\shell\\\\Pawmmit'")
 endif()
 
 set(CPACK_PACKAGE_FILE_NAME ${PACKAGE_FILE_NAME})
 set(CPACK_PACKAGE_DIRECTORY ${CMAKE_BINARY_DIR}/pack)
-set(CPACK_PACKAGE_INSTALL_DIRECTORY ${GITTYUP_NAME})
-set(CPACK_PACKAGE_VENDOR "Gittyup Contributors")
-set(CPACK_PACKAGE_VERSION_MAJOR ${GITTYUP_VERSION_MAJOR})
-set(CPACK_PACKAGE_VERSION_MINOR ${GITTYUP_VERSION_MINOR})
-set(CPACK_PACKAGE_VERSION_PATCH ${GITTYUP_VERSION_PATCH})
+set(CPACK_PACKAGE_INSTALL_DIRECTORY ${PAWMMIT_NAME})
+set(CPACK_PACKAGE_VENDOR "Pawmmit Contributors")
+set(CPACK_PACKAGE_VERSION_MAJOR ${PAWMMIT_VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR ${PAWMMIT_VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH ${PAWMMIT_VERSION_PATCH})
 
-if(GITTYUP_PACK_WIN64)
+if(PAWMMIT_PACK_WIN64)
   set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/LICENSE.md)
 else()
   install(
     FILES ${CMAKE_SOURCE_DIR}/LICENSE.md
-    DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/Gittyup
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/Pawmmit
     RENAME LICENSE)
 endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 include(CPack)
 
-if(GITTYUP_PACK_WIN64)
+if(PAWMMIT_PACK_WIN64)
   set(PACKAGE_DIR ${CMAKE_BINARY_DIR}/${PACKAGE_FILE_NAME})
 
   # Add target to package and sign executable.
@@ -321,13 +321,13 @@ if(GITTYUP_PACK_WIN64)
     ${CERTIFICATE_PASSWORD}
     ${CMAKE_BINARY_DIR}/${PACKAGE_FILE_NAME}.exe
     COMMAND ${CMAKE_COMMAND} -E make_directory ${PACKAGE_DIR}
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/Gittyup.exe
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/Pawmmit.exe
             ${PACKAGE_DIR}
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/Gittyup.pdb
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/Pawmmit.pdb
             ${PACKAGE_DIR}
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/gittyup-indexer.exe
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/pawmmit-indexer.exe
             ${PACKAGE_DIR}
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/gittyup-indexer.pdb
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/pawmmit-indexer.pdb
             ${PACKAGE_DIR})
 
   add_dependencies(deploy package)

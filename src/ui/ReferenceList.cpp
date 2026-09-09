@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -147,10 +150,10 @@ void ReferenceList::paintEvent(QPaintEvent *event) {
   style()->drawComplexControl(QStyle::CC_ComboBox, &opt, &painter, this);
 
   if (opt.currentText.isEmpty()) {
-    if (!mCommit.isValid())
-      return;
-
-    opt.currentText = mCommit.shortId();
+    if (mCommit.isValid())
+      opt.currentText = mCommit.shortId();
+    else
+      opt.currentText = tr("(Not set)");
   }
 
   QRect rect = style()->subControlRect(QStyle::CC_ComboBox, &opt,
@@ -160,7 +163,12 @@ void ReferenceList::paintEvent(QPaintEvent *event) {
 
   // Draw kind.
   git::Reference ref = currentReference();
-  QString kind = ref.isValid() ? ReferenceView::kindString(ref) : tr("Commit");
+  QString kind;
+  if (ref.isValid())
+    kind = ReferenceView::kindString(ref);
+  else if (mCommit.isValid())
+    kind = tr("Commit");
+
   if (!kind.isEmpty()) {
     painter.save();
     painter.setPen(palette().color(QPalette::Disabled, QPalette::Text));

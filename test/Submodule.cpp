@@ -1,8 +1,11 @@
 //
-//          Copyright (c) 2022, Gittyup Team
+//          Copyright (c) 2022, Pawmmit Team
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Martin Marmsoler
 //
@@ -24,8 +27,8 @@
 #include <QWizard>
 #include <QLineEdit>
 
-#define INIT_REPO(repoPath, /* bool */ useTempDir)                             \
-  QString path = Test::extractRepository(repoPath, useTempDir);                \
+#define INIT_REPO(repoPath)                                                    \
+  QString path = Test::extractRepository(repoPath);                            \
   QVERIFY(!path.isEmpty());                                                    \
   auto repo = git::Repository::open(path);                                     \
   QVERIFY(repo.isValid());                                                     \
@@ -53,7 +56,7 @@ private:
 
 void TestSubmodule::updateSubmoduleClone() {
   // Update submodules after cloning
-  QString remote = Test::extractRepository("SubmoduleTest.zip", true);
+  QString remote = Test::extractRepository("SubmoduleTest.zip");
   QCOMPARE(remote.isEmpty(), false);
 
   Settings *settings = Settings::instance();
@@ -61,14 +64,17 @@ void TestSubmodule::updateSubmoduleClone() {
   CloneDialog *d = new CloneDialog(CloneDialog::Kind::Clone);
 
   RepoView *view = nullptr;
+  MainWindow *window = nullptr;
 
   bool cloneFinished = false;
-  QObject::connect(d, &CloneDialog::accepted, [d, &view, &cloneFinished] {
-    cloneFinished = true;
-    if (MainWindow *window = MainWindow::open(d->path())) {
-      view = window->currentView();
-    }
-  });
+  QObject::connect(d, &CloneDialog::accepted,
+                   [d, &window, &view, &cloneFinished] {
+                     cloneFinished = true;
+                     window = MainWindow::open(d->path());
+                     if (window) {
+                       view = window->currentView();
+                     }
+                   });
 
   QTemporaryDir tempdir;
   QVERIFY(tempdir.isValid());
@@ -90,11 +96,19 @@ void TestSubmodule::updateSubmoduleClone() {
     QVERIFY(s.isValid());
     QVERIFY(s.isInitialized());
   }
+
+  // Close the window (and its tabs) now, before tempdir's destructor below
+  // deletes the cloned repo out from under it -- otherwise it lingers as a
+  // dangling tab that later tests' sidebar refreshes can trip over. Window
+  // actually gone before this function (and tempdir) returns.
+  // deleted.
+  window->close();
+  qWait(0);
 }
 
 void TestSubmodule::noUpdateSubmoduleClone() {
   // Don't update submodules after cloning
-  QString remote = Test::extractRepository("SubmoduleTest.zip", true);
+  QString remote = Test::extractRepository("SubmoduleTest.zip");
   QCOMPARE(remote.isEmpty(), false);
 
   Settings *settings = Settings::instance();
@@ -102,14 +116,17 @@ void TestSubmodule::noUpdateSubmoduleClone() {
   CloneDialog *d = new CloneDialog(CloneDialog::Kind::Clone);
 
   RepoView *view = nullptr;
+  MainWindow *window = nullptr;
 
   bool cloneFinished = false;
-  QObject::connect(d, &CloneDialog::accepted, [d, &view, &cloneFinished] {
-    cloneFinished = true;
-    if (MainWindow *window = MainWindow::open(d->path())) {
-      view = window->currentView();
-    }
-  });
+  QObject::connect(d, &CloneDialog::accepted,
+                   [d, &window, &view, &cloneFinished] {
+                     cloneFinished = true;
+                     window = MainWindow::open(d->path());
+                     if (window) {
+                       view = window->currentView();
+                     }
+                   });
 
   QTemporaryDir tempdir;
   QVERIFY(tempdir.isValid());
@@ -131,11 +148,16 @@ void TestSubmodule::noUpdateSubmoduleClone() {
     QVERIFY(s.isValid());
     QCOMPARE(s.isInitialized(), false);
   }
+
+  // Close the window (and its tabs) now, before tempdir's destructor below
+  // updateSubmoduleClone().
+  window->close();
+  qWait(0); // let the WA_DeleteOnClose deferred deletion run now
 }
 
 void TestSubmodule::discardFile() {
   // Discarding a file should not reset the submodule
-  INIT_REPO("SubmoduleTest.zip", true);
+  INIT_REPO("SubmoduleTest.zip");
   repoView->updateSubmodules(repo.submodules(), true, true);
 
   qWait(1000); // Not needed if the test is long enough and the fetch operation

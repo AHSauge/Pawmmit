@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -113,7 +116,7 @@ bool Updater::install(const DownloadRef &download, QString &error)
   QDir dir(QCoreApplication::applicationDirPath());
   QString app = QCoreApplication::applicationFilePath();
   QString pid = QString::number(QCoreApplication::applicationPid());
-  if (!QProcess::startDetached(dir.filePath("gittyup-relauncher"), {app, pid})) {
+  if (!QProcess::startDetached(dir.filePath("pawmmit-relauncher"), {app, pid})) {
     error = tr("Helper application failed to start");
     return false;
   }

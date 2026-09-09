@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Shane Gramlich
 //
@@ -77,6 +80,10 @@ public:
   virtual QColor heatMap(HeatMap color);
   virtual QColor remoteComment(Comment color);
   virtual QColor star();
+
+  // Editor (Scintilla/Scintillua) style definitions: theme.property['style.*']
+  // and theme.property['color.*'] entries from the theme's .lua file.
+  virtual QVariantMap editorStyleProperties() const;
 
   static Theme *create(const QString &name = QString());
 

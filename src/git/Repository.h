@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -17,6 +20,7 @@
 #include "Diff.h"
 #include "Index.h"
 #include "Rebase.h"
+#include "git2/apply.h"
 #include "git2/checkout.h"
 #include "git2/errors.h"
 #include "git2/revwalk.h"
@@ -115,6 +119,9 @@ public:
   Diff diffIndexToWorkdir(const Index &index = Index(),
                           Diff::Callbacks *callbacks = nullptr,
                           bool ignoreWhitespace = false) const;
+
+  bool applyDiff(const Diff &diff,
+                 git_apply_location_t location = GIT_APPLY_LOCATION_WORKDIR);
 
   // refs
   QList<Reference> refs() const;

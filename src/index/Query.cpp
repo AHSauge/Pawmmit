@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -105,7 +108,7 @@ public:
 
   QString toString() const override {
     QStringList terms;
-    foreach (const Index::Term &term, mTerms)
+    for (const Index::Term &term : mTerms)
       terms.append(term.text);
     Index::Field field = mTerms.first().field;
     return QString("%1:\"%2\"").arg(Index::fieldName(field), terms.join(" "));
@@ -128,8 +131,8 @@ public:
     for (int i = 1; i < mTerms.size(); ++i) {
       const Index::Term &term = mTerms.at(i);
       QMap<quint32, QMap<quint8, QSet<quint32>>> ids;
-      foreach (const Index::Posting &posting, index->postings(term, true)) {
-        foreach (quint32 pos, posting.positions)
+      for (const Index::Posting &posting : index->postings(term, true)) {
+        for (quint32 pos : posting.positions)
           ids[posting.id][posting.field].insert(pos);
       }
 
@@ -140,7 +143,7 @@ public:
           it.remove();
         } else {
           bool found = false;
-          foreach (quint32 pos, posting.positions) {
+          for (quint32 pos : posting.positions) {
             if (ids[posting.id][posting.field].contains(pos + offset)) {
               found = true;
               break;
@@ -193,7 +196,7 @@ public:
     } else {
       // Add commits that aren't already in the result set.
       QSet<git::Commit> set(commits.begin(), commits.end());
-      foreach (const git::Commit &commit, rhs) {
+      for (const git::Commit &commit : rhs) {
         if (!set.contains(commit))
           commits.append(commit);
       }

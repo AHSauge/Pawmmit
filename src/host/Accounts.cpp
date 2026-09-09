@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2018, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -28,7 +31,7 @@ int Accounts::indexOf(Account *account) const {
 
 Repository *Accounts::lookup(const QString &url) const {
   QUrl remote(url);
-  foreach (Account *account, mAccounts) {
+  for (Account *account : mAccounts) {
     for (int i = 0; i < account->repositoryCount(); ++i) {
       Repository *repo = account->repository(i);
       if (url == repo->url(Repository::Ssh))
@@ -44,7 +47,7 @@ Repository *Accounts::lookup(const QString &url) const {
 }
 
 Account *Accounts::lookup(const QString &username, Account::Kind kind) const {
-  foreach (Account *account, mAccounts) {
+  for (Account *account : mAccounts) {
     if (username == account->username() && kind == account->kind())
       return account;
   }

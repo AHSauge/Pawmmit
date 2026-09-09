@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2018, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -85,7 +88,7 @@ RecentRepositories *RecentRepositories::instance() {
 
 void RecentRepositories::store() {
   QStringList paths;
-  foreach (RecentRepository *repo, mRepos)
+  for (RecentRepository *repo : mRepos)
     paths.append(repo->gitpath());
 
   QSettings().setValue(kRecentKey, paths);
@@ -136,7 +139,7 @@ void RecentRepositories::load() {
    * In this case the complete paths are shown and not only 'repositoryname',
    * otherwise they are not distinguishable in the recent repository list:
    */
-  foreach (const QString &path, paths) {
+  for (const QString &path : paths) {
     RecentRepository *repo = new RecentRepository(path, this);
     auto functor = [repo](RecentRepository *rhs) {
       return (repo->name() == rhs->name());

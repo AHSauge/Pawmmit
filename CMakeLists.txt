@@ -1,17 +1,17 @@
 # 3.19+: install(FILES $<TARGET_FILE:...>) in pack/CMakeLists.txt (libssh2.dll).
 cmake_minimum_required(VERSION 3.19)
-project(Gittyup)
+project(Pawmmit)
 
 # Set name and version.
-set(GITTYUP_NAME "Gittyup")
-set(GITTYUP_EXECUTABLE_NAME "gittyup")
-set(GITTYUP_IDENTIFIER "com.github.Murmele.Gittyup")
-set(GITTYUP_ORGANIZATION_DOMAIN "Murmele.github.com")
-set(GITTYUP_VERSION_MAJOR 2)
-set(GITTYUP_VERSION_MINOR 0)
-set(GITTYUP_VERSION_PATCH 0)
-set(GITTYUP_VERSION
-    "${GITTYUP_VERSION_MAJOR}.${GITTYUP_VERSION_MINOR}.${GITTYUP_VERSION_PATCH}"
+set(PAWMMIT_NAME "Pawmmit")
+set(PAWMMIT_EXECUTABLE_NAME "pawmmit")
+set(PAWMMIT_IDENTIFIER "com.github.Pawmmit.Pawmmit")
+set(PAWMMIT_ORGANIZATION_DOMAIN "Pawmmit.github.com")
+set(PAWMMIT_VERSION_MAJOR 2)
+set(PAWMMIT_VERSION_MINOR 0)
+set(PAWMMIT_VERSION_PATCH 0)
+set(PAWMMIT_VERSION
+    "${PAWMMIT_VERSION_MAJOR}.${PAWMMIT_VERSION_MINOR}.${PAWMMIT_VERSION_PATCH}"
 )
 
 string(TIMESTAMP CURR_YEAR "%Y")
@@ -21,7 +21,7 @@ configure_file(${CMAKE_SOURCE_DIR}/LICENSE.md.in ${CMAKE_SOURCE_DIR}/LICENSE.md
 
 # Write version to file so it can be used also from external, for example in the
 # github manifest
-file(WRITE "${CMAKE_BINARY_DIR}/Version.txt" ${GITTYUP_VERSION})
+file(WRITE "${CMAKE_BINARY_DIR}/Version.txt" ${PAWMMIT_VERSION})
 
 set(DEV_BUILD
     ""
@@ -35,7 +35,7 @@ else()
 endif()
 
 # Generate build date.
-string(TIMESTAMP GITTYUP_BUILD_DATE)
+string(TIMESTAMP PAWMMIT_BUILD_DATE)
 
 # Lookup git revision.
 find_package(Git)
@@ -43,10 +43,10 @@ if(GIT_FOUND)
   execute_process(
     COMMAND ${GIT_EXECUTABLE} --git-dir=${CMAKE_SOURCE_DIR}/.git show -s
             --format=%h HEAD
-    OUTPUT_VARIABLE GITTYUP_BUILD_REVISION
+    OUTPUT_VARIABLE PAWMMIT_BUILD_REVISION
     OUTPUT_STRIP_TRAILING_WHITESPACE)
 else()
-  set(GITTYUP_BUILD_REVISION "unknown")
+  set(PAWMMIT_BUILD_REVISION "unknown")
 endif()
 
 # Explicitly disable shared libraries.
@@ -54,11 +54,11 @@ set(BUILD_SHARED_LIBS OFF)
 
 option(FLATPAK "Building for flatpak" OFF)
 option(DEBUG_FLATPAK "Building but using flatpak urls for testing" OFF)
-option(ENABLE_UPDATE_OVER_GUI "Enable updating from the Gittyup gui" ON)
+option(ENABLE_UPDATE_OVER_GUI "Enable updating from the Pawmmit gui" ON)
 option(USE_SYSTEM_OPENSSL "Use the system-wide OpenSSL installation" ON)
 option(
   USE_SYSTEM_LIBGIT2
-  "Use the system-wide libgit2 installation (Gittyup requires the current development branch)"
+  "Use the system-wide libgit2 installation (Pawmmit requires the current development branch)"
   OFF)
 option(USE_SYSTEM_LIBSSH2 "Use the system-wide libssh2 installation" ON)
 option(USE_SYSTEM_GIT "Use the system-wide GIT installation" OFF)
@@ -66,7 +66,7 @@ option(USE_SYSTEM_QT "Don't copy QT files into the installation directory" ON)
 option(USE_SYSTEM_LUA "Use the system-wide Lua installation" OFF)
 option(USE_SYSTEM_HUNSPELL "Use the system-wide hunspell installation" OFF)
 option(USE_SYSTEM_CMARK "Use the system-wide cmark installation" OFF)
-option(ENABLE_TESTS "Enable Gittyup Unittests" ON)
+option(ENABLE_TESTS "Enable Pawmmit Unittests" ON)
 
 # Typically system libgit2 does NOT have experimental settings enabled, hence we
 # need to disable SHA256 support
@@ -75,7 +75,7 @@ if(USE_SYSTEM_LIBGIT2)
 else()
   set(_DEFAULT_ENABLE_SHA256 ON)
 endif()
-option(ENABLE_SHA256 "Enable SHA256 support within Gittyup"
+option(ENABLE_SHA256 "Enable SHA256 support within Pawmmit"
        ${_DEFAULT_ENABLE_SHA256})
 
 set(LUA_MODULES_PATH
@@ -113,7 +113,14 @@ elseif(UNIX AND NOT APPLE)
 endif()
 
 # Find Qt modules.
-set(QT_MODULES Concurrent Core Gui Network Widgets Test)
+set(QT_MODULES
+    Concurrent
+    Core
+    Core5Compat
+    Gui
+    Network
+    Widgets
+    Test)
 
 if(UNIX)
   set(QT_MODULES ${QT_MODULES} DBus)
@@ -178,12 +185,12 @@ if(APPLE)
 endif()
 
 if(APPLE)
-  set(CONTENTS_DIR ${GITTYUP_EXECUTABLE_NAME}.app/Contents)
+  set(CONTENTS_DIR ${PAWMMIT_EXECUTABLE_NAME}.app/Contents)
   set(RESOURCES_DIR ${CONTENTS_DIR}/Resources)
   set(L10N_INSTALL_DIR ${RESOURCES_DIR}/l10n)
 elseif(UNIX)
-  set(L10N_INSTALL_DIR ${CMAKE_INSTALL_LOCALEDIR}/${GITTYUP_NAME})
-  set(RESOURCES_DIR ${CMAKE_INSTALL_DATADIR}/${GITTYUP_NAME})
+  set(L10N_INSTALL_DIR ${CMAKE_INSTALL_LOCALEDIR}/${PAWMMIT_NAME})
+  set(RESOURCES_DIR ${CMAKE_INSTALL_DATADIR}/${PAWMMIT_NAME})
 else()
   set(L10N_INSTALL_DIR Resources/l10n)
   set(RESOURCES_DIR Resources)

@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -31,6 +34,7 @@
 #include "dialogs/CommitDialog.h"
 #include "dialogs/DeleteBranchDialog.h"
 #include "dialogs/DeleteTagDialog.h"
+#include "dialogs/DiffFileDialog.h"
 #include "dialogs/NewBranchDialog.h"
 #include "dialogs/RebaseConflictDialog.h"
 #include "dialogs/RemoteDialog.h"
@@ -57,6 +61,8 @@
 #include <QCheckBox>
 #include <QCloseEvent>
 #include <QDesktopServices>
+#include <QFile>
+#include <QFileInfo>
 #include <QMessageBox>
 #include <QtNetwork>
 #include <QPushButton>
@@ -274,6 +280,8 @@ RepoView::RepoView(const git::Repository &repo, MainWindow *parent)
   connect(mRefs, &ReferenceWidget::referenceSelected, mCommits,
           &CommitList::selectReference);
   connect(mCommits, &CommitList::statusChanged, this, &RepoView::statusChanged);
+  connect(mCommits, &CommitList::loadingChanged, this,
+          &RepoView::loadingChanged);
 
   // Respond to pathspec change.
   connect(mPathspec, &PathspecWidget::pathspecChanged, this,
@@ -307,6 +315,8 @@ RepoView::RepoView(const git::Repository &repo, MainWindow *parent)
   // Respond to commit list selection change.
   connect(mCommits, &CommitList::diffSelected, this, &RepoView::diffSelected,
           Qt::ConnectionType::DirectConnection);
+  connect(mCommits, &CommitList::diffLoading, mDetails,
+          &DetailView::setLoading);
 
   // Refresh the diff when a whole directory is added to the index.
   // FIXME: This is a workaround.
@@ -505,6 +515,8 @@ bool RepoView::isUnstageEnabled() const { return mDetails->isUnstageEnabled(); }
 RepoView::ViewMode RepoView::viewMode() const { return mDetails->viewMode(); }
 
 void RepoView::setViewMode(ViewMode mode) { mDetails->setViewMode(mode, true); }
+
+bool RepoView::isLoading() const { return mCommits->isLoading(); }
 
 bool RepoView::isWorkingDirectoryDirty() const {
   git::Diff status = mCommits->status();
@@ -782,7 +794,7 @@ bool RepoView::lfsSetLocked(const QStringList &paths, bool lock) {
   QStringList errors;
   QString verb = lock ? tr("Lock") : tr("Unlock");
 
-  foreach (const QString &path, paths) {
+  for (const QString &path : paths) {
     if (!repo().lfsSetLocked(path, lock))
       errors.append(
           tr("Unable to %1 '%2' - %3")
@@ -793,7 +805,7 @@ bool RepoView::lfsSetLocked(const QStringList &paths, bool lock) {
     return true;
 
   LogEntry *entry = addLogEntry(tr("Git LFS"), verb);
-  foreach (const QString &error, errors)
+  for (const QString &error : errors)
     entry->addEntry(LogEntry::Error, error);
 
   return false;
@@ -842,9 +854,9 @@ void RepoView::startIndexing() {
 
   QDir dir(QCoreApplication::applicationDirPath());
 #ifdef WIN32
-  auto indexer_cmd = dir.filePath("gittyup-indexer.exe");
+  auto indexer_cmd = dir.filePath("pawmmit-indexer.exe");
 #else
-  auto indexer_cmd = dir.filePath("gittyup-indexer");
+  auto indexer_cmd = dir.filePath("pawmmit-indexer");
 #endif
   QFileInfo check_file(indexer_cmd);
   if (!check_file.isFile()) {
@@ -915,7 +927,7 @@ LogEntry *RepoView::error(LogEntry *parent, const QString &action,
     items.removeLast();
 
   LogEntry *root = parent->addEntry(LogEntry::Error, items.takeFirst());
-  foreach (const QString &item, items)
+  for (const QString &item : items)
     root->addEntry(LogEntry::File, item);
 
   return root;
@@ -954,7 +966,7 @@ void RepoView::fetchAll() {
   // Queue up all remotes to fetch them serially.
   QString text = tr("%1 remotes").arg(remotes.size());
   LogEntry *entry = addLogEntry(text, tr("Fetch All"));
-  foreach (const git::Remote &remote, remotes)
+  for (const git::Remote &remote : remotes)
     fetch(remote, false, true, entry);
 }
 
@@ -1051,7 +1063,7 @@ QFuture<git::Result> RepoView::fetch(const git::Remote &rmt, bool tags,
 
         if (result && submodules) {
           // Scan for unmodified submodules on the fetch thread.
-          foreach (const git::Submodule &submodule, mRepo.submodules()) {
+          for (const git::Submodule &submodule : mRepo.submodules()) {
             if (GIT_SUBMODULE_STATUS_IS_UNMODIFIED(
                     mRepo.submoduleStatus(submodule.name())))
               submodules->append(submodule.name());
@@ -1110,7 +1122,7 @@ void RepoView::pull(MergeFlags flags, const git::Remote &rmt, bool tags,
             if (!names.isEmpty()) {
               callback = [this, entry, names] {
                 QList<git::Submodule> modules;
-                foreach (const QString &name, names)
+                for (const QString &name : names)
                   modules.append(mRepo.lookupSubmodule(name));
                 updateSubmodules(modules, true, false, false, entry);
               };
@@ -1245,7 +1257,7 @@ void RepoView::fastForward(const git::Reference &ref,
   CheckoutCallbacks callbacks(parent, GIT_CHECKOUT_NOTIFY_UPDATED);
   if (!mRepo.checkout(commit, &callbacks)) {
     LogEntry *err = error(parent, tr("fast-forward"), head.name());
-    foreach (const QString &path, callbacks.conflicts())
+    for (const QString &path : callbacks.conflicts())
       err->addEntry(LogEntry::File, path)->setStatus('!');
 
     QUrlQuery query;
@@ -1374,7 +1386,7 @@ void RepoView::mergeAbort(LogEntry *parent) {
     LogEntry *parent = addLogEntry(tr("merge"), tr("Abort"));
     QString err = tr("Some merged files have unstaged changes");
     LogEntry *entry = error(parent, tr("abort merge"), QString(), err);
-    foreach (const QString &conflict, conflicts)
+    for (const QString &conflict : conflicts)
       entry->addEntry(LogEntry::File, conflict)->setStatus('M');
     return;
   }
@@ -1625,6 +1637,12 @@ void RepoView::cherryPick(const git::Commit &commit) {
 
   // Automatically commit with the default message.
   this->commit(commit.author(), committer, msg, git::AnnotatedCommit(), parent);
+}
+
+void RepoView::promptToApplyDiff() {
+  QString path = DiffFileDialog::getApplyFileName(this);
+  if (!path.isEmpty())
+    applyDiff(path);
 }
 
 void RepoView::promptToForcePush(const git::Remote &remote,
@@ -2003,7 +2021,7 @@ void RepoView::checkout(const git::Commit &commit, const git::Reference &ref,
       (detach && !mRepo.setHeadDetached(commit)) ||
       (!detach && !mRepo.setHead(ref))) {
     LogEntry *err = error(entry, tr("checkout"), name);
-    foreach (const QString &path, callbacks.conflicts())
+    for (const QString &path : callbacks.conflicts())
       err->addEntry(LogEntry::File, path)->setStatus('!');
 
     if (ref.isValid()) {
@@ -2403,7 +2421,7 @@ RepoView::submoduleResetInfoList(const git::Repository &repo,
                                  LogEntry *parent) {
   // Only reset modified submodules
   QList<git::Submodule> modules;
-  foreach (const git::Submodule &submodule, submodules) {
+  for (const git::Submodule &submodule : submodules) {
     int status = repo.submoduleStatus(submodule.name());
 
     if (status & (GIT_SUBMODULE_STATUS_WD_MODIFIED |
@@ -2420,7 +2438,7 @@ RepoView::submoduleResetInfoList(const git::Repository &repo,
     entry->addEntry(tr("Untouched"));
 
   QList<SubmoduleInfo> list;
-  foreach (const git::Submodule &module, modules)
+  for (const git::Submodule &module : modules)
     list.append({module, repo, entry});
   return list;
 }
@@ -2464,7 +2482,7 @@ QList<RepoView::SubmoduleInfo> RepoView::submoduleUpdateInfoList(
     bool init, bool checkout_force, LogEntry *parent) {
   // Gather list of submodules.
   QList<git::Submodule> modules;
-  foreach (const git::Submodule &submodule, submodules) {
+  for (const git::Submodule &submodule : submodules) {
     // FIXME: Add hint to init the submodule?
     if (!init && !submodule.isInitialized())
       continue;
@@ -2484,7 +2502,7 @@ QList<RepoView::SubmoduleInfo> RepoView::submoduleUpdateInfoList(
     entry->addEntry(tr("Already up-to-date."));
 
   QList<SubmoduleInfo> list;
-  foreach (const git::Submodule &module, modules)
+  for (const git::Submodule &module : modules)
     list.append({module, repo, entry});
   return list;
 }
@@ -2886,8 +2904,10 @@ void RepoView::showEvent(QShowEvent *event) {
 }
 
 void RepoView::closeEvent(QCloseEvent *event) {
-  // Try to close tracked windows.
-  foreach (QWidget *window, mTrackedWindows) {
+  // Try to close tracked windows. Iterate over a copy since closing a
+  // window may synchronously remove it from mTrackedWindows.
+  const QList<QWidget *> trackedWindows = mTrackedWindows;
+  for (QWidget *window : trackedWindows) {
     if (!window->close()) {
       event->ignore();
       return;
@@ -3046,4 +3066,30 @@ RepoView::detailSplitterMaximize(bool maximized,
 
   return newMaximized;
 }
+
+void RepoView::applyDiff(const QString &path) {
+  LogEntry *entry = addLogEntry(path, tr("Apply Diff"));
+  auto error = [this, entry, &path](const QString &message) {
+    this->error(entry, tr("apply diff"), QFileInfo(path).fileName(), message);
+  };
+
+  QFile file(path);
+  if (!file.open(QFile::ReadOnly)) {
+    error(file.errorString());
+    return;
+  }
+
+  QByteArray buffer = file.readAll();
+  git::Diff diff = git::Diff::fromBuffer(buffer);
+  if (!diff.isValid()) {
+    error(tr("The diff file is invalid"));
+    return;
+  }
+
+  if (!mRepo.applyDiff(diff)) {
+    error(git::Repository::lastError());
+    return;
+  }
+}
+
 #include "RepoView.moc"

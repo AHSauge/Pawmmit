@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2017, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -41,46 +44,7 @@ bool ShowTool::openFileManager(QString path) {
 #endif
   }
 
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
   QStringList cmdParts = QProcess::splitCommand(fileManagerCmd);
-#else
-  /* Source:
-   * https://code.qt.io/cgit/qt/qtbase.git/tree/src/corelib/io/qprocess.cpp */
-  QStringList cmdParts;
-  QString tmp;
-  int quoteCount = 0;
-  bool inQuote = false;
-
-  // handle quoting. tokens can be surrounded by double quotes
-  // "hello world". three consecutive double quotes represent
-  // the quote character itself.
-  for (int i = 0; i < fileManagerCmd.size(); ++i) {
-    if (fileManagerCmd.at(i) == QLatin1Char('"')) {
-      ++quoteCount;
-      if (quoteCount == 3) {
-        // third consecutive quote
-        quoteCount = 0;
-        tmp += fileManagerCmd.at(i);
-      }
-      continue;
-    }
-    if (quoteCount) {
-      if (quoteCount == 1)
-        inQuote = !inQuote;
-      quoteCount = 0;
-    }
-    if (!inQuote && fileManagerCmd.at(i).isSpace()) {
-      if (!tmp.isEmpty()) {
-        cmdParts += tmp;
-        tmp.clear();
-      }
-    } else {
-      tmp += fileManagerCmd.at(i);
-    }
-  }
-  if (!tmp.isEmpty())
-    cmdParts += tmp;
-#endif
   // Resolve potentially sandboxed path
   path = QDir::toNativeSeparators(util::sandboxPathToHost(path));
 

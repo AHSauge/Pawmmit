@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -84,7 +87,7 @@ void EditorWindow::showEvent(QShowEvent *event) {
 void EditorWindow::closeEvent(QCloseEvent *event) {
   // Prompt to save.
   BlameEditor *editor = widget();
-  if (editor->editor()->isModified()) {
+  if (editor->editor()->modify()) {
     QString text =
         tr("'%1' has been modified. Do you want to save your changes?");
     QMessageBox::StandardButton button = QMessageBox::warning(

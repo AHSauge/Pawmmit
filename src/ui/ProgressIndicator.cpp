@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -22,7 +25,7 @@ const int kSize = 26;
 QSize ProgressIndicator::size() { return QSize(kSize, kSize); }
 
 void ProgressIndicator::paint(QPainter *painter, const QRect &rect,
-                              const QColor &c, int progress,
+                              const QColor &c, float fadein, int progress,
                               const QWidget *widget) {
   painter->save();
   painter->setRenderHints(QPainter::Antialiasing);
@@ -51,11 +54,11 @@ void ProgressIndicator::paint(QPainter *painter, const QRect &rect,
     const qreal in = 7;
     const qreal out = 12;
 
-    int alpha = 32;
+    int alpha = 32 * fadein;
     QColor color = c;
     for (int i = 0; i < 12; ++i) {
       color.setAlpha(alpha);
-      alpha += 16;
+      alpha += 16 * fadein;
 
       painter->setPen(QPen(color, 2.5, Qt::SolidLine, Qt::RoundCap));
 

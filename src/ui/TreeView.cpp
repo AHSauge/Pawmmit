@@ -1,14 +1,18 @@
 //
 //          Copyright (c) 2020
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Martin Marmsoler
 //
 
 #include "TreeView.h"
 #include "ColumnView.h"
+#include "ProgressIndicator.h"
 #include "ViewDelegate.h"
 #include "TreeModel.h"
 #include "Debug.h"
@@ -44,10 +48,46 @@ const QString kLabelFmt = "<p style='color: gray; font-weight: bold'>%1</p>";
 } // namespace
 
 TreeView::TreeView(QWidget *parent, const QString &name)
-    : QTreeView(parent),
+    : QTreeView(parent), mName(name),
       mFileListDelegatePtr(std::make_unique<ViewDelegate>(this, true)),
-      mFileTreeDelegatePtr(std::make_unique<ViewDelegate>(this)), mName(name) {
+      mFileTreeDelegatePtr(std::make_unique<ViewDelegate>(this)) {
   setObjectName(name);
+
+  connect(&mTimer, &QTimer::timeout, this, [this] {
+    ++mProgress;
+    if (mLoadingFadein < 1.0f)
+      mLoadingFadein += 0.1;
+    viewport()->update();
+  });
+}
+
+void TreeView::setLoading(bool loading) {
+  if (loading == mLoading)
+    return;
+
+  mLoading = loading;
+  if (loading) {
+    mProgress = 0;
+    mLoadingFadein = 0;
+    mTimer.start(50);
+  } else {
+    mTimer.stop();
+  }
+
+  viewport()->update();
+}
+
+void TreeView::paintEvent(QPaintEvent *event) {
+  QTreeView::paintEvent(event);
+
+  if (mLoading) {
+    QPainter painter(viewport());
+    QRect indicator(QPoint(0, 0), ProgressIndicator::size());
+    indicator.moveCenter(viewport()->rect().center());
+    ProgressIndicator::paint(&painter, indicator,
+                             palette().color(QPalette::WindowText),
+                             mLoadingFadein, mProgress);
+  }
 }
 
 void TreeView::updateView() {

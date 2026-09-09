@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -293,7 +296,7 @@ MainWindow *MainWindow::activeWindow() {
 
 QList<MainWindow *> MainWindow::windows() {
   QList<MainWindow *> mainWins;
-  foreach (QWidget *win, QApplication::topLevelWidgets()) {
+  for (QWidget *win : QApplication::topLevelWidgets()) {
     if (MainWindow *mainWin = qobject_cast<MainWindow *>(win))
       mainWins.append(mainWin);
   }
@@ -307,7 +310,7 @@ bool MainWindow::restoreWindows() {
   // Open windows.
   QSettings settings;
   settings.beginGroup(kWindowsGroup);
-  foreach (const QString &group, settings.childGroups()) {
+  for (const QString &group : settings.childGroups()) {
     settings.beginGroup(group);
     int index = settings.value(kIndexKey).toInt();
     bool active = settings.value(kActiveKey).toBool();
@@ -329,7 +332,7 @@ bool MainWindow::restoreWindows() {
       continue;
 
     // Add the remainder as tabs.
-    foreach (const QString &path, paths)
+    for (const QString &path : paths)
       window->addTab(path);
 
     // Select saved index.
@@ -447,7 +450,7 @@ void MainWindow::dragEnterEvent(QDragEnterEvent *event) {
   if (!event->mimeData()->hasFormat("text/uri-list"))
     return;
 
-  foreach (const QUrl &url, event->mimeData()->urls()) {
+  for (const QUrl &url : event->mimeData()->urls()) {
     if (!url.isLocalFile())
       return;
 
@@ -463,7 +466,7 @@ void MainWindow::dragEnterEvent(QDragEnterEvent *event) {
 }
 
 void MainWindow::dropEvent(QDropEvent *event) {
-  foreach (const QUrl &url, event->mimeData()->urls())
+  for (const QUrl &url : event->mimeData()->urls())
     addTab(url.toLocalFile());
 }
 

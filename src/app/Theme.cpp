@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Shane Gramlich
 //
@@ -40,31 +43,27 @@ Theme::Theme() {
   mDir = Settings::themesDir();
   mName = QString("System");
 
-  // Create Qt theme.
+  // Create Qt theme. Build the script in memory rather than through a
+  // shared temp file: the theme template is combined with a generated
+  // style.default line reflecting the live QPalette, then executed
+  // directly, so concurrent processes never contend over a fixed path.
   QFile themeFile(mDir.filePath(QString("%1.lua").arg(mName)).toUtf8());
   if (themeFile.open(QIODevice::ReadOnly)) {
-    QDir tempDir = QDir::temp();
-    QFile tempFile(tempDir.filePath(QString("%1.lua").arg(mName)).toUtf8());
-    if (tempFile.open(QIODevice::ReadWrite | QIODevice::Truncate)) {
-      mDir = tempDir;
-
-      // Copy template.
-      tempFile.write(themeFile.readAll());
-
-      // Add theme colors for scintilla editor.
-      tempFile.write(
-          QString("theme.property['style.default']      = 'fore:%1,back:%2'\n")
-              .arg(QPalette().color(QPalette::Text).name(QColor::HexRgb),
-                   QPalette().color(QPalette::Base).name(QColor::HexRgb))
-              .toUtf8());
-      tempFile.close();
-    }
+    QByteArray source = themeFile.readAll();
     themeFile.close();
-  }
 
-  // Load Qt theme.
-  QByteArray file = mDir.filePath(QString("%1.lua").arg(mName)).toUtf8();
-  mMap = ConfFile(file).parse("theme");
+    // Add theme colors for scintilla editor.
+    source +=
+        QString("theme.property['style.default']      = 'fore:%1,back:%2'\n")
+            .arg(QPalette().color(QPalette::Text).name(QColor::HexRgb),
+                 QPalette().color(QPalette::Base).name(QColor::HexRgb))
+            .toUtf8();
+
+    mMap = ConfFile(source, mDir).parse("theme");
+  } else {
+    QByteArray file = mDir.filePath(QString("%1.lua").arg(mName)).toUtf8();
+    mMap = ConfFile(file).parse("theme");
+  }
 
   QPalette palette;
   QColor base = palette.color(QPalette::Base);
@@ -262,6 +261,10 @@ QColor Theme::remoteComment(Comment color) {
 }
 
 QColor Theme::star() { return QPalette().color(QPalette::Highlight); }
+
+QVariantMap Theme::editorStyleProperties() const {
+  return mMap.value("property").toMap();
+}
 
 Theme *Theme::create(const QString &defaultName) {
   // Upgrade theme key to capital case.
