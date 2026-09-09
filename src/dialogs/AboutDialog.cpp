@@ -49,7 +49,11 @@ const QString kTextFmt =
     QString::number(CURR_YEAR) +
     " Gittyup contributors"
     "<br>Copyright © 2016-2020 Scientific Toolworks, Inc. and "
-    "contributors</p><p> If you have a question that might benefit the "
+    "contributors</p><p>Licensed under the "
+    "<a href='https://www.gnu.org/licenses/gpl-3.0.html'>GNU General Public "
+    "License, version 3</a> or, at your option, any later version. Portions "
+    "were originally published under the MIT license.</p><p> If you have a "
+    "question that might benefit the "
     "community, consider asking it on <a href='%5'>Stack Overflow</a> by "
     "including 'gittyup' in the tags. Otherwise, contact us at "
     "<a href='%6'>%6</a> or ask in the matrix channel: <a href='%7'>%7</a>";
