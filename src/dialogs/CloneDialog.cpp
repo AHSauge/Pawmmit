@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -163,34 +166,18 @@ public:
     pathLayout->addWidget(mPath);
     pathLayout->addWidget(browse);
 
-    ExpandButton *expand = new ExpandButton(this);
-    QWidget *advanced = new QWidget(this);
-    advanced->setVisible(false);
-
     QFormLayout *form = new QFormLayout;
     form->setFormAlignment(Qt::AlignLeft);
     form->addRow(tr("Name:"), mName);
     form->addRow(tr("Directory:"), path);
-    form->addRow(tr("Advanced:"), expand);
 
     QCheckBox *bare = new QCheckBox(tr("Create a bare repository"));
-
-    QFormLayout *advancedForm = new QFormLayout(advanced);
-    advancedForm->setContentsMargins(-1, 0, 0, 0);
-    advancedForm->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
-    advancedForm->addRow(bare);
-
-    connect(expand, &ExpandButton::toggled, [this, advanced](bool checked) {
-      advanced->setVisible(checked);
-      QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
-      resize(sizeHint());
-    });
+    form->addRow(bare);
 
     mLabel = new QLabel(this);
 
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->addLayout(form);
-    layout->addWidget(advanced);
     layout->addWidget(mLabel);
 
     // Register fields.

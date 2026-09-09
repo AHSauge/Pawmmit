@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2017, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -54,7 +57,7 @@ public:
 protected:
   void contextMenuEvent(QContextMenuEvent *event) override {
     QStringList files;
-    foreach (const QModelIndex &index, selectionModel()->selectedIndexes())
+    for (const QModelIndex &index : selectionModel()->selectedIndexes())
       files.append(index.data(Qt::EditRole).toString());
 
     FileContextMenu menu(RepoView::parentView(this), files);

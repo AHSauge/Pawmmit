@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -105,6 +108,12 @@ public:
     });
 
     resetSettings();
+  }
+
+  ~CommitModel() {
+    // Ensure that mStatus is stopped since it captures `this` and potentially
+    // might crash after the destructor is finished
+    cancelStatus();
   }
 
   git::Reference reference() const { return mRef; }
@@ -229,7 +238,7 @@ public:
       }
 
       if (mRefsFilter == CommitList::RefsFilter::AllRefs) {
-        foreach (const git::Reference ref, mRepo.refs()) {
+        for (const git::Reference &ref : mRepo.refs()) {
           if (!ref.isStash())
             mWalker.push(ref);
         }
@@ -277,7 +286,7 @@ public:
 
       // Replace commit with its parents.
       QList<git::Commit> replacements;
-      foreach (const git::Commit &parent, commit.parents()) {
+      for (const git::Commit &parent : commit.parents()) {
         // FIXME: Mark commits that point to existing parent?
         if (indexOf(parent) < 0 && !contains(parent, rows))
           replacements.append(parent);
@@ -293,7 +302,7 @@ public:
         if (!replacements.isEmpty()) {
           git::Commit replacement = replacements.takeFirst();
           mParents.insert(index, Parent(replacement, parent.color));
-          foreach (const git::Commit &replacement, replacements)
+          for (const git::Commit &replacement : replacements)
             mParents.append(Parent(replacement, nextColor()));
         }
       }
@@ -380,9 +389,9 @@ public:
 
       case CommitList::Role::GraphRole: {
         QVariantList columns;
-        foreach (const Column &column, row.columns) {
+        for (const Column &column : row.columns) {
           QVariantList segments;
-          foreach (const Segment &segment, column)
+          for (const Segment &segment : column)
             segments.append(segment.segment);
           columns.append(QVariant(segments));
         }
@@ -392,9 +401,9 @@ public:
 
       case CommitList::Role::GraphColorRole: {
         QVariantList columns;
-        foreach (const Column &column, row.columns) {
+        for (const Column &column : row.columns) {
           QVariantList segments;
-          foreach (const Segment &segment, column)
+          for (const Segment &segment : column)
             segments.append(segment.color);
           columns.append(QVariant(segments));
         }
@@ -452,12 +461,12 @@ private:
   }
 
   bool contains(const git::Commit &commit, const QList<Row> &rows) const {
-    foreach (const Row &row, mRows) {
+    for (const Row &row : mRows) {
       if (row.commit == commit)
         return true;
     }
 
-    foreach (const Row &row, rows) {
+    for (const Row &row : rows) {
       if (row.commit == commit)
         return true;
     }
@@ -489,7 +498,7 @@ private:
       }
 
       // Add a path to each successor.
-      foreach (const git::Commit &successor, successors) {
+      for (const git::Commit &successor : successors) {
         // Find index of parent in next row.
         int index = indexOf(successor);
         if (index < 0)
@@ -536,13 +545,13 @@ private:
   QColor nextColor() {
     // Get the first unused (or least used) color.
     QMap<QString, int> counts;
-    foreach (const Parent &parent, mParents)
+    for (const Parent &parent : mParents)
       counts[parent.color.name()]++;
 
     int count = 0;
     QList<QColor> colors = Application::theme()->branchTopologyEdges();
     forever {
-      foreach (const QColor &color, colors) {
+      for (const QColor &color : colors) {
         if (counts.value(color.name()) == count)
           return color;
       }
@@ -1134,7 +1143,7 @@ private:
           {Badge::Label::Type::Ref, head.name(), true});
     }
 
-    foreach (const git::Reference &ref, mRepo.refs()) {
+    for (const git::Reference &ref : mRepo.refs()) {
       if (git::Commit target = ref.target())
         mRefs[target.id()].append(
             {Badge::Label::Type::Ref, ref.name(), ref.isHead(), ref.isTag()});
@@ -1215,7 +1224,7 @@ CommitList::CommitList(Index *index, QWidget *parent)
           &CommitList::restoreSelection);
 
   CommitModel *model = static_cast<CommitModel *>(mModel);
-  connect(model, &CommitModel::statusFinished, [this, model](bool visible) {
+  connect(model, &CommitModel::statusFinished, [this](bool visible) {
     mRestoreSelection = true; // Reset to default
 
     // Select the first commit if the selection was cleared.
@@ -1301,7 +1310,7 @@ git::Diff CommitList::selectedDiff() const {
 
 QList<git::Commit> CommitList::selectedCommits() const {
   QList<git::Commit> selectedCommits;
-  foreach (const QModelIndex &index, sortedIndexes()) {
+  for (const QModelIndex &index : sortedIndexes()) {
     git::Commit commit = index.data(CommitRole).value<git::Commit>();
     if (commit.isValid())
       selectedCommits.append(commit);
@@ -1466,7 +1475,7 @@ void CommitList::setModel(QAbstractItemModel *model) {
       selectionModel, &QItemSelectionModel::selectionChanged,
       [this](const QItemSelection &selected, const QItemSelection &deselected) {
         // Update the index before each selected/deselected range.
-        foreach (const QItemSelectionRange &range, selected + deselected) {
+        for (const QItemSelectionRange &range : selected + deselected) {
           if (int row = range.top())
             update(this->model()->index(row - 1, 0));
         }
@@ -1543,7 +1552,7 @@ void CommitList::contextMenuEvent(QContextMenuEvent *event) {
   } else {
     // multiple selection
     bool anyStarred = false, allValid = true;
-    foreach (const QModelIndex &index, selectionModel()->selectedIndexes()) {
+    for (const QModelIndex &index : selectionModel()->selectedIndexes()) {
       QVariant variant = index.data(CommitRole);
       if (!variant.isValid()) {
         allValid = false;
@@ -1554,7 +1563,7 @@ void CommitList::contextMenuEvent(QContextMenuEvent *event) {
     }
 
     menu.addAction(anyStarred ? tr("Unstar") : tr("Star"), [this, anyStarred] {
-      foreach (const QModelIndex &index, selectionModel()->selectedIndexes())
+      for (const QModelIndex &index : selectionModel()->selectedIndexes())
         if (index.data(CommitRole).isValid())
           index.data(CommitRole).value<git::Commit>().setStarred(!anyStarred);
     });
@@ -1867,7 +1876,7 @@ void CommitList::notifySelectionChanged() {
     return;
 
   // Redraw all selected indexes. Separators may have changed.
-  foreach (const QModelIndex &index, indexes)
+  for (const QModelIndex &index : indexes)
     update(index);
   git::Diff diff = selectedDiff();
   emit diffSelected(diff, mFile, mSpontaneous);

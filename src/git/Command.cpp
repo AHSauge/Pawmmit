@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2017, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -47,7 +50,7 @@ QString Command::substitute(const QProcessEnvironment &env,
 
   // Substitute in reverse order.
   QString result = command;
-  foreach (const QRegularExpressionMatch &match, matches) {
+  for (const QRegularExpressionMatch &match : matches) {
     QString value = env.value(match.captured(1));
     result.replace(match.capturedStart(), match.capturedLength(), value);
   }

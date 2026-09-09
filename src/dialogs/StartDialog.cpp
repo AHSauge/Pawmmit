@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -370,13 +373,13 @@ StartDialog::StartDialog(QWidget *parent) : QDialog(parent) {
   setAttribute(Qt::WA_DeleteOnClose);
   setWindowTitle(tr("Choose Repository"));
 
-  QIcon icon(":/Gittyup.iconset/icon_128x128.png");
+  QIcon icon(":/Pawmmit.iconset/icon_128x128.png");
   IconLabel *iconLabel = new IconLabel(icon, 128, 128, this);
 
   QIcon title(":/logo-type_light@2x.png");
   IconLabel *titleLabel = new IconLabel(title, 163, 38, this);
 
-  QString subtitleText = kSubtitleFmt.arg(tr("Understand your history!"));
+  QString subtitleText = kSubtitleFmt.arg(tr("Claw your way into your git history"));
   QLabel *subtitle = new QLabel(subtitleText, this);
   subtitle->setAlignment(Qt::AlignHCenter);
 
@@ -424,7 +427,7 @@ StartDialog::StartDialog(QWidget *parent) : QDialog(parent) {
               });
 
     // Remove selected indexes from settings.
-    foreach (const QModelIndex &index, indexes)
+    for (const QModelIndex &index : indexes)
       RecentRepositories::instance()->remove(index.row());
   });
 
@@ -608,11 +611,11 @@ void StartDialog::accept() {
   QModelIndexList hostIndexes = mHostTree->selectionModel()->selectedIndexes();
 
   QStringList paths;
-  foreach (const QModelIndex &index, repoIndexes)
+  for (const QModelIndex &index : repoIndexes)
     paths.append(index.data(Qt::UserRole).toString());
 
   QModelIndexList uncloned;
-  foreach (const QModelIndex &index, hostIndexes) {
+  for (const QModelIndex &index : hostIndexes) {
     QModelIndex parent = index.parent();
     if (parent.isValid()) {
       Account *account = parent.data(AccountRole).value<Account *>();
@@ -646,7 +649,7 @@ void StartDialog::accept() {
     return;
 
   // Add the remainder as tabs.
-  foreach (const QString &path, paths)
+  for (const QString &path : paths)
     window->addTab(path);
 }
 
@@ -692,7 +695,7 @@ void StartDialog::updateButtons() {
   bool clone = false;
   QPushButton *open = mButtonBox->button(QDialogButtonBox::Open);
   open->setEnabled(!repoIndexes.isEmpty() || !hostIndexes.isEmpty());
-  foreach (const QModelIndex &index, hostIndexes) {
+  for (const QModelIndex &index : hostIndexes) {
     QModelIndex parent = index.parent();
     if (!parent.isValid()) {
       open->setEnabled(false);

@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2017, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -60,7 +63,7 @@ GitLab::GitLab(const QString &username) : Account(username) {
 
         QMap<QString, QString> map;
         QRegularExpression re("<(.*)>; rel=\"(\\w+)\"");
-        foreach (const QString &record, link.split(", ")) {
+        for (const QString &record : link.split(", ")) {
           QRegularExpressionMatch match = re.match(record);
           if (match.isValid() && match.hasMatch())
             map.insert(match.captured(2), match.captured(1));

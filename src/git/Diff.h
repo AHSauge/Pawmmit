@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -38,8 +41,6 @@ class Patch;
 class Diff {
 public:
   enum File { NewFile, OldFile };
-
-  enum SortRole { NameRole, StatusRole };
 
   class Callbacks {
   public:
@@ -81,8 +82,6 @@ public:
   // Detect renames, copies, etc. This is expensive.
   void findSimilar(bool untracked = false);
 
-  void sort(SortRole role, Qt::SortOrder order = Qt::AscendingOrder);
-
   void setAllStaged(bool staged, bool yieldFocus = true);
 
   QByteArray toBuffer(git_diff_format_t format = GIT_DIFF_FORMAT_PATCH) const;
@@ -96,11 +95,9 @@ private:
     Data(git_diff *diff);
     ~Data();
 
-    void resetMap();
     const git_diff_delta *delta(int index) const;
 
     git_diff *diff;
-    QList<int> map;
     Index index;
   };
 

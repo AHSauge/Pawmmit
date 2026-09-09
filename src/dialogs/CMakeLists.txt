@@ -35,8 +35,8 @@ add_library(
   UpdateSubmodulesDialog.cpp)
 
 target_compile_definitions(
-  dialogs PRIVATE GITTYUP_BUILD_DATE="${GITTYUP_BUILD_DATE}"
-                  GITTYUP_BUILD_REVISION="${GITTYUP_BUILD_REVISION}")
+  dialogs PRIVATE PAWMMIT_BUILD_DATE="${PAWMMIT_BUILD_DATE}"
+                  PAWMMIT_BUILD_REVISION="${PAWMMIT_BUILD_REVISION}")
 
 target_include_directories(dialogs PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 

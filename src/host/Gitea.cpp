@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam, Odin Vex
 //
@@ -79,7 +82,7 @@ Gitea::Gitea(const QString &username) : Account(username) {
 
         QMap<QString, QString> map;
         QRegularExpression re("<(.*)>; rel=\"(\\w+)\"");
-        foreach (const QString &record, link.split(", ")) {
+        for (const QString &record : link.split(", ")) {
           QRegularExpressionMatch match = re.match(record);
           if (match.isValid() && match.hasMatch())
             map.insert(match.captured(2), match.captured(1));
@@ -181,7 +184,7 @@ void Gitea::createPullRequest(Repository *repo, const QString &ownerRepo,
 
   QUrl url(QString("https://try.gitea.io/repos/%1/pulls").arg(ownerRepo));
   rest(url, doc, [this, title](const QJsonObject &obj) {
-    foreach (const QJsonValue &error, obj.value("errors").toArray())
+    for (const QJsonValue &error : obj.value("errors").toArray())
       emit pullRequestError(title,
                             error.toObject().value("message").toString());
   });
@@ -223,7 +226,7 @@ void Gitea::requestComments(Repository *repo, const QString &oid) {
       return;
 
     CommitComments comments;
-    foreach (const QJsonValue &value, nodes) {
+    for (const QJsonValue &value : nodes) {
       QJsonObject obj = value.toObject();
       QString path = obj.value("path").toString();
       int position = obj.value("position").toInt() - 1;
@@ -268,7 +271,7 @@ void Gitea::authorize() {
 bool Gitea::isAuthorizeSupported() {
   QByteArray id(GITEA_CLIENT_ID);
   QByteArray secret(GITEA_CLIENT_SECRET);
-  QByteArray env = qgetenv("GITTYUP_OAUTH");
+  QByteArray env = qgetenv("PAWMMIT_OAUTH");
   return (!id.isEmpty() && !secret.isEmpty() && !env.isEmpty());
 }
 
