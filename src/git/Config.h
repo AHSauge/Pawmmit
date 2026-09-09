@@ -15,7 +15,7 @@
 
 #include "Repository.h"
 #include "git2/config.h"
-#include <QSharedPointer>
+#include <memory>
 
 namespace git {
 
@@ -25,7 +25,7 @@ public:
 
   class Entry {
   public:
-    bool isValid() const { return !d.isNull(); }
+    bool isValid() const { return d != nullptr; }
     explicit operator bool() const { return isValid(); }
 
     QString name() const;
@@ -35,26 +35,26 @@ public:
   private:
     Entry(git_config_entry *entry = nullptr, bool owned = false);
 
-    QSharedPointer<git_config_entry> d;
+    std::shared_ptr<git_config_entry> d;
 
     friend class Iterator;
   };
 
   class Iterator {
   public:
-    bool isValid() const { return !d.isNull(); }
+    bool isValid() const { return d != nullptr; }
 
     Entry next() const;
 
   private:
     Iterator(git_config_iterator *iterator = nullptr);
 
-    QSharedPointer<git_config_iterator> d;
+    std::shared_ptr<git_config_iterator> d;
 
     friend class Config;
   };
 
-  bool isValid() const { return !d.isNull(); }
+  bool isValid() const { return d != nullptr; }
 
   bool addFile(const QString &path,
                git_config_level_t level = GIT_CONFIG_LEVEL_APP,
@@ -86,7 +86,7 @@ public:
 private:
   Config(git_config *config = nullptr);
 
-  QSharedPointer<git_config> d;
+  std::shared_ptr<git_config> d;
 
   friend class Repository;
 };

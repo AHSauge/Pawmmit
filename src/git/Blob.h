@@ -12,6 +12,8 @@
 
 #ifndef BLOB_H
 #define BLOB_H
+#include <QByteArray>
+#include <QMetaType>
 
 #include "Object.h"
 #include "git2/blob.h"

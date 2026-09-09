@@ -12,14 +12,14 @@
 
 #include "git/Repository.h"
 #include <QObject>
-#include <QSharedPointer>
 #include <QVariant>
+#include <memory>
 
 class TextEditor;
 
 typedef struct lua_State lua_State;
 
-using PluginRef = QSharedPointer<class Plugin>;
+using PluginRef = std::shared_ptr<class Plugin>;
 
 class Plugin : public QObject {
   Q_OBJECT

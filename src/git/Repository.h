@@ -29,7 +29,7 @@
 #include <QDir>
 #include <QObject>
 #include <QSet>
-#include <QSharedPointer>
+#include <memory>
 #include <QStringConverter>
 
 struct git_repository;
@@ -71,7 +71,7 @@ public:
 
   Repository();
 
-  bool isValid() const { return !d.isNull(); }
+  bool isValid() const { return d != nullptr; }
   explicit operator bool() const { return isValid(); }
 
   RepositoryNotifier *notifier() const { return d->notifier; }
@@ -300,11 +300,11 @@ private:
                         const QByteArray &input = QByteArray()) const;
 
   static void unregisterRepository(Data *data);
-  static QSharedPointer<Data> registerRepository(git_repository *repo);
+  static std::shared_ptr<Data> registerRepository(git_repository *repo);
 
-  QSharedPointer<Data> d;
+  std::shared_ptr<Data> d;
 
-  static QMap<git_repository *, QWeakPointer<Data>> registry;
+  static QMap<git_repository *, std::weak_ptr<Data>> registry;
 
   friend class Branch;
   friend class Commit;

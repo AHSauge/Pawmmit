@@ -507,7 +507,7 @@ bool Application::isInTest() { return mIsInTest; }
 void Application::setInTest() { mIsInTest = true; }
 
 Theme *Application::theme() {
-  return static_cast<Application *>(instance())->mTheme.data();
+  return static_cast<Application *>(instance())->mTheme.get();
 }
 
 bool Application::event(QEvent *event) {

@@ -14,7 +14,7 @@
 #define UPDATER_H
 
 #include <QNetworkAccessManager>
-#include <QSharedPointer>
+#include <memory>
 
 class QNetworkReply;
 class QTemporaryFile;
@@ -44,7 +44,7 @@ public:
     QNetworkReply *mReply = nullptr;
   };
 
-  using DownloadRef = QSharedPointer<Download>;
+  using DownloadRef = std::shared_ptr<Download>;
 
   void update(bool spontaneous = false);
   DownloadRef download(const QString &link);

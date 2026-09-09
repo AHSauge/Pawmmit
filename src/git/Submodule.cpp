@@ -24,19 +24,19 @@ Submodule::Submodule() {}
 Submodule::Submodule(git_submodule *submodule)
     : d(submodule, git_submodule_free) {}
 
-Submodule::operator git_submodule *() const { return d.data(); }
+Submodule::operator git_submodule *() const { return d.get(); }
 
 bool Submodule::isInitialized() const {
-  Repository repo(git_submodule_owner(d.data()));
+  Repository repo(git_submodule_owner(d.get()));
   QString key = QString("submodule.%1.url").arg(name());
   return !repo.gitConfig().value<QString>(key).isEmpty();
 }
 
-void Submodule::initialize() const { git_submodule_init(d.data(), false); }
+void Submodule::initialize() const { git_submodule_init(d.get(), false); }
 
 void Submodule::deinitialize() const {
   // Remove git config entry.
-  Repository repo(git_submodule_owner(d.data()));
+  Repository repo(git_submodule_owner(d.get()));
   Config config = repo.gitConfig();
   QString regex = QString("submodule\\.%1\\..*").arg(name());
   Config::Iterator it = config.glob(regex);
@@ -49,11 +49,11 @@ void Submodule::deinitialize() const {
     dir.mkpath(".");
 }
 
-QString Submodule::name() const { return git_submodule_name(d.data()); }
+QString Submodule::name() const { return git_submodule_name(d.get()); }
 
-QString Submodule::path() const { return git_submodule_path(d.data()); }
+QString Submodule::path() const { return git_submodule_path(d.get()); }
 
-QString Submodule::url() const { return git_submodule_url(d.data()); }
+QString Submodule::url() const { return git_submodule_url(d.get()); }
 
 void Submodule::setUrl(const QString &url) {
   if (url == this->url())
@@ -61,11 +61,11 @@ void Submodule::setUrl(const QString &url) {
 
   QByteArray buffer = url.toUtf8();
   const char *data = !buffer.isEmpty() ? buffer.constData() : nullptr;
-  git_repository *repo = git_submodule_owner(d.data());
-  git_submodule_set_url(repo, git_submodule_name(d.data()), data);
+  git_repository *repo = git_submodule_owner(d.get());
+  git_submodule_set_url(repo, git_submodule_name(d.get()), data);
 }
 
-QString Submodule::branch() const { return git_submodule_branch(d.data()); }
+QString Submodule::branch() const { return git_submodule_branch(d.get()); }
 
 void Submodule::setBranch(const QString &branch) {
   if (branch == this->branch())
@@ -73,15 +73,15 @@ void Submodule::setBranch(const QString &branch) {
 
   QByteArray buffer = branch.toUtf8();
   const char *data = !buffer.isEmpty() ? buffer.constData() : nullptr;
-  git_repository *repo = git_submodule_owner(d.data());
-  git_submodule_set_branch(repo, git_submodule_name(d.data()), data);
+  git_repository *repo = git_submodule_owner(d.get());
+  git_submodule_set_branch(repo, git_submodule_name(d.get()), data);
 }
 
-Id Submodule::headId() const { return git_submodule_head_id(d.data()); }
+Id Submodule::headId() const { return git_submodule_head_id(d.get()); }
 
-Id Submodule::indexId() const { return git_submodule_index_id(d.data()); }
+Id Submodule::indexId() const { return git_submodule_index_id(d.get()); }
 
-Id Submodule::workdirId() const { return git_submodule_wd_id(d.data()); }
+Id Submodule::workdirId() const { return git_submodule_wd_id(d.get()); }
 
 Result Submodule::update(Remote::Callbacks *callbacks, bool init,
                          bool checkout_force) {
@@ -106,12 +106,12 @@ Result Submodule::update(Remote::Callbacks *callbacks, bool init,
   QByteArray proxy = Remote::proxyUrl(kUrl, opts.fetch_opts.proxy_opts.type);
   opts.fetch_opts.proxy_opts.url = proxy;
 
-  return git_submodule_update(d.data(), init, &opts);
+  return git_submodule_update(d.get(), init, &opts);
 }
 
 Repository Submodule::open() const {
   git_repository *repo = nullptr;
-  git_submodule_open(&repo, d.data());
+  git_submodule_open(&repo, d.get());
   return Repository(repo);
 }
 

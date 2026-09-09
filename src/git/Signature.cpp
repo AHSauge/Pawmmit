@@ -24,7 +24,7 @@ Signature::Signature(const QString &name, const QString &email) {
   git_signature *signature = nullptr;
 
   git_signature_now(&signature, name.toUtf8(), email.toUtf8());
-  d = QSharedPointer<git_signature>(signature, git_signature_free);
+  d = std::shared_ptr<git_signature>(signature, git_signature_free);
 }
 
 Signature::Signature(const QString &name, const QString &email,
@@ -34,10 +34,10 @@ Signature::Signature(const QString &name, const QString &email,
   auto offset = date.offsetFromUtc() / 60;
   git_signature_new(&signature, name.toUtf8(), email.toUtf8(),
                     date.toSecsSinceEpoch(), offset);
-  d = QSharedPointer<git_signature>(signature, git_signature_free);
+  d = std::shared_ptr<git_signature>(signature, git_signature_free);
 }
 
-Signature::operator const git_signature *() const { return d.data(); }
+Signature::operator const git_signature *() const { return d.get(); }
 
 QString Signature::name() const { return d->name; }
 

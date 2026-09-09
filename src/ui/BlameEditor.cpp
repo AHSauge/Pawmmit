@@ -51,7 +51,8 @@ private:
 } // namespace
 
 BlameEditor::BlameEditor(const git::Repository &repo, QWidget *parent)
-    : QWidget(parent), mRepo(repo), mCallbacks(new BlameCallbacks) {
+    : QWidget(parent), mRepo(repo),
+      mCallbacks(std::make_unique<BlameCallbacks>()) {
   // Create editor.
   mEditor = new TextEditor(this);
   connect(mEditor, &TextEditor::linesAdded, this,
@@ -177,13 +178,13 @@ void BlameEditor::startBlame() {
   if (mPendingBlameCommit.has_value()) {
     mBlame.setFuture(QtConcurrent::run(&git::Repository::blame, mRepo, mName,
                                        mPendingBlameCommit.value(),
-                                       mCallbacks.data()));
+                                       mCallbacks.get()));
     mPendingBlameCommit = std::nullopt;
   }
 }
 
 void BlameEditor::cancelBlame() {
-  BlameCallbacks *callbacks = static_cast<BlameCallbacks *>(mCallbacks.data());
+  BlameCallbacks *callbacks = static_cast<BlameCallbacks *>(mCallbacks.get());
   callbacks->setCanceled(true);
   if (mBlame.isRunning())
     mBlame.waitForFinished();

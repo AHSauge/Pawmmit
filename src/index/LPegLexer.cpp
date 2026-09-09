@@ -73,7 +73,7 @@ LPegLexer::LPegLexer(const QByteArray &home, const QByteArray &lexer,
   if (info.isAbsolute())
     mName = info.baseName().toUtf8();
 
-  lua_State *L = mL.data();
+  lua_State *L = mL.get();
 
   luaL_openlibs(L);
   luaL_requiref(L, "lpeg", luaopen_lpeg, 1), lua_pop(L, 1);
@@ -107,7 +107,7 @@ bool LPegLexer::lex(const QByteArray &buffer) {
   mStartPos = 0;
   mBuffer = buffer;
 
-  lua_State *L = mL.data();
+  lua_State *L = mL.get();
 
   // Lex the buffer.
   lua_getfield(L, -1, "lex");
@@ -127,7 +127,7 @@ bool LPegLexer::lex(const QByteArray &buffer) {
 bool LPegLexer::hasNext() { return (mIndex < mLength); }
 
 Lexer::Lexeme LPegLexer::next() {
-  lua_State *L = mL.data();
+  lua_State *L = mL.get();
 
   lua_rawgeti(L, -1, mIndex); // tag name
   QByteArray tag(lua_tostring(L, -1), lua_rawlen(L, -1));

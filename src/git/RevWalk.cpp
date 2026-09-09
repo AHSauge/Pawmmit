@@ -34,7 +34,7 @@ RevWalk::RevWalk() {}
 RevWalk::RevWalk(git_revwalk *walker) : d(walker, git_revwalk_free) {}
 
 bool RevWalk::hide(const Commit &commit) {
-  return !git_revwalk_hide(d.data(), commit);
+  return !git_revwalk_hide(d.get(), commit);
 }
 
 bool RevWalk::hide(const Reference &ref) {
@@ -43,7 +43,7 @@ bool RevWalk::hide(const Reference &ref) {
 }
 
 bool RevWalk::push(const Commit &commit) {
-  return !git_revwalk_push(d.data(), commit);
+  return !git_revwalk_push(d.get(), commit);
 }
 
 bool RevWalk::push(const Reference &ref) {
@@ -66,9 +66,9 @@ Commit RevWalk::next(const QString &path) const {
   }
 
   git_oid id;
-  while (!git_revwalk_next(&id, d.data())) {
+  while (!git_revwalk_next(&id, d.get())) {
     git_commit *commit = nullptr;
-    git_commit_lookup(&commit, git_revwalk_repository(d.data()), &id);
+    git_commit_lookup(&commit, git_revwalk_repository(d.get()), &id);
     Q_ASSERT(commit);
 
     if (path.isEmpty())

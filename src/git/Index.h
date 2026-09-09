@@ -17,7 +17,7 @@
 #include "git2/index.h"
 #include <QMap>
 #include <QSet>
-#include <QSharedPointer>
+#include <memory>
 
 namespace git {
 
@@ -45,7 +45,7 @@ public:
 
   Index();
 
-  bool isValid() const { return !d.isNull(); }
+  bool isValid() const { return d != nullptr; }
 
   Conflict conflict(const QString &path) const;
 
@@ -87,7 +87,7 @@ private:
   std::optional<Id> workdirId(const QString &path,
                               uint32_t *mode = nullptr) const;
 
-  QSharedPointer<Data> d;
+  std::shared_ptr<Data> d;
 
   friend class Repository;
   friend class Tree;

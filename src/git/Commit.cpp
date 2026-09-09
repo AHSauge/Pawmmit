@@ -49,7 +49,7 @@ Commit::Commit(git_commit *commit)
     : Object(reinterpret_cast<git_object *>(commit)) {}
 
 Commit::operator git_commit *() const {
-  return reinterpret_cast<git_commit *>(d.data());
+  return reinterpret_cast<git_commit *>(d.get());
 }
 
 bool Commit::isMerge() const { return git_commit_parentcount(*this) > 1; }
@@ -112,8 +112,8 @@ QString Commit::detachedHeadName() const {
 
 AnnotatedCommit Commit::annotatedCommit() const {
   git_annotated_commit *commit = nullptr;
-  git_repository *repo = git_object_owner(d.data());
-  git_annotated_commit_lookup(&commit, repo, git_object_id(d.data()));
+  git_repository *repo = git_object_owner(d.get());
+  git_annotated_commit_lookup(&commit, repo, git_object_id(d.get()));
   return AnnotatedCommit(commit, repo);
 }
 
@@ -136,7 +136,7 @@ Diff Commit::diff(const git::Commit &commit, int contextLines,
       old = parents.first().tree();
   }
 
-  git_repository *repo = git_object_owner(d.data());
+  git_repository *repo = git_object_owner(d.get());
 
   git_config *cfg = NULL;
   int32_t context_lines = 3;
@@ -202,7 +202,7 @@ QList<Reference> Commit::refs() const {
     return QList<Reference>();
 
   git_reference *ref = nullptr;
-  const git_oid *id = git_object_id(d.data());
+  const git_oid *id = git_object_id(d.get());
   while (!git_reference_next(&ref, it)) {
     git_object *obj = nullptr;
     if (!git_reference_peel(&obj, ref, GIT_OBJECT_COMMIT) &&
@@ -222,11 +222,11 @@ QList<Reference> Commit::refs() const {
 
 RevWalk Commit::walker(int sort, bool firstCommitOnly) const {
   git_revwalk *revwalk = nullptr;
-  if (git_revwalk_new(&revwalk, git_object_owner(d.data())))
+  if (git_revwalk_new(&revwalk, git_object_owner(d.get())))
     return RevWalk();
 
   RevWalk walker(revwalk);
-  if (git_revwalk_push(revwalk, git_object_id(d.data())))
+  if (git_revwalk_push(revwalk, git_object_id(d.get())))
     return RevWalk();
 
   if (firstCommitOnly && git_revwalk_simplify_first_parent(revwalk))
@@ -257,7 +257,7 @@ bool Commit::revert() const {
   Repository repo = this->repo();
   int state = repo.state();
   git_revert_options opts = GIT_REVERT_OPTIONS_INIT;
-  int error = git_revert(git_object_owner(d.data()), *this, &opts);
+  int error = git_revert(git_object_owner(d.get()), *this, &opts);
   if (repo.state() != state)
     emit repo.notifier()->stateChanged();
 
@@ -294,7 +294,7 @@ bool Commit::reset(git_reset_t type, const QStringList &paths,
 
   Repository repo = this->repo();
   int state = repo.state();
-  int error = git_reset(repo, d.data(), type, &opts);
+  int error = git_reset(repo, d.get(), type, &opts);
   if (triggerReferenceUpdated)
     emit repo.notifier()->referenceUpdated(repo.head(),
                                            type == git_reset_t::GIT_RESET_HARD);

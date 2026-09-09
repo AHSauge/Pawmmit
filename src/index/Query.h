@@ -14,9 +14,9 @@
 #define QUERY_H
 
 #include "Index.h"
-#include <QSharedPointer>
+#include <memory>
 
-using QueryRef = QSharedPointer<class Query>;
+using QueryRef = std::shared_ptr<class Query>;
 
 class Query {
 public:

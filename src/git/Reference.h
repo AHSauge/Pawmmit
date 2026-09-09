@@ -15,7 +15,7 @@
 
 #include "Repository.h"
 #include "git2/revwalk.h"
-#include <QSharedPointer>
+#include <memory>
 
 struct git_reference;
 
@@ -32,7 +32,7 @@ class Reference {
 public:
   Reference();
 
-  bool isValid() const { return !d.isNull(); }
+  bool isValid() const { return d != nullptr; }
   explicit operator bool() const { return isValid(); }
 
   Repository repo() const;
@@ -71,7 +71,7 @@ protected:
   Reference(git_reference *ref);
   operator git_reference *() const;
 
-  QSharedPointer<git_reference> d;
+  std::shared_ptr<git_reference> d;
 
   friend class Commit;
   friend class Repository;

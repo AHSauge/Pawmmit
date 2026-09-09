@@ -30,28 +30,28 @@ Reference::Reference() {}
 
 Reference::Reference(git_reference *ref) : d(ref, git_reference_free) {}
 
-Reference::operator git_reference *() const { return d.data(); }
+Reference::operator git_reference *() const { return d.get(); }
 
-Repository Reference::repo() const { return git_reference_owner(d.data()); }
+Repository Reference::repo() const { return git_reference_owner(d.get()); }
 
-bool Reference::isTag() const { return git_reference_is_tag(d.data()); }
+bool Reference::isTag() const { return git_reference_is_tag(d.get()); }
 
 bool Reference::isBranch() const {
   return (isLocalBranch() || isRemoteBranch());
 }
 
 bool Reference::isLocalBranch() const {
-  return git_reference_is_branch(d.data());
+  return git_reference_is_branch(d.get());
 }
 
 bool Reference::isRemoteBranch() const {
-  return git_reference_is_remote(d.data());
+  return git_reference_is_remote(d.get());
 }
 
 bool Reference::isDetachedHead() const { return (qualifiedName() == "HEAD"); }
 
 bool Reference::isHead() const {
-  return (isDetachedHead() || git_branch_is_head(d.data()));
+  return (isDetachedHead() || git_branch_is_head(d.get()));
 }
 
 bool Reference::isStash() const { return (qualifiedName() == "refs/stash"); }
@@ -59,7 +59,7 @@ bool Reference::isStash() const { return (qualifiedName() == "refs/stash"); }
 QString Reference::name(bool decorateDetachedHead) const {
   if (isBranch()) {
     const char *name = nullptr;
-    return !git_branch_name(&name, d.data()) ? name : QString();
+    return !git_branch_name(&name, d.get()) ? name : QString();
   }
 
   Commit commit = target();
@@ -69,12 +69,10 @@ QString Reference::name(bool decorateDetachedHead) const {
   }
 
   // Get shorthand.
-  return git_reference_shorthand(d.data());
+  return git_reference_shorthand(d.get());
 }
 
-QString Reference::qualifiedName() const {
-  return git_reference_name(d.data());
-}
+QString Reference::qualifiedName() const { return git_reference_name(d.get()); }
 
 RevWalk Reference::walker(int sort, bool firstCommitOnly) const {
   Commit commit = target();
@@ -89,7 +87,7 @@ int Reference::difference(const Reference &ref) const {
 
 Commit Reference::target() const {
   git_object *obj = nullptr;
-  git_reference_peel(&obj, d.data(), GIT_OBJECT_COMMIT);
+  git_reference_peel(&obj, d.get(), GIT_OBJECT_COMMIT);
   return Commit(reinterpret_cast<git_commit *>(obj));
 }
 
@@ -103,7 +101,7 @@ Reference Reference::setTarget(const Commit &commit, const QString &msg) const {
   }
 
   git_reference *ref = nullptr;
-  git_reference_set_target(&ref, d.data(), commit, log);
+  git_reference_set_target(&ref, d.get(), commit, log);
 
   Reference result(ref);
   emit repo().notifier()->referenceUpdated(result);
@@ -113,8 +111,8 @@ Reference Reference::setTarget(const Commit &commit, const QString &msg) const {
 
 AnnotatedCommit Reference::annotatedCommit() const {
   git_annotated_commit *commit = nullptr;
-  git_repository *repo = git_reference_owner(d.data());
-  git_annotated_commit_from_ref(&commit, repo, d.data());
+  git_repository *repo = git_reference_owner(d.get());
+  git_annotated_commit_from_ref(&commit, repo, d.get());
   return AnnotatedCommit(commit, repo);
 }
 

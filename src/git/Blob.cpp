@@ -18,13 +18,13 @@ Blob::Blob() : Object() {}
 
 Blob::Blob(const Object &rhs) : Object(rhs) {
   if (isValid() && type() != GIT_OBJECT_BLOB)
-    d.clear();
+    d.reset();
 }
 
 Blob::Blob(git_blob *blob) : Object(reinterpret_cast<git_object *>(blob)) {}
 
 Blob::operator git_blob *() const {
-  return reinterpret_cast<git_blob *>(d.data());
+  return reinterpret_cast<git_blob *>(d.get());
 }
 
 bool Blob::isBinary() const { return git_blob_is_binary(*this); }

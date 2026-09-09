@@ -200,7 +200,7 @@ void Updater::update(bool spontaneous) {
 
 Updater::DownloadRef Updater::download(const QString &link) {
   QString errorText = tr("Unable to download update");
-  DownloadRef download = DownloadRef::create(link);
+  DownloadRef download = std::make_shared<Download>(link);
   if (!download->file()->open()) {
     emit updateError(errorText, tr("Unable to open temporary file"));
     return DownloadRef();
