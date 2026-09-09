@@ -1,8 +1,8 @@
-app-id: com.github.Pawmmit.Pawmmit
+app-id: com.github.Murmele.Gittyup
 runtime: org.kde.Platform
 runtime-version: 6.9
 sdk: org.kde.Sdk
-command: pawmmit
+command: gittyup
 desktop-file-name-suffix: "" # used to create development version
 finish-args:
   - --socket=wayland
@@ -19,7 +19,9 @@ finish-args:
   - --talk-name=org.freedesktop.secrets
   - --talk-name=org.freedesktop.Notifications
   - --talk-name=org.freedesktop.Flatpak
-rename-icon: pawmmit # Image will renamed to match the app-id konvention
+rename-icon: gittyup # Image will renamed to match the app-id konvention
+rename-desktop-file: gittyup.desktop
+rename-appdata-file: gittyup.appdata.xml
 
 build-options:
   append-path: /usr/lib/sdk/golang/bin
@@ -78,14 +80,14 @@ modules:
           - autoreconf -fiv
         dest-filename: autogen.sh
 
-  - name: Pawmmit
+  - name: Gittyup
     buildsystem: cmake-ninja
     config-opts: [-DCMAKE_BUILD_TYPE=Release, -DFLATPAK=ON, -DGENERATE_APPDATA=ON, -DENABLE_UPDATE_OVER_GUI=OFF]
     builddir: true
     sources:
       - type: git
-        url: https://github.com/Pawmmit/Pawmmit.git
-        branch: main
+        url: https://github.com/Murmele/Gittyup.git
+        tag: gittyup_v1.3.0
       - type: archive
         url: https://downloads.sourceforge.net/project/scintilla/scintilla/5.6.6/scintilla566.tgz
         sha256: b6b08598c68fac90990d010c1142494d707530602b5320753274d045c2b02189
