@@ -27,7 +27,7 @@ DownloadDialog::DownloadDialog(const Updater::DownloadRef &download,
   setAttribute(Qt::WA_DeleteOnClose);
   setWindowTitle(tr("Update %1").arg(QCoreApplication::applicationName()));
 
-  QIcon icon(":/Gittyup.iconset/icon_128x128.png");
+  QIcon icon(":/Pawmmit.iconset/icon_128x128.png");
   IconLabel *iconLabel = new IconLabel(icon, 64, 64, this);
 
   QVBoxLayout *iconLayout = new QVBoxLayout;

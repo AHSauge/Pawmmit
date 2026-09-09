@@ -89,7 +89,7 @@ private:
 } // namespace
 
 ThemeDialog::ThemeDialog(QWidget *parent) : QDialog(parent) {
-  setWindowTitle(tr("Pick a theme for Gittyup"));
+  setWindowTitle(tr("Pick a theme for Pawmmit"));
 
   ThemeButton *native = new ThemeButton(
       tr("Default Theme"), QIcon(":/native.png"),

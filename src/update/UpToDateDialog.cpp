@@ -21,7 +21,7 @@
 UpToDateDialog::UpToDateDialog(QWidget *parent) : QDialog(parent) {
   setWindowTitle(tr("Already Up-to-date"));
 
-  QIcon icon(":/Gittyup.iconset/icon_128x128.png");
+  QIcon icon(":/Pawmmit.iconset/icon_128x128.png");
   IconLabel *iconLabel = new IconLabel(icon, 64, 64, this);
 
   QVBoxLayout *iconLayout = new QVBoxLayout;

@@ -4,11 +4,11 @@ set(RSRC_DIR ${CMAKE_SOURCE_DIR}/rsrc)
 option(GENERATE_APPDATA "Create appdata/metadata file" OFF)
 
 if(APPLE)
-  set(ICON ${RSRC_DIR}/Gittyup.icns)
+  set(ICON ${RSRC_DIR}/Pawmmit.icns)
   set(APP_IMPL_FILE Application_mac.mm)
   set(THEME_IMPL_FILE CustomTheme_mac.mm)
 elseif(WIN32)
-  set(RC_FILE ${RSRC_DIR}/Gittyup.rc)
+  set(RC_FILE ${RSRC_DIR}/Pawmmit.rc)
 endif()
 
 set(EMOJI ${CONF_DIR}/emoji.json)
@@ -36,9 +36,9 @@ set(ACKNOWLEDGMENTS_HTML ${DOC_BINARY_DIR}/acknowledgments.html)
 set(PRIVACY_HTML ${DOC_BINARY_DIR}/privacy.html)
 set(PLUGIN_HTML ${DOC_BINARY_DIR}/plugin.html)
 set(APPDATA_CONF
-    ${CMAKE_SOURCE_DIR}/rsrc/linux/com.github.Murmele.Gittyup.appdata.xml.in)
+    ${CMAKE_SOURCE_DIR}/rsrc/linux/com.github.Pawmmit.Pawmmit.appdata.xml.in)
 set(APPDATA
-    ${CMAKE_BINARY_DIR}/rsrc/linux/com.github.Murmele.Gittyup.appdata.xml)
+    ${CMAKE_BINARY_DIR}/rsrc/linux/com.github.Pawmmit.Pawmmit.appdata.xml)
 add_custom_command(
   OUTPUT ${CHANGELOG_HTML} ${ACKNOWLEDGMENTS_HTML} ${PRIVACY_HTML}
          ${PLUGIN_HTML}
@@ -59,12 +59,12 @@ endif()
 
 target_compile_definitions(
   app
-  PUBLIC GITTYUP_NAME="${GITTYUP_NAME}"
-         GITTYUP_VERSION="${GITTYUP_VERSION}"
-         GITTYUP_IDENTIFIER="${GITTYUP_IDENTIFIER}"
-         GITTYUP_ORGANIZATION_DOMAIN="${GITTYUP_ORGANIZATION_DOMAIN}"
-         GITTYUP_DBUS_INTERFACE_NAME="${GITTYUP_IDENTIFIER}.Application"
-         GITTYUP_DBUS_OBJECT_PATH="/com/github/Murmele/Gittyup/Application"
+  PUBLIC PAWMMIT_NAME="${PAWMMIT_NAME}"
+         PAWMMIT_VERSION="${PAWMMIT_VERSION}"
+         PAWMMIT_IDENTIFIER="${PAWMMIT_IDENTIFIER}"
+         PAWMMIT_ORGANIZATION_DOMAIN="${PAWMMIT_ORGANIZATION_DOMAIN}"
+         PAWMMIT_DBUS_INTERFACE_NAME="${PAWMMIT_IDENTIFIER}.Application"
+         PAWMMIT_DBUS_OBJECT_PATH="/com/github/Pawmmit/Pawmmit/Application"
   PRIVATE QT_TRANSLATIONS_DIR="${QT_TRANSLATIONS_DIR}"
           BUILD_DESCRIPTION="${BUILD_DESCRIPTION}")
 
@@ -85,8 +85,8 @@ endif()
 
 # Add main executable.
 add_executable(
-  gittyup WIN32 MACOSX_BUNDLE
-  Gittyup.cpp
+  pawmmit WIN32 MACOSX_BUNDLE
+  Pawmmit.cpp
   ${ICON}
   ${RC_FILE}
   ${CONFIG_FILES}
@@ -107,33 +107,33 @@ if(GENERATE_APPDATA)
     COMMAND
       ${CMAKE_COMMAND} -DCHANGELOG_HTML:STRING=${CHANGELOG_HTML}
       -DAPPDATA_CONF:STRING=${APPDATA_CONF} -DAPPDATA:STRING=${APPDATA}
-      -DGITTYUP_IDENTIFIER:STRING=${GITTYUP_IDENTIFIER} -P
+      -DPAWMMIT_IDENTIFIER:STRING=${PAWMMIT_IDENTIFIER} -P
       "${CMAKE_SOURCE_DIR}/cmake/generate_appdata.cmake"
     DEPENDS ${CHANGELOG_HTML}
     COMMENT "Create appdata file")
 endif()
 
-target_link_libraries(gittyup app)
+target_link_libraries(pawmmit app)
 
 set_target_properties(
-  gittyup
-  PROPERTIES OUTPUT_NAME ${GITTYUP_EXECUTABLE_NAME}
-             MACOSX_BUNDLE_BUNDLE_NAME ${GITTYUP_NAME}
+  pawmmit
+  PROPERTIES OUTPUT_NAME ${PAWMMIT_EXECUTABLE_NAME}
+             MACOSX_BUNDLE_BUNDLE_NAME ${PAWMMIT_NAME}
              RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 if(WIN32)
   target_link_libraries(app Dbghelp.lib)
 elseif(APPLE)
   set_target_properties(
-    gittyup
+    pawmmit
     PROPERTIES INSTALL_RPATH "/usr/local/qt;@loader_path/../Frameworks"
                MACOSX_BUNDLE_INFO_PLIST ${RSRC_DIR}/Info.plist.in
-               MACOSX_BUNDLE_ICON_FILE ${GITTYUP_NAME}
-               MACOSX_BUNDLE_BUNDLE_NAME ${GITTYUP_NAME}
-               MACOSX_BUNDLE_BUNDLE_VERSION ${GITTYUP_VERSION}
-               MACOSX_BUNDLE_LONG_VERSION_STRING ${GITTYUP_VERSION}
-               MACOSX_BUNDLE_SHORT_VERSION_STRING ${GITTYUP_VERSION}
-               MACOSX_BUNDLE_GUI_IDENTIFIER ${GITTYUP_IDENTIFIER})
+               MACOSX_BUNDLE_ICON_FILE ${PAWMMIT_NAME}
+               MACOSX_BUNDLE_BUNDLE_NAME ${PAWMMIT_NAME}
+               MACOSX_BUNDLE_BUNDLE_VERSION ${PAWMMIT_VERSION}
+               MACOSX_BUNDLE_LONG_VERSION_STRING ${PAWMMIT_VERSION}
+               MACOSX_BUNDLE_SHORT_VERSION_STRING ${PAWMMIT_VERSION}
+               MACOSX_BUNDLE_GUI_IDENTIFIER ${PAWMMIT_IDENTIFIER})
 
   # Copy config files into bundle.
   set_source_files_properties(
@@ -161,16 +161,16 @@ elseif(APPLE)
 else()
 
   if(NOT FLATPAK)
-    set_target_properties(gittyup PROPERTIES INSTALL_RPATH "$ORIGIN")
+    set_target_properties(pawmmit PROPERTIES INSTALL_RPATH "$ORIGIN")
   endif()
 endif()
 
-add_dependencies(gittyup gittyup-indexer gittyup-relauncher)
+add_dependencies(pawmmit pawmmit-indexer pawmmit-relauncher)
 
 install(
-  TARGETS gittyup
+  TARGETS pawmmit
   DESTINATION $<IF:$<PLATFORM_ID:Darwin>,.,${CMAKE_INSTALL_BINDIR}>
-  COMPONENT ${GITTYUP_NAME})
+  COMPONENT ${PAWMMIT_NAME})
 
 if(APPLE)
   get_target_property(QT_LIBRARY Qt6::Core LOCATION)
@@ -178,7 +178,7 @@ if(APPLE)
   get_filename_component(RPATH ${QT_FRAMEWORK} DIRECTORY)
 
   # Fixup relauncher RPATH.
-  set(RELAUNCHER ${CONTENTS_DIR}/MacOS/gittyup-relauncher)
+  set(RELAUNCHER ${CONTENTS_DIR}/MacOS/pawmmit-relauncher)
   install(
     CODE "execute_process(COMMAND
 		${CMAKE_INSTALL_NAME_TOOL} -delete_rpath \"${RPATH}\"
@@ -192,10 +192,10 @@ execute_process(COMMAND
 	${CMAKE_INSTALL_NAME_TOOL} -add_rpath \"@loader_path/../Frameworks\"
 	  \"\${CMAKE_INSTALL_PREFIX}/${RELAUNCHER}\"
   )"
-    COMPONENT ${GITTYUP_NAME})
+    COMPONENT ${PAWMMIT_NAME})
 
   # Fixup indexer RPATH.
-  set(INDEXER ${CONTENTS_DIR}/MacOS/gittyup-indexer)
+  set(INDEXER ${CONTENTS_DIR}/MacOS/pawmmit-indexer)
   install(
     CODE "execute_process(COMMAND
 		${CMAKE_INSTALL_NAME_TOOL} -delete_rpath \"${RPATH}\"
@@ -209,19 +209,19 @@ execute_process(COMMAND
 	${CMAKE_INSTALL_NAME_TOOL} -add_rpath \"@loader_path/../Frameworks\"
 	  \"\${CMAKE_INSTALL_PREFIX}/${INDEXER}\"
   )"
-    COMPONENT ${GITTYUP_NAME})
+    COMPONENT ${PAWMMIT_NAME})
 else()
   # Windows and UNIX must be ./ otherwise it is interpreted as absolute path
   if(UNIX)
     install(
-      FILES ${CMAKE_SOURCE_DIR}/rsrc/linux/com.github.Murmele.Gittyup.desktop
+      FILES ${CMAKE_SOURCE_DIR}/rsrc/linux/com.github.Pawmmit.Pawmmit.desktop
       DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
-      RENAME ${GITTYUP_EXECUTABLE_NAME}.desktop)
+      RENAME ${PAWMMIT_EXECUTABLE_NAME}.desktop)
     if(${GENERATE_APPDATA})
       install(
         FILES ${APPDATA}
         DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo
-        RENAME ${GITTYUP_EXECUTABLE_NAME}.appdata.xml)
+        RENAME ${PAWMMIT_EXECUTABLE_NAME}.appdata.xml)
     endif()
   endif()
 
@@ -234,13 +234,13 @@ else()
       FILES ${CHANGELOG_HTML} ${ACKNOWLEDGMENTS_HTML} ${PRIVACY_HTML}
             ${PLUGIN_HTML}
       DESTINATION ${RESOURCES_DIR}
-      COMPONENT ${GITTYUP_NAME})
+      COMPONENT ${PAWMMIT_NAME})
   endif()
 
   install(
     FILES ${EMOJI} ${MERGETOOLS}
     DESTINATION ${RESOURCES_DIR}
-    COMPONENT ${GITTYUP_NAME})
+    COMPONENT ${PAWMMIT_NAME})
 
   execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${EMOJI}
                           ${CMAKE_BINARY_DIR}/Resources/emoji.json)
@@ -251,7 +251,7 @@ else()
     install(
       FILES ${CONFIG_FILE}
       DESTINATION ${RESOURCES_DIR}
-      COMPONENT ${GITTYUP_NAME})
+      COMPONENT ${PAWMMIT_NAME})
 
     file(RELATIVE_PATH CONFIG_FILE_DEST ${CONF_DIR} ${CONFIG_FILE})
     execute_process(
@@ -262,7 +262,7 @@ else()
   install(
     FILES ${DICTIONARIES}
     DESTINATION ${RESOURCES_DIR}/dictionaries
-    COMPONENT ${GITTYUP_NAME})
+    COMPONENT ${PAWMMIT_NAME})
 
   foreach(DICTIONARY ${DICTIONARIES})
     file(RELATIVE_PATH DICTIONARY_DEST ${CONF_DIR} ${DICTIONARY})
@@ -273,7 +273,7 @@ else()
   install(
     FILES ${THEMES}
     DESTINATION ${RESOURCES_DIR}/themes
-    COMPONENT ${GITTYUP_NAME})
+    COMPONENT ${PAWMMIT_NAME})
 
   foreach(THEME ${THEMES})
     file(RELATIVE_PATH THEME_DEST ${CONF_DIR} ${THEME})
@@ -284,7 +284,7 @@ else()
   install(
     FILES ${LUA_PLUGINS}
     DESTINATION ${RESOURCES_DIR}/plugins
-    COMPONENT ${GITTYUP_NAME})
+    COMPONENT ${PAWMMIT_NAME})
 
   foreach(LUA_PLUGIN ${LUA_PLUGINS})
     file(RELATIVE_PATH LUA_PLUGIN_DEST ${CONF_DIR} ${LUA_PLUGIN})
@@ -296,7 +296,7 @@ else()
     install(
       FILES ${SCINTILLUA_LEXER}
       DESTINATION ${RESOURCES_DIR}/lexers
-      COMPONENT ${GITTYUP_NAME})
+      COMPONENT ${PAWMMIT_NAME})
 
     get_filename_component(SCINTILLUA_LEXER_DEST ${SCINTILLUA_LEXER} NAME)
     execute_process(

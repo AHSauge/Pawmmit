@@ -1,5 +1,5 @@
 //
-//          Copyright (c) 2022, Gittyup Contributors
+//          Copyright (c) 2022, Pawmmit Contributors
 //
 // This software is licensed under the GNU General Public License v3.0 or
 // (at your option) any later version. The LICENSE.md file describes the

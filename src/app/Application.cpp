@@ -71,13 +71,13 @@ static LONG WINAPI exceptionFilter(PEXCEPTION_POINTERS info) {
   GetTempPath(MAX_PATH, temp);
 
   wchar_t dir[MAX_PATH];
-  const wchar_t *gittyup_name = L"%sGittyup";
-  StringCchPrintf(dir, MAX_PATH, gittyup_name, temp);
+  const wchar_t *pawmmit_name = L"%sPawmmit";
+  StringCchPrintf(dir, MAX_PATH, pawmmit_name, temp);
   CreateDirectory(dir, NULL);
 
   wchar_t fileName[MAX_PATH];
   const wchar_t *s = L"%s\\%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp";
-  StringCchPrintf(fileName, MAX_PATH, s, dir, GITTYUP_NAME, GITTYUP_VERSION,
+  StringCchPrintf(fileName, MAX_PATH, s, dir, PAWMMIT_NAME, PAWMMIT_VERSION,
                   localTime.wYear, localTime.wMonth, localTime.wDay,
                   localTime.wHour, localTime.wMinute, localTime.wSecond,
                   GetCurrentProcessId(), GetCurrentThreadId());
@@ -102,11 +102,11 @@ Application::Application(int &argc, char **argv, bool haltOnParseError)
     : QApplication(argc, argv) {
   Q_INIT_RESOURCE(resources);
 
-  setApplicationName(GITTYUP_NAME);
-  setApplicationDisplayName(GITTYUP_NAME);
-  setApplicationVersion(GITTYUP_VERSION);
-  setOrganizationDomain(GITTYUP_ORGANIZATION_DOMAIN);
-  setDesktopFileName(GITTYUP_IDENTIFIER);
+  setApplicationName(PAWMMIT_NAME);
+  setApplicationDisplayName(PAWMMIT_NAME);
+  setApplicationVersion(PAWMMIT_VERSION);
+  setOrganizationDomain(PAWMMIT_ORGANIZATION_DOMAIN);
+  setDesktopFileName(PAWMMIT_IDENTIFIER);
 
   // Register types that are queued at runtime.
   qRegisterMetaType<git::Id>();
@@ -117,7 +117,7 @@ Application::Application(int &argc, char **argv, bool haltOnParseError)
 
   // Parse command line arguments.
   QCommandLineParser parser;
-  parser.setApplicationDescription("Gittyup" BUILD_DESCRIPTION);
+  parser.setApplicationDescription("Pawmmit" BUILD_DESCRIPTION);
   parser.addHelpOption();
   parser.addVersionOption();
   parser.addPositionalArgument("repository",
@@ -200,7 +200,7 @@ Application::Application(int &argc, char **argv, bool haltOnParseError)
 
     QLocale locale;
     QDir l10n = Settings::l10nDir();
-    QString name = QString(GITTYUP_NAME).toLower();
+    QString name = QString(PAWMMIT_NAME).toLower();
     QTranslator *translator = new QTranslator(this);
     if (translator->load(locale, name, "_", l10n.absolutePath())) {
       installTranslator(translator);
@@ -247,10 +247,10 @@ Application::Application(int &argc, char **argv, bool haltOnParseError)
 
 #elif defined(Q_OS_LINUX)
   QIcon icon;
-  icon.addPixmap(QPixmap(":/Gittyup.iconset/icon_16x16.png"));
-  icon.addPixmap(QPixmap(":/Gittyup.iconset/icon_32x32.png"));
-  icon.addPixmap(QPixmap(":/Gittyup.iconset/icon_64x64.png"));
-  icon.addPixmap(QPixmap(":/Gittyup.iconset/icon_128x128.png"));
+  icon.addPixmap(QPixmap(":/Pawmmit.iconset/icon_16x16.png"));
+  icon.addPixmap(QPixmap(":/Pawmmit.iconset/icon_32x32.png"));
+  icon.addPixmap(QPixmap(":/Pawmmit.iconset/icon_64x64.png"));
+  icon.addPixmap(QPixmap(":/Pawmmit.iconset/icon_128x128.png"));
   setWindowIcon(icon);
 #endif
 
@@ -349,25 +349,25 @@ static MainWindow *openOrSwitch(QDir repo) {
 }
 
 #if defined(Q_OS_LINUX)
-#define DBUS_SERVICE_NAME GITTYUP_IDENTIFIER
-#define DBUS_INTERFACE_NAME GITTYUP_DBUS_INTERFACE_NAME
-#define DBUS_OBJECT_PATH GITTYUP_DBUS_OBJECT_PATH
+#define DBUS_SERVICE_NAME PAWMMIT_IDENTIFIER
+#define DBUS_INTERFACE_NAME PAWMMIT_DBUS_INTERFACE_NAME
+#define DBUS_OBJECT_PATH PAWMMIT_DBUS_OBJECT_PATH
 
-DBusGittyup::DBusGittyup(QObject *parent) : QObject(parent) {}
+DBusPawmmit::DBusPawmmit(QObject *parent) : QObject(parent) {}
 
-void DBusGittyup::openRepository(const QString &repo) {
+void DBusPawmmit::openRepository(const QString &repo) {
   openOrSwitch(QDir(repo));
 }
 
-void DBusGittyup::openAndFocusRepository(const QString &repo) {
+void DBusPawmmit::openAndFocusRepository(const QString &repo) {
   openOrSwitch(QDir(repo))->activateWindow();
 }
 
-void DBusGittyup::setFocus() { MainWindow::activeWindow()->activateWindow(); }
+void DBusPawmmit::setFocus() { MainWindow::activeWindow()->activateWindow(); }
 
 #elif defined(Q_OS_WIN)
 #define COPYDATA_WINDOW_TITLE                                                  \
-  "Gittyup WM_COPYDATA receiver 16b8b3f6-6446-4fa7-8c72-53c25b1f206c"
+  "Pawmmit WM_COPYDATA receiver 16b8b3f6-6446-4fa7-8c72-53c25b1f206c"
 enum CopyDataCommand { Focus = 0, FocusAndOpen = 1 };
 
 namespace {
@@ -478,7 +478,7 @@ void Application::registerService() {
   if (!bus.registerService(DBUS_SERVICE_NAME))
     return;
 
-  bus.registerObject(DBUS_OBJECT_PATH, DBUS_INTERFACE_NAME, new DBusGittyup(),
+  bus.registerObject(DBUS_OBJECT_PATH, DBUS_INTERFACE_NAME, new DBusPawmmit(),
                      QDBusConnection::ExportScriptableSlots);
 
 #elif defined(Q_OS_WIN)

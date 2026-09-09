@@ -22,8 +22,8 @@ private slots:
 };
 
 void TestSanity::sanity() {
-  QCOMPARE(QCoreApplication::applicationName(), QString(GITTYUP_NAME));
-  QCOMPARE(QCoreApplication::applicationVersion(), QString(GITTYUP_VERSION));
+  QCOMPARE(QCoreApplication::applicationName(), QString(PAWMMIT_NAME));
+  QCOMPARE(QCoreApplication::applicationVersion(), QString(PAWMMIT_VERSION));
 }
 
 TEST_MAIN(TestSanity)

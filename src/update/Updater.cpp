@@ -50,10 +50,10 @@ namespace {
 
 const QString kDownloadPlatform = "Github";
 const QString kTemplateFmt = "%1-XXXXXX.%2";
-const QString kLinkFmt = "https://github.com/Murmele/gittyup/releases/latest/"
-                         "download/Gittyup%1%2.%3";
+const QString kLinkFmt = "https://github.com/Pawmmit/Pawmmit/releases/latest/"
+                         "download/Pawmmit%1%2.%3";
 const QString kChangelogUrl =
-    "https://raw.githubusercontent.com/Murmele/Gittyup/gh-pages/changelog.md";
+    "https://raw.githubusercontent.com/Pawmmit/Pawmmit/gh-pages/changelog.md";
 
 } // namespace
 
@@ -289,21 +289,21 @@ Updater *Updater::instance() {
 }
 
 #if defined(FLATPAK) || defined(DEBUG_FLATPAK)
-bool Updater::uninstallGittyup(bool system) {
+bool Updater::uninstallPawmmit(bool system) {
   QString bash = git::Command::bashPath();
   QString loc = system ? "--system" : "--user";
 
   QStringList args;
   args.append("-c");
   args.append(QString("flatpak-spawn --host flatpak remove -y %1 "
-                      "com.github.Murmele.Gittyup")
+                      "com.github.Pawmmit.Pawmmit")
                   .arg(loc));
   auto *p = new QProcess(this);
 
   p->start(bash, args);
   if (!p->waitForFinished()) {
     const QString es = p->errorString();
-    qDebug() << "Uninstalling Gittyup failed: " + es;
+    qDebug() << "Uninstalling Pawmmit failed: " + es;
     return false;
   } else {
     qDebug() << "Uninstall: " + p->readAll();
@@ -316,8 +316,8 @@ bool Updater::install(const DownloadRef &download, QString &error) {
   QString path = download->file()->fileName();
 
   // Ignore return value
-  uninstallGittyup(true);
-  uninstallGittyup(false);
+  uninstallPawmmit(true);
+  uninstallPawmmit(false);
 
   QDir dir(QCoreApplication::applicationDirPath());
   QStringList args;
@@ -341,11 +341,11 @@ bool Updater::install(const DownloadRef &download, QString &error) {
   }
   p->deleteLater();
 
-  auto relauncher_cmd = dir.filePath("gittyup-relauncher");
+  auto relauncher_cmd = dir.filePath("pawmmit-relauncher");
   Debug("Relauncher command: " << relauncher_cmd);
 
   // Start the relaunch helper.
-  QString app = "flatpak-spawn --host flatpak run com.github.Murmele.Gittyup";
+  QString app = "flatpak-spawn --host flatpak run com.github.Pawmmit.Pawmmit";
   QString pid = QString::number(QCoreApplication::applicationPid());
   if (!QProcess::startDetached(relauncher_cmd, {app, pid})) {
     error = tr("Helper application failed to start");
@@ -368,7 +368,7 @@ bool Updater::install(const DownloadRef &download, QString &error) {
   // Start the relaunch helper.
   QString app = QCoreApplication::applicationFilePath();
   QString pid = QString::number(QCoreApplication::applicationPid());
-  if (!QProcess::startDetached(dir.filePath("gittyup-relauncher"),
+  if (!QProcess::startDetached(dir.filePath("pawmmit-relauncher"),
                                {app, pid})) {
     error = tr("Helper application failed to start");
     return false;
