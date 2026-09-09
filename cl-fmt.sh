@@ -8,9 +8,9 @@ FMT=""
 
 FOLDERS=("./src" "./test" "./l10n")
 
-# We specifically require clang-format v13. Some distros include the version
+# We specifically require clang-format v19. Some distros include the version
 # number in the name, others don't. Prefer the specifically-named version.
-for clangfmt in clang-format-13 clang-format
+for clangfmt in clang-format-19 clang-format
 do
     if command -v "$clangfmt" &>/dev/null; then
         FMT="$clangfmt"
@@ -24,11 +24,12 @@ if [ -z "$FMT" ]; then
     exit 1
 fi
 
-# Check we have v13 of clang-format
+# Check we have v19 of clang-format
 VERSION=`$FMT --version | grep -Po 'version\s\K(\d+)'`
-if [ "$VERSION" != "13" ]; then
-	echo "Found clang-format v$VERSION, but v13 is required. Please install v13 of clang-format and try again."
-	echo "On Debian-derived distributions, this can be done via: apt install clang-format-13"
+if [ "$VERSION" != "19" ]; then
+	echo "Found clang-format v$VERSION, but v19 is required. Please install v19 of clang-format and try again."
+	echo "On Debian-derived distributions, this can be done via: apt install clang-format-19"
+	echo "Alternatively, install the pinned wheel: pip install clang-format==19.1.7"
 	exit 1
 fi
 

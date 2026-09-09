@@ -26,13 +26,11 @@ namespace {
 
 const QString kBundleFmt = "%1.app";
 
-void unmount(const QString &point)
-{
+void unmount(const QString &point) {
   QProcess::execute("hdiutil", {"detach", "-quiet", point});
 }
 
-bool mount(const QString &path, const QString &root)
-{
+bool mount(const QString &path, const QString &root) {
   // Mount the disk image.
   QProcess process;
   process.setStandardOutputFile(QProcess::nullDevice());
@@ -42,18 +40,15 @@ bool mount(const QString &path, const QString &root)
   return (!process.exitStatus() && !process.exitCode());
 }
 
-class DiskImage
-{
+class DiskImage {
 public:
-  DiskImage(const QString &path)
-  {
+  DiskImage(const QString &path) {
     // Mount the disk image.
     if (mDir.isValid())
       mValid = mount(path, mDir.path());
   }
 
-  ~DiskImage()
-  {
+  ~DiskImage() {
     // Unmount the disk image.
     if (mValid)
       unmount(mountPoint());
@@ -61,8 +56,7 @@ public:
 
   bool isValid() const { return mValid; }
 
-  QString mountPoint() const
-  {
+  QString mountPoint() const {
     return QDir(mDir.path()).filePath(QCoreApplication::applicationName());
   }
 
@@ -71,10 +65,9 @@ private:
   QTemporaryDir mDir;
 };
 
-} // anon. namespace
+} // namespace
 
-bool Updater::install(const DownloadRef &download, QString &error)
-{
+bool Updater::install(const DownloadRef &download, QString &error) {
   DiskImage image(download->file()->fileName());
   if (!image.isValid()) {
     error = tr("The disk image failed to mount successfully");
@@ -87,11 +80,13 @@ bool Updater::install(const DownloadRef &download, QString &error)
   NSBundle *bundle = [NSBundle mainBundle];
   NSURL *url = [bundle bundleURL];
   NSString *path = [bundle bundlePath];
-  [[NSWorkspace sharedWorkspace] recycleURLs:@[url] completionHandler:
-  ^(NSDictionary<NSURL *, NSURL *> *newURLs, NSError *error) {
-    recycleError = error;
-    loop->quit();
-  }];
+  [[NSWorkspace sharedWorkspace]
+            recycleURLs:@[ url ]
+      completionHandler:^(NSDictionary<NSURL *, NSURL *> *newURLs,
+                          NSError *error) {
+        recycleError = error;
+        loop->quit();
+      }];
 
   // Wait for recycle.
   loop->exec();
@@ -116,7 +111,8 @@ bool Updater::install(const DownloadRef &download, QString &error)
   QDir dir(QCoreApplication::applicationDirPath());
   QString app = QCoreApplication::applicationFilePath();
   QString pid = QString::number(QCoreApplication::applicationPid());
-  if (!QProcess::startDetached(dir.filePath("pawmmit-relauncher"), {app, pid})) {
+  if (!QProcess::startDetached(dir.filePath("pawmmit-relauncher"),
+                               {app, pid})) {
     error = tr("Helper application failed to start");
     return false;
   }
