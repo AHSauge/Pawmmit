@@ -235,6 +235,7 @@ public:
     connect(dialog, &QDialog::accepted, this,
             [this, dialog] { mRepo.addRemote(dialog->name(), dialog->url()); });
 
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->open();
   }
 
@@ -678,13 +679,13 @@ public:
     connect(environment, &QAbstractButton::clicked, this, [view] {
       git::Repository repo = view->repo();
 
-      QDialog *dialog = new QDialog();
-      dialog->setWindowTitle(tr("git-lfs env (read only)"));
+      QDialog dialog;
+      dialog.setWindowTitle(tr("git-lfs env (read only)"));
 
       QSize size(500, 500);
-      dialog->setFixedSize(size);
+      dialog.setFixedSize(size);
 
-      QTextEdit *textEdit = new QTextEdit(dialog);
+      QTextEdit *textEdit = new QTextEdit(&dialog);
       textEdit->setFixedSize(size);
       textEdit->setReadOnly(true);
 
@@ -692,7 +693,7 @@ public:
         textEdit->append(string);
       }
 
-      dialog->exec();
+      dialog.exec();
     });
 
     QPushButton *deinit = new QPushButton(tr("Deinitialize LFS"));
