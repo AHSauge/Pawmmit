@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -16,7 +19,6 @@
 #include "editor/TextEditor.h"
 #include "git/Blame.h"
 #include "git/Blob.h"
-#include "git/Buffer.h"
 #include "git/Commit.h"
 #include "git/Index.h"
 #include "git/Repository.h"
@@ -145,8 +147,7 @@ bool BlameEditor::load(const QString &name, const git::Blob &blob,
 
     // Limit the read to kMaxReadBinary to determine if the file is binary
     content = file.read(kMaxReadBinary);
-    git::Buffer buffer(content.constData(), content.length());
-    if (buffer.isBinary()) {
+    if (git::Blob::isBinary(content)) {
       return false;
     } else if (content.length() >= kMaxReadBinary) {
       // Okay, not a binary file. Now we need to grab the rest if needed

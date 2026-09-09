@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -12,6 +15,7 @@
 
 #include "Theme.h"
 #include <QApplication>
+#include <QTemporaryDir>
 
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -42,17 +46,18 @@ private:
 
   QString mPathspec = QString();
   QScopedPointer<Theme> mTheme;
+  QScopedPointer<QTemporaryDir> mTempSettingsDir;
   QStringList mPositionalArguments;
 
   static bool mIsInTest;
 };
 
 #ifdef Q_OS_LINUX
-class DBusGittyup : public QObject {
+class DBusPawmmit : public QObject {
   Q_OBJECT
 
 public:
-  DBusGittyup(QObject *parent = nullptr);
+  DBusPawmmit(QObject *parent = nullptr);
 
 public slots:
   Q_SCRIPTABLE void openRepository(const QString &repo);

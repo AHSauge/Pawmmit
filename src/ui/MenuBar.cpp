@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -64,9 +67,6 @@ void openCloneDialog(CloneDialog::Kind kind) {
 }
 
 } // namespace
-
-const QString MenuBar::donationUrlLiberapay =
-    QStringLiteral("https://liberapay.com/Gittyup/donate");
 
 bool MenuBar::sDebugMenuVisible = false;
 
@@ -843,10 +843,6 @@ MenuBar::MenuBar(QWidget *parent) : QMenuBar(parent) {
     QString url = Settings::docDir().filePath("plugin.html");
     QDesktopServices::openUrl(QUrl::fromLocalFile(url));
   });
-
-  QAction *donation = help->addAction(tr("Support us via Liberapay"));
-  connect(donation, &QAction::triggered,
-          [] { QDesktopServices::openUrl(QUrl(donationUrlLiberapay)); });
 
   // Debug
   if (sDebugMenuVisible) {

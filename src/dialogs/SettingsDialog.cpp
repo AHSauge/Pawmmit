@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -273,7 +276,7 @@ public:
     }
     mStoreCredentials->setChecked(checked);
 
-    QString info = tr("") + "<table>";
+    QString info = "<table>";
     for (const auto &helper :
          CredentialHelper::getAvailableHelperInformation()) {
       info += QStringLiteral("<tr><td><b>%1</b></td><td>%2</td><td>")
@@ -580,6 +583,14 @@ public:
     connect(hideMenuBar, &QCheckBox::toggled, [](bool checked) {
       Settings::instance()->setValue(Setting::Id::HideMenuBar, checked);
     });
+    QCheckBox *autohideSidebar =
+        new QCheckBox(tr("Hide Repository Sidebar after opening a repository"));
+    autohideSidebar->setChecked(
+        settings->value(Setting::Id::AutoHideRepoSiderbar).toBool());
+    connect(autohideSidebar, &QCheckBox::toggled, [](bool checked) {
+      Settings::instance()->setValue(Setting::Id::AutoHideRepoSiderbar,
+                                     checked);
+    });
     QCheckBox *showAvatars = new QCheckBox(tr("Show Avatars"));
     showAvatars->setChecked(settings->value(Setting::Id::ShowAvatars).toBool());
     connect(showAvatars, &QCheckBox::toggled, [](bool checked) {
@@ -645,6 +656,7 @@ public:
     layout->addRow(tr("Tabs:"), smTabs);
     layout->addRow(QString(), repoTabs);
     layout->addRow(tr("View:"), hideMenuBar);
+    layout->addRow(QString(), autohideSidebar);
     layout->addRow(QString(), showAvatars);
     layout->addRow(QString(), showMaximized);
     layout->addRow(tr("Prompt:"), merge);
