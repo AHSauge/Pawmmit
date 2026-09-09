@@ -19,24 +19,19 @@
 
 namespace {
 
-class Auth
-{
+class Auth {
 public:
   Auth(const Auth &) = delete;
   Auth &operator=(const Auth &) = delete;
 
-  Auth()
-  {
-    OSStatus status = AuthorizationCreate(
-      nullptr, kAuthorizationEmptyEnvironment,
-      kAuthorizationFlagDefaults, &mAuth);
+  Auth() {
+    OSStatus status =
+        AuthorizationCreate(nullptr, kAuthorizationEmptyEnvironment,
+                            kAuthorizationFlagDefaults, &mAuth);
     mValid = (status == errAuthorizationSuccess);
   }
 
-  ~Auth()
-  {
-    AuthorizationFree(mAuth, kAuthorizationFlagDefaults);
-  }
+  ~Auth() { AuthorizationFree(mAuth, kAuthorizationFlagDefaults); }
 
   bool isValid() const { return mValid; }
 
@@ -47,12 +42,11 @@ private:
   AuthorizationRef mAuth;
 };
 
-bool execute(AuthorizationRef auth, const char *tool, char *const *argv)
-{
+bool execute(AuthorizationRef auth, const char *tool, char *const *argv) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
   OSStatus status = AuthorizationExecuteWithPrivileges(
-    auth, tool, kAuthorizationFlagDefaults, argv, nullptr);
+      auth, tool, kAuthorizationFlagDefaults, argv, nullptr);
 #pragma clang diagnostic pop
 
   int stat;
@@ -61,8 +55,7 @@ bool execute(AuthorizationRef auth, const char *tool, char *const *argv)
   return (status == errAuthorizationSuccess);
 }
 
-bool mkpath(AuthorizationRef auth, const QString &path)
-{
+bool mkpath(AuthorizationRef auth, const QString &path) {
   // Check if the path already exists.
   QDir dir(path);
   if (dir.exists())
@@ -78,22 +71,20 @@ bool mkpath(AuthorizationRef auth, const QString &path)
   return execute(auth, "/bin/mkdir", argv);
 }
 
-QString text()
-{
+QString text() {
   QString path = QCoreApplication::applicationFilePath();
   return QString("#!/usr/bin/env sh\n%1 $@\n").arg(path);
 }
 
-bool write(AuthorizationRef auth, const QString &path, const QString &name)
-{
+bool write(AuthorizationRef auth, const QString &path, const QString &name) {
   AuthorizationExternalForm extauth;
   OSStatus status = AuthorizationMakeExternalForm(auth, &extauth);
   if (status != errAuthorizationSuccess)
     return false;
 
   QProcess process;
-  process.start("/usr/libexec/authopen",
-    {"-extauth", "-c", "-w", "-m", "0755", QDir(path).filePath(name)});
+  process.start("/usr/libexec/authopen", {"-extauth", "-c", "-w", "-m", "0755",
+                                          QDir(path).filePath(name)});
 
   process.write(extauth.bytes, kAuthorizationExternalFormLength);
   process.write(text().toUtf8());
@@ -103,16 +94,14 @@ bool write(AuthorizationRef auth, const QString &path, const QString &name)
   return (process.exitStatus() == QProcess::NormalExit && !process.exitCode());
 }
 
-} // anon. namespace
+} // namespace
 
-bool Installer::isInstalled() const
-{
+bool Installer::isInstalled() const {
   QFile file(QDir(mPath).filePath(mName));
   return (file.open(QFile::ReadOnly) && file.readAll() == text());
 }
 
-bool Installer::install()
-{
+bool Installer::install() {
   // Create authorization.
   Auth auth;
   if (!auth.isValid())
@@ -126,8 +115,7 @@ bool Installer::install()
   return write(auth, mPath, mName);
 }
 
-bool Installer::uninstall()
-{
+bool Installer::uninstall() {
   // First try without elevating privileges.
   QDir dir(mPath);
   if (dir.remove(mName))

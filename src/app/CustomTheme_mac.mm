@@ -14,8 +14,7 @@
 #include <QWindow>
 #import <Cocoa/Cocoa.h>
 
-void CustomTheme::polishWindow(QWindow *window) const
-{
+void CustomTheme::polishWindow(QWindow *window) const {
   QVariantMap titlebar = mMap.value("titlebar").toMap();
   QVariant variant = titlebar.value("background");
   if (!variant.canConvert<QColor>())
@@ -28,7 +27,7 @@ void CustomTheme::polishWindow(QWindow *window) const
   if (color.lightnessF() < 0.5)
     win.appearance = [NSAppearance appearanceNamed:NSAppearanceNameVibrantDark];
 
-  float r,g,b,a;
-  color.getRgbF(&r,&g,&b,&a);
+  float r, g, b, a;
+  color.getRgbF(&r, &g, &b, &a);
   win.backgroundColor = [NSColor colorWithDeviceRed:r green:g blue:b alpha:a];
 }

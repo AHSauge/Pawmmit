@@ -17,7 +17,7 @@ using namespace QTest;
 
 class TestDiff : public QObject {
 public:
-  TestDiff(){};
+  TestDiff() {};
 private slots:
   void testContainsPath1() {
     // /src/testfile.txt, /src/testfile.txt1 - path: /src/testfile.txt --> only
