@@ -16,6 +16,7 @@
 #include "git/Diff.h"
 #include "git/RevWalk.h"
 #include "git/Submodule.h"
+#include "util/Path.h"
 #include <QStringBuilder>
 #include <QUrl>
 
@@ -34,7 +35,10 @@ void TreeModel::setTree(const git::Tree &tree, const git::Diff &diff) {
   beginResetModel();
 
   delete mRoot;
-  mRoot = tree.isValid() ? new Node(mRepo.workdir().path(), tree) : nullptr;
+  // Resolve potentially sandboxed path
+  mRoot = tree.isValid()
+              ? new Node(util::sandboxPathToHost(mRepo.workdir().path()), tree)
+              : nullptr;
 
   mDiff = diff;
 

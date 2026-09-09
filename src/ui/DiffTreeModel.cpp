@@ -18,6 +18,7 @@
 #include "git/RevWalk.h"
 #include "git/Submodule.h"
 #include "git/Patch.h"
+#include "util/Path.h"
 #include <QStringBuilder>
 #include <QUrl>
 #include <qobjectdefs.h>
@@ -68,7 +69,8 @@ void DiffTreeModel::setDiff(const git::Diff &diff) {
   // tree instead of the previous diff's stale rows.
   delete mRoot;
   mDiff = diff;
-  mRoot = new Node(mRepo.workdir().path(), -1);
+  // Resolve potentially sandboxed path
+  mRoot = new Node(util::sandboxPathToHost(mRepo.workdir().path()), -1);
   if (diff)
     createDiffTree();
 

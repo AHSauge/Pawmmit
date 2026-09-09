@@ -15,6 +15,7 @@
 #include "git/Config.h"
 #include "git/Index.h"
 #include "git/Repository.h"
+#include "util/Path.h"
 #include "Debug.h"
 #include <QDateTime>
 #include <QDir>
@@ -113,9 +114,12 @@ bool MergeTool::start() {
   process->setProcessEnvironment(env);
 
 #if defined(FLATPAK) || defined(DEBUG_FLATPAK)
+  // Resolve potentially sandboxed path
+  const QString hostMerged = util::sandboxPathToHost(mFile);
   QStringList arguments = {"--host", "--env=LOCAL=" + local->fileName(),
                            "--env=REMOTE=" + remote->fileName(),
-                           "--env=MERGED=" + mFile, "--env=BASE=" + basePath};
+                           "--env=MERGED=" + hostMerged,
+                           "--env=BASE=" + basePath};
   arguments.append("sh");
   arguments.append("-c");
   arguments.append(command);
