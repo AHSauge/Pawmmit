@@ -246,7 +246,7 @@ Application::Application(int &argc, char **argv, bool haltOnParseError)
   if (!dir.exists())
     dir.setPath("/Applications");
   dir.cd("Utilities/Terminal.app/Contents/Resources/Fonts");
-  foreach (const QString &name, dir.entryList({"SF*Mono-*.otf"}, QDir::Files))
+  for (const QString &name : dir.entryList({"SF*Mono-*.otf"}, QDir::Files))
     QFontDatabase::addApplicationFont(dir.filePath(name));
 
   // Create shared menu bar on macOS.
@@ -338,6 +338,8 @@ bool Application::restoreWindows() {
   return MainWindow::restoreWindows();
 }
 
+// Currently unused on MacOS
+#if defined(Q_OS_LINUX) || defined(Q_OS_WIN)
 static MainWindow *openOrSwitch(QDir repo) {
   repo.makeAbsolute();
 
@@ -358,6 +360,7 @@ static MainWindow *openOrSwitch(QDir repo) {
 
   return MainWindow::open(repo.path(), true);
 }
+#endif
 
 #if defined(Q_OS_LINUX)
 #define DBUS_SERVICE_NAME PAWMMIT_IDENTIFIER
@@ -530,7 +533,7 @@ void Application::handleSslErrors(QNetworkReply *reply,
   QMessageBox msg(QMessageBox::Warning, title, text, buttons);
 
   QString message;
-  foreach (const QSslError &error, errors)
+  for (const QSslError &error : errors)
     message.append(QString("<p>%1</p>").arg(error.errorString()));
   msg.setInformativeText(message);
 

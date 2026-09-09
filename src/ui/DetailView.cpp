@@ -302,8 +302,8 @@ public:
 
   void setReferences(const QList<git::Commit> &commits) {
     QList<Badge::Label> refs;
-    foreach (const git::Commit &commit, commits) {
-      foreach (const git::Reference &ref, commit.refs())
+    for (const git::Commit &commit : commits) {
+      for (const git::Reference &ref : commit.refs())
         refs.append(
             {Badge::Label::Type::Ref, ref.name(), ref.isHead(), ref.isTag()});
     }
@@ -342,7 +342,7 @@ public:
 
       // Add names.
       QSet<QString> authors, committers;
-      foreach (const git::Commit &commit, commits) {
+      for (const git::Commit &commit : commits) {
         authors.insert(kBoldFmt.arg(commit.author().name()));
         committers.insert(kBoldFmt.arg(commit.committer().name()));
       }
@@ -404,7 +404,7 @@ public:
         kAuthorFmt.arg(committer.name(), committer.email()));
 
     QStringList parents;
-    foreach (const git::Commit &parent, commit.parents()) {
+    for (const git::Commit &parent : commit.parents()) {
       QUrl url;
       url.setScheme("id");
       url.setPath(parent.id().toString());

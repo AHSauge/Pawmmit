@@ -67,13 +67,13 @@ void populateExternalTools(QComboBox *comboBox, const QString &type) {
                                     ExternalTool::readBuiltInTools(type);
 
   QStringList names;
-  foreach (const ExternalTool::Info &tool, tools) {
+  for (const ExternalTool::Info &tool : tools) {
     if (tool.found)
       names.append(tool.name);
   }
 
   std::sort(names.begin(), names.end());
-  foreach (const QString &tool, names)
+  for (const QString &tool : names)
     comboBox->addItem(tool);
 }
 
@@ -150,7 +150,7 @@ public:
 
 #if defined(Q_OS_LINUX) || defined(Q_OS_WIN)
     form->addRow(tr("Single instance:"), mSingleInstance);
-#elif defined(Q_OS_MACX)
+#elif defined(Q_OS_MACOS)
     mSingleInstance->setVisible(false);
 #endif
 
@@ -173,7 +173,7 @@ public:
 
     connect(mFetch, &QCheckBox::toggled, this, [](bool checked) {
       Settings::instance()->setValue(Setting::Id::FetchAutomatically, checked);
-      foreach (MainWindow *window, MainWindow::windows()) {
+      for (MainWindow *window : MainWindow::windows()) {
         for (int i = 0; i < window->count(); ++i)
           window->view(i)->startFetchTimer();
       }

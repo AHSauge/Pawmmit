@@ -59,7 +59,7 @@ bool GitCredential::get(const QString &url, QString &username,
   process.waitForFinished();
 
   QString output = process.readAllStandardOutput();
-  foreach (const QString &line, output.split('\n')) {
+  for (const QString &line : output.split('\n')) {
     int pos = line.indexOf('=');
     if (pos < 0)
       continue;

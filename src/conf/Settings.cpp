@@ -56,7 +56,7 @@ QString promptKey(Prompt::Kind kind) { return Prompt::key(kind); }
 } // namespace
 
 Settings::Settings(QObject *parent) : QObject(parent) {
-  foreach (const QFileInfo &file, confDir().entryInfoList(QStringList("*.lua")))
+  for (const QFileInfo &file : confDir().entryInfoList(QStringList("*.lua")))
     mDefaults[file.baseName()] = ConfFile(file.absoluteFilePath()).parse();
   mDefaults[kLastPathKey] = QDir::homePath();
   QVariantMap map;
@@ -128,10 +128,11 @@ QString Settings::lexer(const QString &filename) {
 
   // Try all patterns first.
   QVariantMap lexers(mDefaults.value("lexers").toMap());
-  foreach (const QString &key, lexers.keys()) {
+  for (const QString &key : lexers.keys()) {
     QVariantMap map(lexers.value(key).toMap());
     if (map.contains("patterns")) {
-      foreach (QString pattern, map.value("patterns").toString().split(",")) {
+      for (const QString &pattern :
+           map.value("patterns").toString().split(",")) {
         QRegularExpression regExp{
             QRegularExpression::fromWildcard(pattern, CS)};
         if (regExp.match(name).hasMatch())
@@ -141,10 +142,10 @@ QString Settings::lexer(const QString &filename) {
   }
 
   // Try to match by extension.
-  foreach (const QString &key, lexers.keys()) {
+  for (const QString &key : lexers.keys()) {
     QVariantMap map(lexers.value(key).toMap());
     if (map.contains("extensions")) {
-      foreach (QString ext, map.value("extensions").toString().split(",")) {
+      for (const QString &ext : map.value("extensions").toString().split(",")) {
         if (suffix == ext)
           return key;
       }

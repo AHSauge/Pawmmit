@@ -64,7 +64,7 @@ public:
     if (mStop)
       return std::nullopt;
     else {
-      T item = std::move(mQueue.dequeue());
+      T item = mQueue.dequeue();
       mNotFull.wakeOne();
       if (mQueue.size() == 0)
         mEmpty.wakeAll();

@@ -94,7 +94,7 @@ void Index::reset() {
 
 void Index::cleanTemporaryFiles() {
   QStringList filters;
-  foreach (const QString &file, kIndexFiles)
+  for (const QString &file : kIndexFiles)
     filters.append(file + ".*");
 
   QDir dir = indexDir();
@@ -108,7 +108,7 @@ void Index::cleanTemporaryFiles() {
   if (!lock.tryLock(1000))
     return;
 
-  foreach (const QString &file, files)
+  for (const QString &file : files)
     dir.remove(file);
 }
 
@@ -120,7 +120,7 @@ bool Index::remove() {
     return false;
 
   QDir dir = indexDir();
-  foreach (const QString &file, kIndexFiles) {
+  for (const QString &file : kIndexFiles) {
     if (!dir.remove(file))
       return false;
   }
@@ -152,7 +152,7 @@ bool Index::write(const PostingMap &map) {
     return false;
 
   // Write id file.
-  foreach (const git::Id &id, mIds)
+  for (const git::Id &id : mIds)
     idFile.write(id.toByteArray(), id.getSize());
 
   // Merge new entries into existing postings file.
@@ -216,7 +216,7 @@ bool Index::write(const PostingMap &map) {
 
     // Write postings.
     writeVInt(postOut, postings.size());
-    foreach (const Posting &posting, postings) {
+    for (const Posting &posting : postings) {
       quint32 proxPos = proxFile.pos(); // truncate
       writeVInt(postOut, posting.id);
       postOut << posting.field << proxPos;
@@ -262,7 +262,7 @@ QList<git::Commit> Index::commits(const QString &filter) const {
 QList<git::Commit> Index::commits(const QList<Posting> &postings) const {
   // Look up commits.
   QSet<git::Commit> commits;
-  foreach (const Posting &posting, postings) {
+  for (const Posting &posting : postings) {
     // If we fail this check, then the index is mismatching the repo
     // The FIXME below might be the cause of that
     if (posting.id < mIds.size()) {
@@ -330,7 +330,7 @@ QList<Index::Posting> Index::postings(const Predicate &pred,
     return QList<Posting>();
 
   QList<Posting> postings;
-  foreach (const Word &word, mDict) {
+  for (const Word &word : mDict) {
     // Test predicate.
     if (!pred(word.key))
       continue;
@@ -512,7 +512,7 @@ void Index::writePositions(QDataStream &out,
                            const QVector<quint32> &positions) {
   quint32 prev = 0;
   writeVInt(out, positions.size());
-  foreach (quint32 position, positions) {
+  for (quint32 position : positions) {
     // Convert to delta from absolute.
     quint32 delta = position - prev;
     writeVInt(out, delta);
