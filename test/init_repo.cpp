@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -191,7 +194,15 @@ void TestInitRepo::editFile() {
   DiffView *diff = view->findChild<DiffView *>();
   QVERIFY(diff);
 
-  QToolButton *edit = diff->findChild<QToolButton *>("EditButton");
+  // The file's diff (and the FileWidget/EditButton it builds) loads
+  // asynchronously, so it may not exist yet right after selecting the
+  // file.
+  QToolButton *edit = nullptr;
+  {
+    auto timeout = Timeout(10000, "Diff didn't finish loading in time");
+    while (!(edit = diff->findChild<QToolButton *>("EditButton")))
+      qWait(300);
+  }
   QVERIFY(edit);
 
   // Set up timer to dismiss the popup.

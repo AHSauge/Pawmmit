@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -64,9 +67,6 @@ void openCloneDialog(CloneDialog::Kind kind) {
 }
 
 } // namespace
-
-const QString MenuBar::donationUrlLiberapay =
-    QStringLiteral("https://liberapay.com/Gittyup/donate");
 
 bool MenuBar::sDebugMenuVisible = false;
 
@@ -472,7 +472,7 @@ MenuBar::MenuBar(QWidget *parent) : QMenuBar(parent) {
   connect(mFindSelection, &QAction::triggered, [this] {
     QWidget *widget = QApplication::focusWidget();
     if (TextEditor *editor = qobject_cast<TextEditor *>(widget)) {
-      FindWidget::setText(editor->selText());
+      FindWidget::setText(editor->getSelText());
     } else if (QTextEdit *editor = qobject_cast<QTextEdit *>(widget)) {
       FindWidget::setText(editor->textCursor().selectedText());
     } else if (QLineEdit *editor = qobject_cast<QLineEdit *>(widget)) {
@@ -560,6 +560,12 @@ MenuBar::MenuBar(QWidget *parent) : QMenuBar(parent) {
   mAmendCommit = repository->addAction(tr("Amend Commit"));
   amendCommitHotkey.use(mAmendCommit);
   connect(mAmendCommit, &QAction::triggered, [this] { view()->amendCommit(); });
+
+  repository->addSeparator();
+
+  mApplyDiff = repository->addAction(tr("Apply Diff..."));
+  connect(mApplyDiff, &QAction::triggered,
+          [this] { view()->promptToApplyDiff(); });
 
   repository->addSeparator();
 
@@ -844,10 +850,6 @@ MenuBar::MenuBar(QWidget *parent) : QMenuBar(parent) {
     QDesktopServices::openUrl(QUrl::fromLocalFile(url));
   });
 
-  QAction *donation = help->addAction(tr("Support us via Liberapay"));
-  connect(donation, &QAction::triggered,
-          [] { QDesktopServices::openUrl(QUrl(donationUrlLiberapay)); });
-
   // Debug
   if (sDebugMenuVisible) {
     QMenu *debug = addMenu(tr("Debug"));
@@ -939,7 +941,7 @@ void MenuBar::updateFile() { mClose->setEnabled(QApplication::activeWindow()); }
 
 void MenuBar::updateSave() {
   EditorWindow *win = qobject_cast<EditorWindow *>(window());
-  mSave->setEnabled(win && win->widget()->editor()->isModified());
+  mSave->setEnabled(win && win->widget()->editor()->modify());
 }
 
 void MenuBar::updateUndoRedo() {
@@ -1031,6 +1033,7 @@ void MenuBar::updateRepository() {
   mStageAll->setEnabled(view && view->isStageEnabled());
   mUnstageAll->setEnabled(view && view->isUnstageEnabled());
   mAmendCommit->setEnabled(view);
+  mApplyDiff->setEnabled(view);
 
   bool lfs = view && view->repo().lfsIsInitialized();
   mLfsUnlock->setEnabled(lfs);

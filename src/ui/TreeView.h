@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2020
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Martin Marmsoler
 //
@@ -10,6 +13,7 @@
 #ifndef TREEVIEW_H
 #define TREEVIEW_H
 
+#include <QTimer>
 #include <QTreeView>
 #include <memory>
 #include "ViewDelegate.h"
@@ -43,6 +47,14 @@ public:
    */
   int countCollapsed(QModelIndex parent = QModelIndex(), bool recursive = true);
   void updateView();
+
+  /*!
+   * \brief Set whether or not to show a spinner. This is useful to indicate
+   * waiting for slow-content to arrive
+   * \param loading Indicator whether we wait for something to load
+   */
+  void setLoading(bool loading);
+
 public slots:
   /*!
    * \brief expandAll
@@ -74,6 +86,9 @@ signals:
   void filesSelected(const QModelIndexList &indexes);
   void collapseCountChanged(int count);
 
+protected:
+  void paintEvent(QPaintEvent *event) override;
+
 private:
   /*!
    * \brief setCollapseCount
@@ -104,6 +119,11 @@ private:
   std::unique_ptr<ViewDelegate> mFileListDelegatePtr;
   std::unique_ptr<ViewDelegate> mFileTreeDelegatePtr;
   int mDelegateCol{false};
+
+  bool mLoading{false};
+  float mLoadingFadein = 0;
+  int mProgress{0};
+  QTimer mTimer;
 };
 
 #endif // TREEVIEW_H

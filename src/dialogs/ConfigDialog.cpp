@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Bryan Williams
 //
@@ -232,6 +235,7 @@ public:
     connect(dialog, &QDialog::accepted, this,
             [this, dialog] { mRepo.addRemote(dialog->name(), dialog->url()); });
 
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->open();
   }
 
@@ -675,13 +679,13 @@ public:
     connect(environment, &QAbstractButton::clicked, this, [view] {
       git::Repository repo = view->repo();
 
-      QDialog *dialog = new QDialog();
-      dialog->setWindowTitle(tr("git-lfs env (read only)"));
+      QDialog dialog;
+      dialog.setWindowTitle(tr("git-lfs env (read only)"));
 
       QSize size(500, 500);
-      dialog->setFixedSize(size);
+      dialog.setFixedSize(size);
 
-      QTextEdit *textEdit = new QTextEdit(dialog);
+      QTextEdit *textEdit = new QTextEdit(&dialog);
       textEdit->setFixedSize(size);
       textEdit->setReadOnly(true);
 
@@ -689,7 +693,7 @@ public:
         textEdit->append(string);
       }
 
-      dialog->exec();
+      dialog.exec();
     });
 
     QPushButton *deinit = new QPushButton(tr("Deinitialize LFS"));

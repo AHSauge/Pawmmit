@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Shane Gramlich
 //
@@ -504,6 +507,10 @@ QColor CustomTheme::remoteComment(Comment color) {
 
 QColor CustomTheme::star() {
   return mMap.value("star").toMap().value("fill").value<QColor>();
+}
+
+QVariantMap CustomTheme::editorStyleProperties() const {
+  return mMap.value("property").toMap();
 }
 
 #ifndef Q_OS_MAC

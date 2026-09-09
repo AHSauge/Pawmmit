@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -11,15 +14,20 @@
 #define TEXT_EDITOR_H
 
 // Do not reorder.
+#include <cstdint>
 #include <cstddef>
+#include <cstring>
+#include <vector>
+#include <QMenu>
 #include <ILexer.h>
 #include <LexerModule.h>
-#include <Catalogue.h>
+#include <CatalogueModules.h>
 #include <SciLexer.h>
-#include "ScintillaIFace.h"
+#include <ScintillaEdit.h>
+#include <ScintillaQt.h>
 #include <Platform.h>
 
-class TextEditor : public Scintilla::ScintillaIFace {
+class TextEditor : public ScintillaEdit {
   Q_OBJECT
 
 public:
@@ -63,12 +71,6 @@ public:
 
   enum DiagnosticKind { Note, Warning, Error };
 
-  enum {
-    stageSelected = 30,
-    unstageSelected = 31,
-    discardSelected = 32,
-  };
-
   struct Range {
     int pos;
     int len;
@@ -82,6 +84,21 @@ public:
     Range range;
     QString replacement;
   };
+
+  enum MenuAction {
+    None,
+    Undo,
+    Redo,
+    Cut,
+    Copy,
+    Paste,
+    Delete,
+    StageSelected,
+    UnstageSelected,
+    DiscardSelected,
+    SelectAll,
+  };
+  Q_ENUM(MenuAction);
 
   TextEditor(QWidget *parent = nullptr);
 
@@ -105,22 +122,30 @@ public:
 
   QList<Diagnostic> diagnostics(int line);
   void addDiagnostic(int line, const Diagnostic &diag);
-  sptr_t WndProc(unsigned int message, uptr_t wParam, sptr_t lParam) override;
 
   // Make wheel event public.
   // FIXME: This should be an event filter?
   void wheelEvent(QWheelEvent *event) override {
-    ScintillaIFace::wheelEvent(event);
+    ScintillaEdit::wheelEvent(event);
   }
   void keyPressEvent(QKeyEvent *ke) override;
 
   QRect textRectangle() const {
-    Scintilla::PRectangle pr = GetTextRectangle();
-    return QRect(pr.left, pr.top, pr.Width(), pr.Height());
-  }
+    // TODO: Port to scintilla 5.x
+    // Prior code used Editor::GetTextRectangle, but that's not accessible here
+    // with Scintilla 5.x. This is sometimes (but not always!) a good
+    // approximate
+    QRect rc = contentsRect();
+    rc.adjust(0, 0, -marginRight(), 0);
+    return rc;
+  };
+
+  QFont styleGetQFont(int style);
+
+  QPoint pointFromPosition(int pos);
 
   void showEvent(QShowEvent *event) override {
-    Scintilla::ScintillaIFace::showEvent(event);
+    QAbstractScrollArea::showEvent(event);
     emit onVisible();
   }
 
@@ -153,15 +178,18 @@ signals:
 
 protected:
   QSize viewportSizeHint() const override;
+  void Command(MenuAction action);
   void contextMenuEvent(QContextMenuEvent *event) override;
-  void Command(int cmdId);
 
 private:
   int diagnosticMarker(int line);
   void loadMarkerIcon(Marker marker, const QIcon &icon);
   void loadMarkerPixmap(Marker marker, const QPixmap &pixmap);
-  void AddToPopUp(const char *label, int cmd = 0, bool enabled = true) override;
-  void ContextMenu(Scintilla::Point pt);
+  void AddToPopUp(const QString &label, MenuAction cmd = None,
+                  bool enabled = true);
+  void StyleSetQFont(int style, const QFont &font);
+  void markerDefineImage(int markerNumber, const QImage &image);
+  void applyLexerStyles();
 
   QString mPath;
   int mLineCount = -1;
@@ -185,6 +213,7 @@ private:
   QPixmap mUnStagedIcon;
 
   QMap<int, QList<Diagnostic>> mDiagnostics;
+  QMenu mPopup;
 };
 
 #endif

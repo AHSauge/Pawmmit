@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -187,7 +190,7 @@ void BlameMargin::paintEvent(QPaintEvent *event) {
   // Draw items.
   painter.setRenderHints(QPainter::Antialiasing);
 
-  int size = mEditor->styleFont(STYLE_DEFAULT).pointSize() - 1;
+  int size = mEditor->styleSize(STYLE_DEFAULT) - 1;
   QFont regular = font();
   regular.setPointSize(size);
   QFontMetricsF regularMetrics(regular);

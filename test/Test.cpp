@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Martin Marmsoler
 //
@@ -102,15 +105,11 @@ int on_extract_entry(const char *filename, void *arg) {
  * \param filename
  * \return
  */
-QString extractRepository(const QString &filename, bool useTempDir) {
+QString extractRepository(const QString &filename) {
 
   QDir repoPath(TESTREPOSITORIES_PATH);
   QFileInfo f(repoPath.filePath(filename));
-  QByteArray exportPath;
-  if (useTempDir)
-    exportPath = tempDir.path().toLatin1();
-  else
-    exportPath = repoPath.path().toLatin1();
+  QByteArray exportPath = tempDir.path().toLatin1();
   QString exportFolder = QDir(exportPath).filePath(f.baseName());
 
   if (!QDir(exportFolder).exists() && !f.exists()) {
@@ -118,7 +117,7 @@ QString extractRepository(const QString &filename, bool useTempDir) {
     return "";
   }
 
-  if (useTempDir && !tempDir.isValid()) {
+  if (!tempDir.isValid()) {
     Debug("Not able to create temporary directory.");
     return "";
   }
@@ -180,21 +179,37 @@ void Timeout::onTimeout() {
 }
 
 void refresh(RepoView *view, bool expectDirty) {
-  // Setup post refresh trigger.
-  bool finished = false;
-  auto connection = QObject::connect(view, &RepoView::statusChanged,
-                                     [&finished, expectDirty](bool dirty) {
-                                       QCOMPARE(dirty, expectDirty);
-                                       finished = true;
+  // Ensure that we're done loading before testing anything else
+  {
+    QEventLoop drainLoop;
+    bool loading = false;
+    auto connection =
+        QObject::connect(view, &RepoView::loadingChanged, &drainLoop,
+                         [&drainLoop, &loading](bool nowLoading) {
+                           loading = nowLoading;
+                           if (!loading)
+                             drainLoop.quit();
+                         });
+    loading = view->isLoading();
+    if (loading)
+      drainLoop.exec();
+    QObject::disconnect(connection);
+  }
+
+  // Wait for the refresh this call triggers to finish.
+  QEventLoop loop;
+  bool dirty = false;
+  auto connection = QObject::connect(view, &RepoView::statusChanged, &loop,
+                                     [&loop, &dirty](bool d) {
+                                       dirty = d;
+                                       loop.quit();
                                      });
 
   view->refresh();
-
-  // Wait for the refresh to finish.
-  while (!finished)
-    qWait(100);
+  loop.exec();
 
   QObject::disconnect(connection);
+  QCOMPARE(dirty, expectDirty);
 
   // Select status index.
   if (expectDirty)

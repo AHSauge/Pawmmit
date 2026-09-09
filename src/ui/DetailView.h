@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -33,6 +36,13 @@ public:
 
   virtual void setDiff(const git::Diff &diff, const QString &file = QString(),
                        const QString &pathspec = QString()) = 0;
+
+  /*!
+   * \brief Set whether or not to show a spinner. This is useful to indicate
+   * waiting for slow-content to arrive
+   * \param loading Indicator whether we wait for something to load
+   */
+  virtual void setLoading() {}
 
   virtual void cancelBackgroundTasks() {}
 
@@ -72,6 +82,7 @@ public:
   void setCommitMessage(const QString &message);
   void setDiff(const git::Diff &diff, const QString &file = QString(),
                const QString &pathspec = QString());
+  void setLoading();
 
   void cancelBackgroundTasks();
 

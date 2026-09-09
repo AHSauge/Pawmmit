@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -30,7 +33,6 @@ const QString storeStoreNameOld = "store";
 const QString osxKeyChainStoreName = "osxkeychain";
 const QString winCredStoreName = "wincred";
 const QString libSecretStoreName = "libsecret";
-const QString gnomeKeyringStoreName = "gnome-keyring";
 
 } // namespace
 
@@ -83,17 +85,10 @@ CredentialHelper::getAvailableHelperInformation() {
 #else
   QLibrary lib("secret-1", 0);
   if (lib.load()) {
-    list.append(HelperInformation(libSecretStoreName,
-                                  tr("Secret Service D-Bus client library")));
-  }
-  // libsecret replaces libgnome-keyring.
-  QLibrary lib2(gnomeKeyringStoreName, 0);
-  if (lib2.load()) {
     list.append(HelperInformation(
-        gnomeKeyringStoreName,
-        tr("Prefer <a "
-           "href=\"https://wiki.gnome.org/Projects/Libsecret\">libsecret</a> "
-           "over gnome-keyring if available")));
+        libSecretStoreName,
+        tr("Store credentials via Secret Service D-Bus (GNOME Keyring, "
+           "KDE Wallet, or similar)")));
   }
 #endif
   return list;

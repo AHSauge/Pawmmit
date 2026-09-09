@@ -28,7 +28,7 @@ strong {
 </head>
 <body>
 
-# Gittyup Plugin API
+# Pawmmit Plugin API
 
 ---
 
@@ -39,9 +39,9 @@ Plugins are Lua scripts that detect one or more error kind. The name
 of the script defines the name of the plugin category in the settings
 interface. Plugins should be saved to one of the following locations:
 
-* (Windows) - %APPDATA%\Gittyup\plugins
-* (Linux) - ~/.config/Gittyup/plugins
-* (macOS) - ~/Library/Application Support/Gittyup/plugins
+* (Windows) - %APPDATA%\Pawmmit\plugins
+* (Linux) - ~/.config/Pawmmit/plugins
+* (macOS) - ~/Library/Application Support/Pawmmit/plugins
 
 ---
 

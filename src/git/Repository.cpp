@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -64,7 +67,7 @@ namespace git {
 
 namespace {
 
-const QString kConfigDir = "gittyup";
+const QString kConfigDir = "pawmmit";
 const QString kConfigFile = "config";
 const QString kStarFile = "starred";
 
@@ -185,7 +188,9 @@ Id Repository::workdirId(const QString &path) const {
 QString Repository::message() const {
   git_buf buf = GIT_BUF_INIT;
   git_repository_message(&buf, d->repo);
-  return QString::fromUtf8(buf.ptr, buf.size);
+  QString msg = QString::fromUtf8(buf.ptr, buf.size);
+  git_buf_dispose(&buf);
+  return msg;
 }
 
 // Config file used for git specific configs
@@ -197,7 +202,7 @@ Config Repository::gitConfig() const {
 }
 
 // Config file used for app specific configs
-// config file in <Repository>/.git/gittyup/config
+// config file in <Repository>/.git/pawmmit/config
 Config Repository::appConfig() const {
   Config config = Config::appGlobal();
   QString path = appDir().filePath(kConfigFile);
@@ -364,6 +369,14 @@ Diff Repository::diffIndexToWorkdir(const Index &index,
   git_diff *diff = nullptr;
   git_diff_index_to_workdir(&diff, d->repo, index, &opts);
   return Diff(diff);
+}
+
+bool Repository::applyDiff(const Diff &diff, git_apply_location_t location) {
+  if (git_apply(d->repo, diff, location, nullptr))
+    return false;
+
+  emit d->notifier->referenceUpdated(head());
+  return true;
 }
 
 Reference Repository::head() const {

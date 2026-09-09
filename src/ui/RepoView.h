@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -106,6 +109,10 @@ public:
 
   // workdir
   bool isWorkingDirectoryDirty() const;
+
+  // Whether a status check and/or walker/row rebuild is currently in
+  // flight for the commit list.
+  bool isLoading() const;
 
   // current reference
   git::Reference reference() const;
@@ -216,6 +223,9 @@ public:
 
   // cherry-pick
   void cherryPick(const git::Commit &commit);
+
+  // diff
+  void promptToApplyDiff();
 
   // push
   void promptToForcePush(const git::Remote &remote = git::Remote(),
@@ -360,6 +370,7 @@ private slots:
 
 signals:
   void statusChanged(bool dirty);
+  void loadingChanged(bool loading);
 
 protected:
   void showEvent(QShowEvent *event) override;
@@ -400,6 +411,8 @@ private:
   bool checkForConflicts(LogEntry *parent, const QString &action);
 
   git::Signature getSignature(const ContributorInfo &info);
+
+  void applyDiff(const QString &path);
 
   git::Repository mRepo;
 
