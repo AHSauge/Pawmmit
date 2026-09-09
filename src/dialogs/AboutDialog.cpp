@@ -81,7 +81,8 @@ AboutDialog::AboutDialog(QWidget *parent) : QDialog(parent) {
   QIcon title(":/logo-type_light@2x.png");
   IconLabel *titleLabel = new IconLabel(title, 163, 38, this);
 
-  QString subtitleText = kSubtitleFmt.arg(tr("Claw your way into your git history"));
+  QString subtitleText =
+      kSubtitleFmt.arg(tr("Claw your way into your git history"));
   QLabel *subtitle = new QLabel(subtitleText, this);
   subtitle->setAlignment(Qt::AlignHCenter);
 
