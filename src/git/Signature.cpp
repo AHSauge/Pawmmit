@@ -18,8 +18,7 @@
 namespace git {
 
 Signature::Signature(git_signature *signature, bool owned)
-    : d(
-          signature, owned ? git_signature_free : [](git_signature *) {}) {}
+    : d(signature, owned ? git_signature_free : [](git_signature *) {}) {}
 
 Signature::Signature(const QString &name, const QString &email) {
   git_signature *signature = nullptr;

@@ -251,9 +251,9 @@ TreeModel::Node *TreeModel::node(const QModelIndex &index) const {
   return index.isValid() ? static_cast<Node *>(index.internalPointer()) : mRoot;
 }
 
-//#############################################################################
-//######     Treemodel::Node     ##############################################
-//#############################################################################
+// #############################################################################
+// ######     Treemodel::Node     ##############################################
+// #############################################################################
 
 TreeModel::Node::Node(const QString &name, const git::Object &obj, Node *parent)
     : mName(name), mObject(obj), mParent(parent) {}

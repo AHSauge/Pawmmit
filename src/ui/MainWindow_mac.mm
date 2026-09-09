@@ -25,8 +25,7 @@ const qreal kRatio = 2.0;
 const int kIconSize = 22;
 const int kMaxIconSize = 30;
 
-NSImage *image(const QString &path, int badge = -1)
-{
+NSImage *image(const QString &path, int badge = -1) {
   QIcon icon(path);
   QPixmap pixmap = icon.pixmap(kIconSize);
   if (badge > 0) {
@@ -72,14 +71,14 @@ NSImage *image(const QString &path, int badge = -1)
   return nsImage;
 }
 
-} // anon. namespace
+} // namespace
 
-@interface TouchBarProvider: NSResponder <NSTouchBarDelegate, NSWindowDelegate>
+@interface TouchBarProvider : NSResponder <NSTouchBarDelegate, NSWindowDelegate>
 
-@property (strong) NSCustomTouchBarItem *remoteItem;
-@property (strong) NSSegmentedControl *remote;
+@property(strong) NSCustomTouchBarItem *remoteItem;
+@property(strong) NSSegmentedControl *remote;
 
-@property (strong) NSObject *delegate;
+@property(strong) NSObject *delegate;
 
 @end
 
@@ -90,8 +89,7 @@ static const NSTouchBarItemIdentifier kRemote = @"com.pawmmit.Remote";
   int _ahead, _behind;
 }
 
-- (id)initWithWindow:(MainWindow *)window
-{
+- (id)initWithWindow:(MainWindow *)window {
   if (self = [super init]) {
     _window = window;
     _ahead = -1;
@@ -105,8 +103,7 @@ static const NSTouchBarItemIdentifier kRemote = @"com.pawmmit.Remote";
   return self;
 }
 
-- (void)updateRemoteAhead:(int)ahead behind:(int)behind
-{
+- (void)updateRemoteAhead:(int)ahead behind:(int)behind {
   NSImage *pull = image(":/pull.png", behind);
   [self.remote setImage:pull forSegment:1];
   [pull release];
@@ -121,17 +118,15 @@ static const NSTouchBarItemIdentifier kRemote = @"com.pawmmit.Remote";
   _behind = behind;
 }
 
-- (NSTouchBar *)makeTouchBar
-{
+- (NSTouchBar *)makeTouchBar {
   NSTouchBar *bar = [[NSTouchBar alloc] init];
   bar.delegate = self;
-  bar.defaultItemIdentifiers = @[kRemote];
+  bar.defaultItemIdentifiers = @[ kRemote ];
   return bar;
 }
 
 - (NSTouchBarItem *)touchBar:(NSTouchBar *)touchBar
-    makeItemForIdentifier:(NSTouchBarItemIdentifier)ident
-{
+       makeItemForIdentifier:(NSTouchBarItemIdentifier)ident {
   Q_UNUSED(touchBar);
 
   if ([ident isEqualToString:kRemote]) {
@@ -140,11 +135,12 @@ static const NSTouchBarItemIdentifier kRemote = @"com.pawmmit.Remote";
     NSImage *push = image(":/push.png");
 
     self.remoteItem =
-      [[[NSCustomTouchBarItem alloc] initWithIdentifier:kRemote] autorelease];
-    self.remote =
-      [[NSSegmentedControl segmentedControlWithImages:@[fetch, pull, push]
-        trackingMode:NSSegmentSwitchTrackingMomentary
-        target:self action:@selector(remoteClicked)] autorelease];
+        [[[NSCustomTouchBarItem alloc] initWithIdentifier:kRemote] autorelease];
+    self.remote = [[NSSegmentedControl
+        segmentedControlWithImages:@[ fetch, pull, push ]
+                      trackingMode:NSSegmentSwitchTrackingMomentary
+                            target:self
+                            action:@selector(remoteClicked)] autorelease];
     self.remote.segmentStyle = NSSegmentStyleSeparated;
     self.remoteItem.view = self.remote;
 
@@ -160,19 +156,16 @@ static const NSTouchBarItemIdentifier kRemote = @"com.pawmmit.Remote";
   return nil;
 }
 
-- (BOOL)respondsToSelector:(SEL)selector
-{
+- (BOOL)respondsToSelector:(SEL)selector {
   return [_delegate respondsToSelector:selector] ||
-    [super respondsToSelector:selector];
+         [super respondsToSelector:selector];
 }
 
-- (void)forwardInvocation:(NSInvocation *)invocation
-{
+- (void)forwardInvocation:(NSInvocation *)invocation {
   [invocation invokeWithTarget:_delegate];
 }
 
-- (void)remoteClicked
-{
+- (void)remoteClicked {
   switch ([self.remote selectedSegment]) {
     case 0:
       _window->currentView()->fetch();
@@ -190,16 +183,14 @@ static const NSTouchBarItemIdentifier kRemote = @"com.pawmmit.Remote";
 
 @end
 
-void MainWindow::installTouchBar()
-{
+void MainWindow::installTouchBar() {
   [[TouchBarProvider alloc] initWithWindow:this];
 }
 
-void MainWindow::updateTouchBar(int ahead, int behind)
-{
+void MainWindow::updateTouchBar(int ahead, int behind) {
   NSView *view = reinterpret_cast<NSView *>(winId());
   if (view && [view.window.delegate isKindOfClass:[TouchBarProvider class]]) {
-    TouchBarProvider *provider = (TouchBarProvider *) view.window.delegate;
+    TouchBarProvider *provider = (TouchBarProvider *)view.window.delegate;
     [provider updateRemoteAhead:ahead behind:behind];
   }
 }

@@ -91,9 +91,7 @@ private:
 
   // Determines which file is selected.
   // Is used to restore the selection after a new diff is set
-  struct SelectedFile mSelectedFile {
-    "", false
-  };
+  struct SelectedFile mSelectedFile{"", false};
   /*!
    * needed to set the visibility. When the diff is a commit, no need for
    * a second TreeView. So the staged one gets hidden.
