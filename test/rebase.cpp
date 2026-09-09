@@ -1,8 +1,11 @@
 //
-//          Copyright (c) 2022, Gittyup Community
+//          Copyright (c) 2022, Pawmmit Community
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Martin Marmsoler
 //
@@ -31,8 +34,8 @@
 #include <QTextEdit>
 #include <QPushButton>
 
-#define INIT_REPO(repoPath, /* bool */ useTempDir)                             \
-  QString path = Test::extractRepository(repoPath, useTempDir);                \
+#define INIT_REPO(repoPath)                                                    \
+  QString path = Test::extractRepository(repoPath);                            \
   QVERIFY(!path.isEmpty());                                                    \
   mRepo = git::Repository::open(path);                                         \
   QVERIFY(mRepo.isValid());                                                    \
@@ -98,7 +101,7 @@ private:
 //###################################################################################################
 
 void TestRebase::withoutConflicts() {
-  INIT_REPO("rebaseConflicts.zip", true);
+  INIT_REPO("rebaseConflicts.zip");
 
   int rebaseFinished = 0;
   int rebaseAboutToRebase = 0;
@@ -173,7 +176,7 @@ void TestRebase::withoutConflicts() {
 }
 
 void TestRebase::conflictingRebase() {
-  INIT_REPO("rebaseConflicts.zip", true);
+  INIT_REPO("rebaseConflicts.zip");
 
   auto *detailview = repoView->findChild<DetailView *>();
   QVERIFY(detailview);
@@ -310,7 +313,7 @@ void TestRebase::conflictingRebase() {
 }
 
 void TestRebase::conflictingRebaseCustomMessage() {
-  INIT_REPO("rebaseConflicts.zip", true);
+  INIT_REPO("rebaseConflicts.zip");
 
   auto *detailview = repoView->findChild<DetailView *>();
   QVERIFY(detailview);
@@ -393,7 +396,7 @@ void TestRebase::conflictingRebaseCustomMessage() {
 }
 
 void TestRebase::continueExternalStartedRebase() {
-  //    INIT_REPO("rebaseConflicts.zip", true);
+  //    INIT_REPO("rebaseConflicts.zip");
 
   //    QCOMPARE(repoView->isRebaseContinueVisible(), false);
   //    QCOMPARE(repoView->isRebaseAbortVisible(), false);
@@ -490,7 +493,7 @@ void TestRebase::continueExternalStartedRebase() {
 
 void TestRebase::startRebaseContinueInCLI() {
   //    // Check that GUI is updated correctly
-  //    INIT_REPO("rebaseConflicts.zip", true);
+  //    INIT_REPO("rebaseConflicts.zip");
 
   //    int rebaseFinished = 0;
   //    int rebaseAboutToRebase = 0;
@@ -585,7 +588,7 @@ void TestRebase::startRebaseContinueInCLI() {
 void TestRebase::startRebaseContinueInCLIContinueGUI() {
   //    // Check that GUI is updated correctly
 
-  //    INIT_REPO("rebaseConflicts.zip", true);
+  //    INIT_REPO("rebaseConflicts.zip");
 
   //    QCOMPARE(repoView->isRebaseContinueVisible(), false);
   //    QCOMPARE(repoView->isRebaseAbortVisible(), false);
@@ -682,7 +685,7 @@ void TestRebase::startRebaseContinueInCLIContinueGUI() {
 }
 
 void TestRebase::abortMR() {
-  INIT_REPO("rebaseConflicts.zip", true);
+  INIT_REPO("rebaseConflicts.zip");
 
   auto *detailview = repoView->findChild<DetailView *>();
   QVERIFY(detailview);
@@ -790,7 +793,7 @@ void TestRebase::commitDuringRebase() {
    * Commit something else too
    * Continue rebase */
 
-  INIT_REPO("rebaseConflicts.zip", true);
+  INIT_REPO("rebaseConflicts.zip");
 
   auto *detailview = repoView->findChild<DetailView *>();
   QVERIFY(detailview);

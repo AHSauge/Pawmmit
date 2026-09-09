@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2017, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -51,7 +54,7 @@ public:
 
     RepoView *view = RepoView::parentView(parent);
     git::Config config = view->repo().appConfig();
-    foreach (const QString &key, map.keys()) {
+    for (const QString &key : map.keys()) {
       QAction *action = menu->addAction(key);
       action->setCheckable(true);
       actions->addAction(action);

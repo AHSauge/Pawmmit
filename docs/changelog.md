@@ -8,6 +8,7 @@ Bug Fix and Feature release
 
 #### Changed
 
+* Rebranded the project from Gittyup to Pawmmit. Historical entries below refer to the project under its former name.
 * Autohide sidebar when opening repository
 
 ----

@@ -1,5 +1,5 @@
 add_executable(
-  gittyup-indexer
+  pawmmit-indexer
   main.cpp
   indexer.cpp
   diffgrabber.cpp
@@ -9,26 +9,26 @@ add_executable(
   common.cpp
   lexerpool.cpp
   idstorage.cpp)
-target_link_libraries(gittyup-indexer index)
-target_compile_definitions(gittyup-indexer
-                           PRIVATE GITTYUP_VERSION="${GITTYUP_VERSION}")
+target_link_libraries(pawmmit-indexer index)
+target_compile_definitions(pawmmit-indexer
+                           PRIVATE PAWMMIT_VERSION="${PAWMMIT_VERSION}")
 
-set_target_properties(gittyup-indexer PROPERTIES RUNTIME_OUTPUT_DIRECTORY
-                                                 $<TARGET_FILE_DIR:gittyup>)
+set_target_properties(pawmmit-indexer PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+                                                 $<TARGET_FILE_DIR:pawmmit>)
 
 if(APPLE)
   set_target_properties(
-    gittyup-indexer PROPERTIES INSTALL_RPATH
+    pawmmit-indexer PROPERTIES INSTALL_RPATH
                                "/usr/local/qt;@loader_path/../Frameworks")
 else()
   if(WIN32)
-    target_link_libraries(gittyup-indexer Dbghelp.lib)
+    target_link_libraries(pawmmit-indexer Dbghelp.lib)
   elseif(NOT FLATAPK)
-    set_target_properties(gittyup-indexer PROPERTIES INSTALL_RPATH "$ORIGIN")
+    set_target_properties(pawmmit-indexer PROPERTIES INSTALL_RPATH "$ORIGIN")
   endif()
 
   install(
-    TARGETS gittyup-indexer
+    TARGETS pawmmit-indexer
     DESTINATION ${CMAKE_INSTALL_BINDIR}
-    COMPONENT ${GITTYUP_NAME})
+    COMPONENT ${PAWMMIT_NAME})
 endif()

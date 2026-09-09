@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -143,7 +146,7 @@ void TreeWidget::findPrevious() { mEditor->findPrevious(); }
 void TreeWidget::contextMenuEvent(QContextMenuEvent *event) {
   QStringList files;
   QModelIndexList indexes = mView->selectionModel()->selectedIndexes();
-  foreach (const QModelIndex &index, indexes)
+  for (const QModelIndex &index : indexes)
     files.append(index.data(Qt::EditRole).toString());
 
   if (files.isEmpty())

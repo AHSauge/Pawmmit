@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Jason Haslam
 //
@@ -30,7 +33,7 @@ RemoteDialog::RemoteDialog(Kind kind, RepoView *parent) : QDialog(parent) {
   mRemotes = new QComboBox(this);
   mRemotes->setEditable(true);
   mRemotes->setMinimumContentsLength(16);
-  foreach (const git::Remote &remote, repo.remotes())
+  for (const git::Remote &remote : repo.remotes())
     mRemotes->addItem(remote.name(), QVariant::fromValue(remote));
 
   git::Remote defaultRemote = repo.defaultRemote();

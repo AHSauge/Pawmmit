@@ -1,8 +1,11 @@
 //
 //          Copyright (c) 2016, Scientific Toolworks, Inc.
 //
-// This software is licensed under the MIT License. The LICENSE.md file
-// describes the conditions under which this software may be distributed.
+// This software is licensed under the GNU General Public License v3.0 or
+// (at your option) any later version. The LICENSE.md file describes the
+// conditions under which this software may be distributed.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Author: Bryan Williams
 //
@@ -198,7 +201,7 @@ public:
 
     connect(footer, &Footer::minusClicked, this, [this, table] {
       QModelIndexList indexes = table->selectionModel()->selectedRows();
-      foreach (const QModelIndex &index, indexes) {
+      for (const QModelIndex &index : indexes) {
         QString name = index.data().toString();
         QString title = tr("Delete Remote?");
         QString text = tr("Are you sure you want to delete '%1'?");
@@ -279,13 +282,13 @@ public:
       // Get all selected branches before removing any.
       QList<git::Branch> branches;
       QModelIndexList indexes = mTable->selectionModel()->selectedRows();
-      foreach (const QModelIndex &index, indexes) {
+      for (const QModelIndex &index : indexes) {
         QVariant var = index.data(BranchTableModel::BranchRole);
         branches.append(var.value<git::Branch>());
       }
 
       // Remove them all.
-      foreach (git::Branch branch, branches) {
+      for (const git::Branch &branch : branches) {
         Q_ASSERT(!branch.isHead());
         DeleteBranchDialog dialog(branch, this);
         dialog.exec();
@@ -296,7 +299,7 @@ public:
     auto updateMinusButton = [this, footer] {
       QModelIndexList indexes = mTable->selectionModel()->selectedRows();
       bool enabled = !indexes.isEmpty();
-      foreach (const QModelIndex &index, indexes) {
+      for (const QModelIndex &index : indexes) {
         QVariant var = index.data(BranchTableModel::BranchRole);
         if (var.value<git::Branch>().isHead()) {
           enabled = false;
@@ -435,7 +438,7 @@ public:
         context, contextLabel, form->labelForField(contextLayout)};
 
     auto setWidgetsEnabled = [widgets](bool enabled) {
-      foreach (QWidget *widget, widgets)
+      for (QWidget *widget : widgets)
         widget->setEnabled(enabled);
     };
 
@@ -570,7 +573,7 @@ public:
               git::Repository tmp(repo);
               QModelIndexList indexes =
                   includedList->selectionModel()->selectedRows();
-              foreach (const QModelIndex &index, indexes) {
+              for (const QModelIndex &index : indexes) {
                 QString text = index.data(Qt::DisplayRole).toString();
                 tmp.lfsSetTracked(text, false);
               }
@@ -595,7 +598,7 @@ public:
     tableLayout->addWidget(footer);
 
     QMap<QString, QString> map;
-    foreach (const QString &string, repo.lfsEnvironment()) {
+    for (const QString &string : repo.lfsEnvironment()) {
       if (string.contains("=")) {
         QString key = string.section('=', 0, 0);
         QString value = string.section('=', 1);
@@ -685,7 +688,7 @@ public:
       textEdit->setFixedSize(size);
       textEdit->setReadOnly(true);
 
-      foreach (const QString &string, repo.lfsEnvironment()) {
+      for (const QString &string : repo.lfsEnvironment()) {
         textEdit->append(string);
       }
 
