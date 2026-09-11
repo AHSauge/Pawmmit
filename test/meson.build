@@ -13,14 +13,14 @@ testlib = static_library(
     files('Test.cpp'),
     cpp_args: testlib_public_args
         + ['-DTESTREPOSITORIES_PATH="' + meson.current_source_dir() / 'testRepos' + '"'],
-    dependencies: [pawmmit_common, pawmmitUtil_dep, qt_test_dep, zip_dep]
+    dependencies: [pawmmit_common, pawmmitUtil_dep, qt_test_dep, zip_dep, git_dep]
         + (host_machine.system() in ['darwin', 'windows'] ? [] : [dependency('qt6', modules: ['DBus'])]),
 )
 
 testlib_dep = declare_dependency(
     link_with: testlib,
     compile_args: testlib_public_args,
-    dependencies: [pawmmit_common, pawmmitUtil_dep, qt_test_dep, zip_dep],
+    dependencies: [pawmmit_common, pawmmitUtil_dep, qt_test_dep, zip_dep, git_dep],
 )
 
 tests = [
