@@ -1,19 +1,15 @@
 #!/bin/bash
+# Install prerequisites and build a release version of Pawmmit on Ubuntu.
+set -e
 
 sudo apt update
-sudo apt install -y build-essential libgl1-mesa-dev cmake libgit2-dev cmark git \
-                    libssh2-1-dev openssl qtbase5-dev qtchooser qt5-qmake qtbase5-dev-tools qttools5-dev ninja-build
-cd ..
-git fetch
-git submodule init
-git submodule update
+sudo apt install -y build-essential libgl1-mesa-dev meson ninja-build pkg-config \
+                    python3 git cmark \
+                    qt6-base-dev qt6-tools-dev qt6-tools-dev-tools libqt6core5compat6-dev \
+                    libgit2-dev libssh2-1-dev libhunspell-dev libcmark-dev liblua5.4-dev
+
+cd "$(dirname "$0")/.."
 git pull
-git checkout deps
-cd dep/openssl/openssl/
-./config -fPIC
-make
-cd -
-mkdir -vp build/release
-cd build/release
-cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ../..
-ninja
+
+meson setup build --buildtype=release
+meson compile -C build

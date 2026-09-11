@@ -1,6 +1,5 @@
 #!/bin/bash
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 cd "`dirname "$0"`"
 
 # Variable that will hold the name of the clang-format command
@@ -49,19 +48,3 @@ for dir in ${FOLDERS[@]}; do
         format ${dir};
     fi
 done
-
-# Format cmake files
-# NOTE: requires support for python venv; on Debian-like distros, this can be
-# installed using apt install python3-venv
-echo "Start formatting cmake files"
-CMAKE_FORMAT=${SCRIPT_DIR}/.venv/bin/cmake-format
-if [ ! -f "$CMAKE_FORMAT" ]; then
-	pushd ${SCRIPT_DIR}
-	python3 -m venv .venv
-	.venv/bin/pip install cmake-format==0.6.13
-	popd
-fi
-find . \
-    \( -type d -path './test/dep/*' -prune \) \
-    -o \( -type d -path './dep/*/*' -prune \) \
-    -o \( -name CMakeLists.txt -exec "$CMAKE_FORMAT" --in-place {} + \)

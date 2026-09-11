@@ -1,20 +1,17 @@
-# https://docs.github.com/en/actions/learn-github-actions/contexts
-
 ---
 name: Pawmmit
 on:
   push:
     branches:
     - master
+    - main
     tags:
     - 'v*'
   pull_request:
-  page_build:
   workflow_dispatch:
 
 env:
   IS_RELEASE: ${{ github.event_name == 'push' && github.ref_type == 'tag' && startswith(github.ref_name, 'v') }}
-
 
 jobs:
   formatting-check:
@@ -22,37 +19,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
-    - name: Run clang-format style check for C/C++/Protobuf programs.
+    - name: Run clang-format style check
       uses: jidicula/clang-format-action@v4.18.0
       with:
         clang-format-version: '19'
-        exclude-regex: 'dep'
-
-    - name: Check CMake code style
-      run: |
-        pip install cmake-format==0.6.13 && \
-        find \( -type d -path './dep/*/*' -prune \) -o \( -name CMakeLists.txt -exec cmake-format --check {} + \)
+        exclude-regex: 'subprojects'
 
   flatpak:
-    name: "Flatpak"
+    name: Flatpak
     runs-on: ubuntu-latest
     container:
-      # image: bilelmoussaoui/flatpak-github-actions:kde-5.15-21.08
       image: archlinux:latest
       options: --privileged
     steps:
-
     - name: Update
       run: |
         pacman --noconfirm -Suy
         pacman --noconfirm -S flatpak flatpak-builder xorg-server-xvfb
         flatpak install --assumeyes org.freedesktop.Sdk.Extension.golang//23.08
 
-    - name: Show environment variables
-      run: >
-        echo IS_RELEASE: ${{ env.IS_RELEASE }}
-
-    # https://stackoverflow.com/questions/60916931/github-action-does-the-if-have-an-else
     - name: Determine flatpak release branch
       id: flatpak_release_branch
       run: |
@@ -65,34 +50,23 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v6
 
-    - name: Replace git tag by the commit id on which it runs
+    - name: Point manifest at this checkout
       if: github.ref_type != 'tag'
       run: >
         sed -i 's@\(tag\|branch\|commit\): .*@commit: "${{ (github.event.pull_request && github.event.pull_request.head.sha) || github.sha }}"@' com.github.Pawmmit.Pawmmit.yml
-
     - name: Use correct git tag
       if: github.ref_type == 'tag'
       run: >
         sed -i 's@\(tag\|branch\|commit\): .*$@tag: "${{ github.ref_name }}"@' com.github.Pawmmit.Pawmmit.yml
-
     - name: Replace source url
       run: >
         sed -i "s@url: .*Pawmmit.git@url: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY@" com.github.Pawmmit.Pawmmit.yml
-
-    - name: Add dev build marker to cmake options
+    - name: Add dev build marker
       if: github.ref_type != 'tag'
-      run: >
-        sed -i 's@config-opts: \["\(.*\)"\]@config-opts: ["\1", "-DDEV_BUILD=${{ github.ref_name }}"]@' com.github.Pawmmit.Pawmmit.yml
-
-    - name: Replace desktop file name suffix
-      if: github.ref_type != 'tag'
-      run: >
+      run: |
+        sed -i 's@\("-Dflatpak=true"\)@\1, "-Ddev_build=${{ github.ref_name }}"@' com.github.Pawmmit.Pawmmit.yml
         sed -i 's@desktop-file-name-suffix: ""@desktop-file-name-suffix: " (Development)"@' com.github.Pawmmit.Pawmmit.yml
-
-    - name: Enable automatic update
-      if: github.ref_type != 'tag'
-      run: >
-        sed -i 's@-DENABLE_UPDATE_OVER_GUI=OFF@-DENABLE_UPDATE_OVER_GUI=ON@' com.github.Pawmmit.Pawmmit.yml
+        sed -i 's@"-Denable_update_over_gui=false"@"-Denable_update_over_gui=true"@' com.github.Pawmmit.Pawmmit.yml
 
     - name: Show Flatpak manifest
       run: cat com.github.Pawmmit.Pawmmit.yml
@@ -113,7 +87,6 @@ jobs:
         path: Pawmmit.flatpak
         name: PawmmitFlatpak
 
-
   build:
     runs-on: ${{ matrix.env.os }}
     strategy:
@@ -121,71 +94,43 @@ jobs:
       matrix:
         qt:
           - version: 6.7.3
-
         env:
           - name: linux
             os: ubuntu-latest
-            ninja_platform: linux
             qt_platform: linux
             qt_arch: linux_gcc_64
-            openssl_arch: linux-x86_64
             ld_library_arch: linux-x86-64
-            cmake_flags: "-DGENERATE_APPDATA=ON -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_UPDATE_OVER_GUI=OFF -DUSE_SSH=ON"
             pack: 0
-            cmake_env: {}
-
           - name: macos
-            os: macos-15-intel
-            ninja_platform: mac
+            os: macos-15
             qt_platform: mac
-            openssl_arch: darwin64-x86_64-cc
-            cmake_flags: "-DUSE_SYSTEM_LIBSSH2=OFF -DUSE_SSH:STRING=localbuild -DUSE_SYSTEM_QT=OFF"
-            cmake_env: {}
             pack: 1
-
           - name: win64
             os: windows-latest
-            ninja_platform: win
             qt_platform: windows
             qt_arch: win64_msvc2019_64
-            openssl_arch: VC-WIN64A
             msvc_arch: x64
-            cmake_flags: "-DUSE_SYSTEM_QT=OFF -DUSE_SYSTEM_LIBSSH2=OFF -DUSE_BUNDLED_ZLIB=1 -DUSE_SSH:STRING=localbuild -DUSE_SYSTEM_OPENSSL=OFF -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl"
-            cmake_env:
-              CMAKE_RC_FLAGS: "/C 1252"
             pack: 1
 
     steps:
-      # otherwise the testcases will fail, because signature is invalid
-      - name: Set git name and email
+      - name: Set git identity (tests create commits)
         run: |
-          git config --global user.name "Your Name"
-          git config --global user.email "youremail@yourdomain.com"
-          git config --list
-      # Use GITHUB_ENV (allenevans/set-env no longer accepts CMAKE_FLAGS; triggers workflow annotations).
+          git config --global user.name "CI"
+          git config --global user.email "ci@example.com"
+
       - name: Configure development build
         if: github.ref_type != 'tag'
         shell: bash
-        run: |
-          echo "CMAKE_FLAGS=-DDEV_BUILD=\"${{ github.ref_name }}\"" >> "$GITHUB_ENV"
+        run: echo "DEV_BUILD=${{ github.ref_name }}" >> "$GITHUB_ENV"
 
       - name: Checkout repository
         uses: actions/checkout@v6
-        with:
-          submodules: recursive
 
-      - name: Install Perl
-        if: matrix.env.ninja_platform == 'win'
-        uses: shogo82148/actions-setup-perl@v1
+      - name: Install build tools
+        uses: actions/setup-python@v5
         with:
-          perl-version: '5.30'
-
-      - name: Install Libssh2
-        if: matrix.env.ninja_platform == 'linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get -y install libssh2-1
-          sudo apt-get -y install libssh2-1-dev
+          python-version: '3.12'
+      - run: pip install "meson>=1.4" ninja
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4.3.0
@@ -196,244 +141,138 @@ jobs:
           host: ${{ matrix.env.qt_platform }}
           arch: ${{ matrix.env.qt_arch }}
           install-deps: true
-          modules: qtwebengine qt5compat
-
-      - name: Install Ninja
-        uses: seanmiddleditch/gha-setup-ninja@v6
-        with:
-          version: 1.11.1
-          platform: ${{ matrix.env.ninja_platform }}
-          destination: ninja
+          modules: qt5compat
 
       - name: Setup MSVC environment
-        if: matrix.env.ninja_platform == 'win'
+        if: matrix.env.name == 'win64'
         uses: seanmiddleditch/gha-setup-vsdevenv@v5
         with:
           arch: ${{ matrix.env.msvc_arch }}
 
-      - name: Install NASM
-        if: matrix.env.ninja_platform == 'win'
-        uses: ilammy/setup-nasm@v1.2.0
-
-      # CPack uses NSIS on Windows (see pack/CMakeLists.txt); runners do not ship makensis.
-      - name: Install NSIS for CPack
-        if: matrix.env.ninja_platform == 'win'
-        shell: pwsh
-        run: |
-          choco install nsis -y
-          $nsis = @(
-            'C:\Program Files (x86)\NSIS',
-            'C:\Program Files\NSIS'
-          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
-          if ($nsis) { Add-Content $env:GITHUB_PATH $nsis }
-
-      - name: Build OpenSSL (Windows)
-        if: matrix.env.ninja_platform == 'win'
-        run: |
-          cd dep/openssl/openssl
-          perl Configure ${{ matrix.env.openssl_arch }}
-          nmake
-
-      - name: Configure Release
-        env: ${{ matrix.env.cmake_env }}
-        run: |
-          mkdir -p build/release
-          cd build/release
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DUPDATE_TRANSLATIONS=ON -DPAWMMIT_CI_TESTS=ON ${{ env.CMAKE_FLAGS }} ${{ matrix.env.cmake_flags }} ../..
-
-
-      - name: Build Information
-        run: |
-          echo "ninja version: $(ninja --version)"
-          git --version
-          qmake --version
-          cmake --version
-
-      - name: Build
-        run: |
-          cd build/release
-          ninja package
-
-      # Command copied from flathub build process
-      - name: Validate appdata file
-        if: matrix.env.ninja_platform == 'linux'
-        run: |
-          echo "Show generated appdata file"
-          cat ./build/release/rsrc/linux/com.github.Pawmmit.Pawmmit.appdata.xml
-          echo "Start validating appdata file"
-          sudo apt install flatpak
-          sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-          sudo flatpak install -y flathub org.flatpak.Builder
-          flatpak run --command=flatpak-builder-lint org.flatpak.Builder appstream ./build/release/rsrc/linux/com.github.Pawmmit.Pawmmit.appdata.xml
-
-      - name: Publish build artifacts
-        if: matrix.env.pack
-        uses: actions/upload-artifact@v6
-        with:
-          path: build/release/pack/Pawmmit-*
-          name: Pawmmit ${{ matrix.env.name }}
-
-      # Publish only once!
-      - name: Publish version file
-        if: matrix.env.ninja_platform == 'linux'
-        uses: actions/upload-artifact@v6
-        with:
-          path: build/release/Version.txt
-          name: Pawmmit-VERSION
-
-      - name: Check Version file
-        run: |
-          cd build/release
-          cat ./Version.txt
-
-      - name: Test
-        if: matrix.env.ninja_platform != 'win' && matrix.env.ninja_platform != 'mac'
+      # libgit2 needs a real system package everywhere (see meson.build for
+      # why); everything else has a wrap fallback and builds from source if
+      # missing, so CI doesn't install it.
+      - name: Install dependencies (Linux)
+        if: matrix.env.name == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb
-          cd build/release
-          xvfb-run -a ninja check --verbose
+          sudo apt-get install -y pkg-config xvfb libgit2-dev libqt6core5compat6-dev
+
+      - name: Install dependencies (macOS)
+        if: matrix.env.name == 'macos'
+        run: brew install pkg-config libgit2
+
+      - name: Install dependencies (Windows)
+        if: matrix.env.name == 'win64'
+        shell: pwsh
+        run: |
+          vcpkg install libgit2[ssh] --triplet x64-windows
+          choco install nsis -y
+          echo "CMAKE_PREFIX_PATH=$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows" >> $env:GITHUB_ENV
+
+      - name: Configure
+        shell: bash
+        run: |
+          meson setup build \
+            --buildtype=release \
+            --prefix=/usr \
+            -Dci_tests=true \
+            -Dupdate_translations=true \
+            ${DEV_BUILD:+-Ddev_build="$DEV_BUILD"}
+
+      - name: Build
+        run: meson compile -C build
+
+      - name: Test (Linux)
+        if: matrix.env.name == 'linux'
+        run: xvfb-run -a meson test -C build --print-errorlogs
 
       - name: Test (Windows)
-        if: matrix.env.ninja_platform == 'win'
-        run: |
-          cd build/release
-          ninja check_no_win32_offscreen
+        if: matrix.env.name == 'win64'
+        run: meson test -C build --print-errorlogs --no-suite no_win32_offscreen
 
-      - name: Build Appimage
-        if: matrix.env.ninja_platform == 'linux'
-        run: |
-          cd build/release
-          sudo apt -y install appstream
-          sudo apt -y install libfuse2
-          sudo apt -y install libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-cursor0 libxkbcommon0 libx11-xcb1
-          sudo apt -y install libxcb-shm0 libxcb-sync1 libxcb-util1 libxcb-xinerama0 libxcb-xinput0 libxcb-xkb1 libxcb-xrm0 libxcb-xv0 libxcb-xvmc0 libxcb1
-          
-          mkdir -p AppDir
-          DESTDIR=AppDir ninja install
+      - name: Package (macOS / Windows)
+        if: matrix.env.pack == 1
+        shell: bash
+        run: meson install -C build --destdir "$PWD/stage"
 
-          # install-qt-action exports QT_ROOT_DIR to the actual install dir.
-          # aqt downloads the "linux_gcc_64" package but extracts it to "gcc_64",
-          # so the arch id and the on-disk dir name differ; prefer QT_ROOT_DIR.
-          export QTDIR=${QT_ROOT_DIR:-$RUNNER_WORKSPACE/Qt/${{ matrix.qt.version }}/${{ matrix.env.qt_arch }}}
-          export QT_ROOT_DIR=$QTDIR
-
-          rm -rf ./AppDir/usr/include/
-          strip ./AppDir/usr/bin/cmark ./AppDir/usr/bin/pawmmit ./AppDir/usr/bin/pawmmit-indexer ./AppDir/usr/bin/pawmmit-relauncher
-
-          wget -c https://github.com/$(wget -q https://github.com/probonopd/go-appimage/releases/expanded_assets/continuous -O - | grep "appimagetool-.*-x86_64.AppImage" | head -n 1 | cut -d '"' -f 2)
-          chmod +x appimagetool-*.AppImage
-          echo Show QTDIR
-          ls $QTDIR
-          echo Show QTDIR plugins
-          ls $QTDIR/plugins
-          echo Show QTDIR plugins platforms
-          ls $QTDIR/plugins/platforms
-          QTDIR=$QTDIR ./appimagetool-*.AppImage -s deploy ./AppDir/usr/share/applications/*.desktop --appimage-extract-and-run # Bundle EVERYTHING
-
-          # Modify the AppDir: move ld-linux into the same directory as the payload application
-          # and change AppRun accordingly; so that, e.g., Qt qApp->applicationDirPath() works
-          mv ./AppDir/lib64/ld-${{ matrix.env.ld_library_arch }}.so.2 ./AppDir/usr/bin/
-          sed -i -e 's@^LD_LINUX.*@LD_LINUX=$(find "$HERE/usr/bin" -name "ld-*.so.*" | head -n 1)@g' ./AppDir/AppRun
-
-          rm ./AppDir/usr/share/metainfo/com.github.Pawmmit.Pawmmit.appdata.xml
-          VERSION=$(cat ./Version.txt)
-          VERSION="$VERSION" ./appimagetool-*.AppImage ./AppDir # turn AppDir into AppImage
-          #ls -lh Pawmmit-*
-
-      - name: Publish Appimage
-        if: matrix.env.ninja_platform == 'linux'
+      - name: Publish version file
+        if: matrix.env.name == 'linux'
         uses: actions/upload-artifact@v6
         with:
-          path: build/release/Pawmmit*.AppImage
+          path: build/Version.txt
+          name: Pawmmit-VERSION
+
+      - name: Publish package artifacts
+        if: matrix.env.pack == 1
+        uses: actions/upload-artifact@v6
+        with:
+          path: build/pack/Pawmmit-*
+          name: Pawmmit ${{ matrix.env.name }}
+
+      - name: Build AppImage
+        if: matrix.env.name == 'linux'
+        run: |
+          sudo apt -y install appstream libfuse2 \
+            libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 \
+            libxcb-shape0 libxcb-cursor0 libxkbcommon0 libx11-xcb1 libxcb-shm0 libxcb-sync1 \
+            libxcb-util1 libxcb-xinerama0 libxcb-xinput0 libxcb-xkb1
+
+          DESTDIR="$PWD/AppDir" meson install -C build
+
+          export QTDIR=${QT_ROOT_DIR:-$RUNNER_WORKSPACE/Qt/${{ matrix.qt.version }}/gcc_64}
+          export QT_ROOT_DIR=$QTDIR
+          rm -rf ./AppDir/usr/include/
+          strip ./AppDir/usr/bin/pawmmit ./AppDir/usr/bin/pawmmit-indexer ./AppDir/usr/bin/pawmmit-relauncher || true
+
+          wget -c "https://github.com/$(wget -q https://github.com/probonopd/go-appimage/releases/expanded_assets/continuous -O - | grep 'appimagetool-.*-x86_64.AppImage' | head -n 1 | cut -d '"' -f 2)"
+          chmod +x appimagetool-*.AppImage
+          QTDIR=$QTDIR ./appimagetool-*.AppImage -s deploy ./AppDir/usr/share/applications/*.desktop --appimage-extract-and-run
+
+          mv ./AppDir/lib64/ld-${{ matrix.env.ld_library_arch }}.so.2 ./AppDir/usr/bin/ || true
+          sed -i -e 's@^LD_LINUX.*@LD_LINUX=$(find "$HERE/usr/bin" -name "ld-*.so.*" | head -n 1)@g' ./AppDir/AppRun
+          VERSION="$(cat build/Version.txt)" ./appimagetool-*.AppImage ./AppDir
+
+      - name: Publish AppImage
+        if: matrix.env.name == 'linux'
+        uses: actions/upload-artifact@v6
+        with:
+          path: Pawmmit*.AppImage
           name: PawmmitAppImage
 
   publish:
     needs: [flatpak, build]
-    runs-on: ubuntu-latest # does not matter which
+    runs-on: ubuntu-latest
     permissions:
       contents: write
-    # a prerelase is created when pushing to master
-    # a release is created when a tag will be set
-    # last condition is the same as IS_RELEASE,
-    # but environment variables cannot be used outside of steps
-    # so it was copied to here too
-    if: ${{ github.ref == 'refs/heads/master' || (github.event_name == 'push' && github.ref_type == 'tag' && startswith(github.ref_name, 'v'))  }}
+    if: ${{ github.ref == 'refs/heads/main' || (github.event_name == 'push' && github.ref_type == 'tag' && startswith(github.ref_name, 'v')) }}
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v6
         with:
           path: artifacts
 
-      # version is exported from cmake to file
       - name: Retrieve version
         id: version
-        run: |
-          echo "VERSION=$(cat artifacts/Pawmmit-VERSION/Version.txt)" >> "$GITHUB_OUTPUT"
+        run: echo "VERSION=$(cat artifacts/Pawmmit-VERSION/Version.txt)" >> "$GITHUB_OUTPUT"
 
-      # gh CLI avoids deprecated Node-based release actions (e.g. marvinpinto/action-automatic-releases).
       - name: Update GitHub release (development)
+        if: github.ref_type != 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           shopt -s nullglob
-          flatpaks=(artifacts/PawmmitFlatpak/*.flatpak)
-          appimages=(artifacts/PawmmitAppImage/Pawmmit*.AppImage)
-          windows_files=("artifacts/Pawmmit win64"/Pawmmit*.exe)
-          macos_files=("artifacts/Pawmmit macos"/Pawmmit*.dmg)
-          files=("${flatpaks[@]}" "${appimages[@]}" "${windows_files[@]}")
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "No assets to upload."
-            exit 1
-          fi
+          files=(
+            artifacts/PawmmitFlatpak/*.flatpak
+            artifacts/PawmmitAppImage/Pawmmit*.AppImage
+            "artifacts/Pawmmit win64"/Pawmmit-*.exe
+            "artifacts/Pawmmit macos"/Pawmmit-*.dmg
+          )
+          if [ ${#files[@]} -eq 0 ]; then echo "No assets."; exit 1; fi
           if ! gh release view development --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            gh release create development \
-              --repo "${{ github.repository }}" \
-              --prerelease \
-              --title "Latest Build (Development)" \
-              --target "${{ github.sha }}" \
-              "${files[@]}"
+            gh release create development --repo "${{ github.repository }}" --prerelease \
+              --title "Latest Build (Development)" --target "${{ github.sha }}" "${files[@]}"
           else
             gh release upload development "${files[@]}" --repo "${{ github.repository }}" --clobber
           fi
-
-      - name: Update GitHub release (version tag)
-        if: ${{ env.IS_RELEASE == 'true' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          TAG="${{ github.ref_name }}"
-          flatpaks=(artifacts/PawmmitFlatpak/*.flatpak)
-          appimages=(artifacts/PawmmitAppImage/Pawmmit*.AppImage)
-          windows_files=("artifacts/Pawmmit win64"/Pawmmit*.exe)
-          macos_files=("artifacts/Pawmmit macos"/Pawmmit*.dmg)
-          files=("${flatpaks[@]}" "${appimages[@]}" "${windows_files[@]}")
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "No assets to upload."
-            exit 1
-          fi
-          if ! gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            gh release create "$TAG" \
-              --repo "${{ github.repository }}" \
-              --title "Pawmmit Release ${{ steps.version.outputs.VERSION }}" \
-              --target "${{ github.sha }}" \
-              "${files[@]}"
-          else
-            gh release upload "$TAG" "${files[@]}" --repo "${{ github.repository }}" --clobber
-          fi
-
-      # needed otherwise the docs folder is not available
-      - name: Checkout repository
-        if: ${{ env.IS_RELEASE == 'true' }}
-        uses: actions/checkout@v6
-
-      # update github pages only if it is a release
-      - name: Deploy Github pages
-        if: ${{ env.IS_RELEASE == 'true' }}
-        uses: JamesIves/github-pages-deploy-action@v4.7.3
-        with:
-          branch: gh-pages # The branch the action should deploy to.
-          folder: docs # The folder the action should deploy.

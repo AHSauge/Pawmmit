@@ -3,13 +3,15 @@ build
 .DS_Store
 .project
 .vscode/
-CMakeLists.txt.user
-cmake-build-debug/
 build*
-cmake-build-release/
-build
 .idea/
 .venv
 compile_commands.json
 .flatpak-builder
-dep/scintilla/scintilla/
+
+# Meson wrap checkouts / cache (everything under subprojects/ except the
+# tracked .wrap files and packagefiles/ overlays).
+/subprojects/*/
+!/subprojects/packagefiles/
+/subprojects/packagecache/
+/subprojects/.wraplock

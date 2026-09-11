@@ -78,15 +78,65 @@ modules:
           - autoreconf -fiv
         dest-filename: autogen.sh
 
-  - name: Pawmmit
+  # libgit2 is built directly with CMake here, like libssh2 above (see
+  # meson.build). lua/hunspell/cmark come from Meson wraps instead, seeded
+  # into packagecache below since this sandbox has no network mid-build.
+  - name: libgit2
     buildsystem: cmake-ninja
-    config-opts: [-DCMAKE_BUILD_TYPE=Release, -DFLATPAK=ON, -DGENERATE_APPDATA=ON, -DENABLE_UPDATE_OVER_GUI=OFF]
+    builddir: true
+    config-opts: [-DCMAKE_BUILD_TYPE=Release, -DBUILD_TESTS=OFF, -DBUILD_CLI=OFF, -DBUILD_EXAMPLES=OFF, -DUSE_SSH=ON]
+    sources:
+      - type: archive
+        url: https://github.com/libgit2/libgit2/archive/refs/tags/v1.9.1.tar.gz
+        sha256: 14cab3014b2b7ad75970ff4548e83615f74d719afe00aa479b4a889c1e13fc00
+
+  - name: Pawmmit
+    buildsystem: meson
+    config-opts: ["--buildtype=release", "-Dflatpak=true", "-Denable_update_over_gui=false", "-Dtests=false"]
     builddir: true
     sources:
       - type: git
         url: https://github.com/Pawmmit/Pawmmit.git
         branch: main
-      - type: archive
+      # Pre-seeds subprojects/packagecache/ since this sandbox has no network
+      # mid-build; keep hashes in sync with subprojects/*.wrap.
+      - type: file
         url: https://downloads.sourceforge.net/project/scintilla/scintilla/5.6.6/scintilla566.tgz
         sha256: b6b08598c68fac90990d010c1142494d707530602b5320753274d045c2b02189
-        dest: dep/scintilla/scintilla
+        dest: subprojects/packagecache
+        dest-filename: scintilla566.tgz
+      - type: file
+        url: https://github.com/ScintillaOrg/lexilla/archive/refs/tags/rel-5-5-3.tar.gz
+        sha256: b3bce10c60918da5c87a9849b12fbcac0a5f0a6e4cb2c0b6684f320f00899c47
+        dest: subprojects/packagecache
+        dest-filename: lexilla-rel-5-5-3.tar.gz
+      - type: file
+        url: https://github.com/orbitalquark/scintillua/archive/refs/tags/scintillua_6.7.tar.gz
+        sha256: 47fe74d86d8616779c9efc659f737de4b8bfe6dfc022692a7fdeaf7995710ae5
+        dest: subprojects/packagecache
+        dest-filename: scintillua-scintillua_6.7.tar.gz
+      - type: file
+        url: http://www.inf.puc-rio.br/~roberto/lpeg/lpeg-1.1.0.tar.gz
+        sha256: 4b155d67d2246c1ffa7ad7bc466c1ea899bbc40fef0257cc9c03cecbaed4352a
+        dest: subprojects/packagecache
+        dest-filename: lpeg-1.1.0.tar.gz
+      - type: file
+        url: https://www.lua.org/ftp/lua-5.4.8.tar.gz
+        sha256: 4f18ddae154e793e46eeab727c59ef1c0c0c2b744e7b94219710d76f530629ae
+        dest: subprojects/packagecache
+        dest-filename: lua-5.4.8.tar.gz
+      - type: file
+        url: https://wrapdb.mesonbuild.com/v2/lua_5.4.8-1/get_patch
+        sha256: e9d7e451cd7b5e1204c0ba43d7b55e3f195a67b348917c35963f18d7e1dacfbe
+        dest: subprojects/packagecache
+        dest-filename: lua_5.4.8-1_patch.zip
+      - type: file
+        url: https://github.com/commonmark/cmark/archive/refs/tags/0.31.1.tar.gz
+        sha256: 3da93db5469c30588cfeb283d9d62edfc6ded9eb0edc10a4f5bbfb7d722ea802
+        dest: subprojects/packagecache
+        dest-filename: cmark-0.31.1.tar.gz
+      - type: file
+        url: https://github.com/hunspell/hunspell/archive/refs/tags/v1.7.2.tar.gz
+        sha256: 69fa312d3586c988789266eaf7ffc9861d9f6396c31fc930a014d551b59bbd6e
+        dest: subprojects/packagecache
+        dest-filename: hunspell-1.7.2.tar.gz
