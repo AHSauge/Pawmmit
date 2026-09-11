@@ -70,8 +70,15 @@ lexilla_dep = dependency('lexilla')
 
 # System-only: Meson's CMake bridge can't reconstruct libgit2's own build.
 # Windows/macOS get it via vcpkg/Homebrew (see build.yml); Flatpak builds it
-# directly with CMake.
-libgit2_dep = dependency('libgit2', version: '>=1.9')
+# directly with CMake. vcpkg ships no .pc file, so Windows resolves it via
+# CMake's own exported target, which libgit2 names libgit2::libgit2package.
+if is_win
+    libgit2_dep = dependency(
+        'libgit2', version: '>=1.9', method: 'cmake', modules: ['libgit2::libgit2package'],
+    )
+else
+    libgit2_dep = dependency('libgit2', version: '>=1.9')
+endif
 
 libssh2_dep = dependency('libssh2')
 lpeg_dep = dependency('lpeg')
