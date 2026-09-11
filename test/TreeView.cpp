@@ -333,6 +333,12 @@ void TestTreeView::selectionSurvivesPush() {
       Timeout(10000, "Diff view didn't get repopulated after the push");
   while (!repoView->diff().isValid())
     qWait(10);
+
+  {
+    auto timeout = Timeout(10000, "Push didn't finish in time");
+    while (repoView->isBusy())
+      qWait(10);
+  }
 }
 
 void TestTreeView::dirtySubmoduleAndStagedSubmodule() {

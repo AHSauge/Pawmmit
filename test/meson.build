@@ -3,16 +3,17 @@ zip_dep = dependency('zip')  # kuba--/zip, via subprojects/zip.wrap
 
 # SSH_CONFIG and GIT_EXECUTABLE are used by the individual tests too, so they
 # have to propagate; TESTREPOSITORIES_PATH is only read by Test.cpp.
+# NOTE: Slash conversion needed for MSVC
 testlib_public_args = [
-    '-DSSH_CONFIG="' + meson.current_source_dir() + '"',
-    '-DGIT_EXECUTABLE="' + find_program('git').full_path() + '"',
+    '-DSSH_CONFIG="' + meson.current_source_dir().replace('\\', '/') + '"',
+    '-DGIT_EXECUTABLE="' + find_program('git').full_path().replace('\\', '/') + '"',
 ]
 
 testlib = static_library(
     'testlib',
     files('Test.cpp'),
     cpp_args: testlib_public_args
-        + ['-DTESTREPOSITORIES_PATH="' + meson.current_source_dir() / 'testRepos' + '"'],
+        + ['-DTESTREPOSITORIES_PATH="' + (meson.current_source_dir() / 'testRepos').replace('\\', '/') + '"'],
     dependencies: [pawmmit_common, pawmmitUtil_dep, qt_test_dep, zip_dep, git_dep]
         + (host_machine.system() in ['darwin', 'windows'] ? [] : [dependency('qt6', modules: ['DBus'])]),
 )

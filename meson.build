@@ -47,6 +47,11 @@ endif
 if get_option('enable_sha256')
     _defs += '-DGIT_EXPERIMENTAL_SHA256'
 endif
+
+# cmake and/or Qt in cmake seems to inject these defines in that we depend on
+if is_win
+    _defs += ['-DUNICODE', '-D_UNICODE']
+endif
 add_project_arguments(_defs, language: cpp_like_langs)
 
 # -Wall comes from warning_level=1; -Werror is left to the built-in `werror`

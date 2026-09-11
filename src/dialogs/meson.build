@@ -39,9 +39,8 @@ dialogs_moc = qt6.preprocess(
         'StartDialog.cpp',
         'ThemeDialog.cpp',
     ),
-    # TerminalPanel in SettingsDialog.cpp is behind #ifdef Q_OS_UNIX; some moc
-    # builds don't auto-detect that, so make it explicit.
-    moc_extra_arguments: is_win ? [] : ['-DQ_OS_UNIX'],
+    # Feed OS defines into moc since meson doesn't set that up for us
+    moc_extra_arguments: is_win ? ['-D_WIN32'] : ['-DQ_OS_UNIX'],
     dependencies: [qt6_dep, pawmmit_common],
 )
 

@@ -116,6 +116,10 @@ pawmmit_link_deps = [
     lexilla_dep,
 ]
 
+if is_win
+    pawmmit_link_deps += [cc.find_library('dbghelp')]
+endif
+
 exe_kwargs = {}
 exe_sources = [files('Pawmmit.cpp')]
 
@@ -126,7 +130,13 @@ if is_win
         include_directories: include_directories('..' / '..' / 'rsrc'),
     )
     exe_kwargs += {'win_subsystem': 'windows'}
-    exe_kwargs += {'dependencies': pawmmit_link_deps + [cc.find_library('dbghelp')]}
+    # win_subsystem:'windows' makes the linker pull in MSVCRT's WinMain-based
+    # startup stub, which needs Qt's own WinMain (it forwards to our int
+    # main()). Qt's official CMake package links this automatically; meson's
+    # qmake-based Qt detection doesn't, so it's found and linked explicitly.
+    _qt_libdir = run_command(_qtpaths, '--query', 'QT_INSTALL_LIBS', check: true).stdout().strip()
+    qt_entrypoint_dep = cc.find_library('Qt6EntryPoint', dirs: [_qt_libdir])
+    exe_kwargs += {'dependencies': pawmmit_link_deps + [qt_entrypoint_dep]}
 else
     exe_kwargs += {'dependencies': pawmmit_link_deps}
 endif

@@ -86,6 +86,10 @@ public:
   History *history() const { return mHistory; }
   Index *index() const { return mIndex; }
 
+  /// @brief Check if it's busy running a future
+  /// @return True if a future is running
+  bool isBusy() const { return mWatcher != nullptr; }
+
   Repository *remoteRepo();
 
   // LFS
