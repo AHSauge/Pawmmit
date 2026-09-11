@@ -170,6 +170,13 @@ jobs:
           choco install nsis -y
           echo "CMAKE_PREFIX_PATH=$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows" >> $env:GITHUB_ENV
 
+      # Add workaround due to 'shell: bash'
+      # See https://github.com/ilammy/msvc-dev-cmd#name-conflicts-with-shell-bash
+      - name: Remove link.exe
+        if: matrix.env.name == 'win64'
+        shell: pwsh
+        run: Remove-Item "C:\Program Files\Git\usr\bin\link.EXE" -Force -ErrorAction SilentlyContinue
+
       - name: Configure
         shell: bash
         run: |
