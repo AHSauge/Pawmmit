@@ -12,9 +12,12 @@ lpeg_dep = dependency('lpeg')
 
 # Static, linked against the parent project's own scintilla/lexilla/lua/lpeg,
 # unlike upstream's shared build with vendored deps.
+# NO_DLL: per upstream docs, needed when linking Scintillua statically on
+# Windows, otherwise its exports mismatch their own header (__stdcall vs cdecl).
 scintillua_lib = static_library(
     'scintillua',
     'Scintillua.cxx',
+    cpp_args: ['-DNO_DLL'],
     dependencies: [lexilla_dep, lua_dep, lpeg_dep],
 )
 
