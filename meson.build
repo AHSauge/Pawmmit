@@ -53,6 +53,12 @@ add_project_arguments(_defs, language: cpp_like_langs)
 # option (current GCC / Qt headers raise warnings older toolchains do not).
 if cc.get_argument_syntax() == 'gcc'
     add_project_arguments('-Wno-unused-parameter', language: ['c'] + cpp_like_langs)
+
+    # GCC 16's -Wsfinae-incomplete fires inside Qt's own <QtCore/QtCore> umbrella
+    # header. Ignore it until Qt is fixed
+    if cc.has_argument('-Wno-sfinae-incomplete')
+        add_project_arguments('-Wno-sfinae-incomplete', language: cpp_like_langs)
+    endif
 endif
 
 # libgit2's qsort_r pulls in dlopen on Linux (folded into libc on current glibc,

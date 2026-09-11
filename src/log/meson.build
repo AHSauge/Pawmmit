@@ -1,8 +1,6 @@
 loglib_moc = qt6.preprocess(
     moc_headers: files(
-        'LogDelegate.h',
         'LogEntry.h',
-        'LogModel.h',
         'LogView.h',
     ),
     dependencies: [pawmmit_common],
