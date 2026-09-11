@@ -162,6 +162,18 @@ jobs:
         if: matrix.env.name == 'macos'
         run: brew install pkg-config libgit2
 
+      # vcpkg's default local binary cache (see vcpkg docs on binary caching)
+      # otherwise starts empty on every run, forcing OpenSSL/libssh2/libgit2
+      # to rebuild from source each time.
+      - name: Cache vcpkg archives
+        if: matrix.env.name == 'win64'
+        uses: actions/cache@v4
+        with:
+          path: ~/AppData/Local/vcpkg/archives
+          key: vcpkg-archives-win64-${{ github.sha }}
+          restore-keys: |
+            vcpkg-archives-win64-
+
       - name: Install dependencies (Windows)
         if: matrix.env.name == 'win64'
         shell: pwsh
@@ -176,6 +188,34 @@ jobs:
         if: matrix.env.name == 'win64'
         shell: pwsh
         run: Remove-Item "C:\Program Files\Git\usr\bin\link.EXE" -Force -ErrorAction SilentlyContinue
+
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@v0.0.11
+
+      # sccache's own disk cache (separate from vcpkg's above) is what makes
+      # unchanged objects across runs free instead of just fast.
+      - name: Cache sccache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/sccache
+            ~/Library/Caches/Mozilla.sccache
+            ~/AppData/Local/Mozilla/sccache
+          key: sccache-${{ matrix.env.name }}-${{ github.sha }}
+          restore-keys: |
+            sccache-${{ matrix.env.name }}-
+
+      # Meson auto-wraps gcc/clang with a cache found on PATH, but MSVC needs
+      # CC/CXX set explicitly before the first `meson setup`.
+      - name: Point compilers at sccache
+        shell: bash
+        run: |
+          echo "SCCACHE_CACHE_SIZE=2G" >> "$GITHUB_ENV"
+          case "${{ matrix.env.name }}" in
+            win64) echo "CC=sccache cl"; echo "CXX=sccache cl" ;;
+            macos) echo "CC=sccache cc"; echo "CXX=sccache c++"; echo "OBJCXX=sccache clang++" ;;
+            linux) echo "CC=sccache cc"; echo "CXX=sccache c++" ;;
+          esac >> "$GITHUB_ENV"
 
       - name: Configure
         shell: bash
