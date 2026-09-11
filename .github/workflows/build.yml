@@ -96,7 +96,7 @@ jobs:
           - version: 6.7.3
         env:
           - name: linux
-            os: ubuntu-latest
+            os: ubuntu-26.04
             qt_platform: linux
             qt_arch: linux_gcc_64
             ld_library_arch: linux-x86-64
