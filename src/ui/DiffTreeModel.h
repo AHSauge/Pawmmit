@@ -17,6 +17,7 @@
 #include "git/Index.h"
 #include "git/Tree.h"
 #include "git/Repository.h"
+#include "git/Submodule.h"
 #include <QAbstractItemModel>
 #include <QAbstractListModel>
 #include <QFileIconProvider>

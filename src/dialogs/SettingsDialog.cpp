@@ -58,7 +58,8 @@
 #include "cli/Installer.h"
 #endif
 
-namespace {
+// Named, not anonymous; kept file-local via the `using namespace` below.
+namespace SettingsDialogPrivate {
 
 void populateExternalTools(QComboBox *comboBox, const QString &type) {
   comboBox->clear();
@@ -867,7 +868,8 @@ private:
 };
 #endif
 
-} // namespace
+} // namespace SettingsDialogPrivate
+using namespace SettingsDialogPrivate;
 
 SettingsDialog::SettingsDialog(Index index, QWidget *parent)
     : QMainWindow(parent, Qt::Dialog) {

@@ -1,0 +1,9 @@
+[wrap-file]
+directory = lexilla-rel-5-5-3
+source_url = https://github.com/ScintillaOrg/lexilla/archive/refs/tags/rel-5-5-3.tar.gz
+source_filename = lexilla-rel-5-5-3.tar.gz
+source_hash = b3bce10c60918da5c87a9849b12fbcac0a5f0a6e4cb2c0b6684f320f00899c47
+patch_directory = lexilla
+
+[provide]
+lexilla = lexilla_dep

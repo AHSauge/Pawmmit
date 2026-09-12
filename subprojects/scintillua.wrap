@@ -1,0 +1,9 @@
+[wrap-file]
+directory = scintillua-scintillua_6.7
+source_url = https://github.com/orbitalquark/scintillua/archive/refs/tags/scintillua_6.7.tar.gz
+source_filename = scintillua-scintillua_6.7.tar.gz
+source_hash = 47fe74d86d8616779c9efc659f737de4b8bfe6dfc022692a7fdeaf7995710ae5
+patch_directory = scintillua
+
+[provide]
+scintillua = scintillua_dep

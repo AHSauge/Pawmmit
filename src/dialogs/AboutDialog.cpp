@@ -13,6 +13,7 @@
 #include "AboutDialog.h"
 #include "IconLabel.h"
 #include "conf/Settings.h"
+#include "version.h"
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDesktopServices>

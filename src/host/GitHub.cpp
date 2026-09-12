@@ -12,6 +12,7 @@
 
 #include "GitHub.h"
 #include "Repository.h"
+#include "host_config.h"
 #include <QCoreApplication>
 #include <QDesktopServices>
 #include <QFile>

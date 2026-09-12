@@ -1,0 +1,52 @@
+; NSIS installer, generated from this template by pack/deploy.py.
+
+!include "MUI2.nsh"
+
+Name "Pawmmit"
+OutFile "@OUT_FILE@"
+Unicode true
+InstallDir "$PROGRAMFILES64\Pawmmit"
+InstallDirRegKey HKLM "Software\Pawmmit" "InstallDir"
+RequestExecutionLevel admin
+
+!define MUI_ICON "@SOURCE_ROOT@\rsrc\Pawmmit.ico"
+!define MUI_UNICON "@SOURCE_ROOT@\rsrc\Pawmmit.ico"
+!define MUI_FINISHPAGE_RUN "$INSTDIR\bin\pawmmit.exe"
+
+!insertmacro MUI_PAGE_LICENSE "@SOURCE_ROOT@\LICENSE.md"
+!insertmacro MUI_PAGE_DIRECTORY
+!insertmacro MUI_PAGE_INSTFILES
+!insertmacro MUI_PAGE_FINISH
+
+!insertmacro MUI_UNPAGE_CONFIRM
+!insertmacro MUI_UNPAGE_INSTFILES
+
+!insertmacro MUI_LANGUAGE "English"
+
+Section "Pawmmit" SecMain
+  SetOutPath "$INSTDIR"
+  File /r "@STAGE_DIR@\*.*"
+
+  WriteRegStr HKLM "Software\Pawmmit" "InstallDir" "$INSTDIR"
+  WriteUninstaller "$INSTDIR\Uninstall.exe"
+
+  CreateShortCut "$SMPROGRAMS\Pawmmit.lnk" "$INSTDIR\bin\pawmmit.exe"
+
+  WriteRegStr HKCR "Directory\Background\shell\Pawmmit" "" "Open with Pawmmit"
+  WriteRegStr HKCR "Directory\Background\shell\Pawmmit" "Icon" "$INSTDIR\bin\pawmmit.exe"
+  WriteRegStr HKCR "Directory\Background\shell\Pawmmit\command" "" '"$INSTDIR\bin\pawmmit.exe" "%V"'
+  WriteRegStr HKCR "Directory\shell\Pawmmit" "" "Open with Pawmmit"
+  WriteRegStr HKCR "Directory\shell\Pawmmit" "Icon" "$INSTDIR\bin\pawmmit.exe"
+  WriteRegStr HKCR "Directory\shell\Pawmmit\command" "" '"$INSTDIR\bin\pawmmit.exe" "%L"'
+
+  IfFileExists "$INSTDIR\vcredist_x64.exe" 0 +2
+    ExecWait '"$INSTDIR\vcredist_x64.exe" /q /norestart'
+SectionEnd
+
+Section "Uninstall"
+  RMDir /r "$INSTDIR"
+  Delete "$SMPROGRAMS\Pawmmit.lnk"
+  DeleteRegKey HKCR "Directory\Background\shell\Pawmmit"
+  DeleteRegKey HKCR "Directory\shell\Pawmmit"
+  DeleteRegKey HKLM "Software\Pawmmit"
+SectionEnd

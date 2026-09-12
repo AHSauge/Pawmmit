@@ -56,84 +56,62 @@ Remember to search for existing issues before creating a new one.
 Build Environment
 -----------------
 
-* C++11 compiler
-  * Windows - MSVC >= 2017 recommended
-  * Linux - GCC >= 6.2 recommended
-  * macOS - Xcode >= 10.1 recommended
-* CMake >= 3.19
-* Ninja (optional)
+* C++17 compiler
+  * Windows - MSVC >= 2019 recommended
+  * Linux - GCC >= 9 / Clang >= 10 recommended
+  * macOS - Xcode >= 12 recommended
+* [Meson](https://mesonbuild.com) >= 1.1
+* Ninja
+* Python 3
 
 Dependencies
 ------------
 
-External dependencies can be satisfied by system libraries or installed
-separately. Included dependencies are submodules of this repository. Some
-submodules are optional or may also be satisfied by system libraries.
+**Must be provided by the system** (install via your package manager /
+Homebrew / vcpkg) - Meson can't build these itself:
 
-**External Dependencies**
+* Qt (required >= 6.7)
+* libgit2 (>= 1.9) - its CMake build doesn't translate to Meson cleanly
+  enough to fall back on, so this is the one library every platform needs a
+  real package for. On macOS, `brew install libgit2`; on Windows,
+  `vcpkg install libgit2[ssh]` (see `.github/workflows/build.yml`).
 
-* Qt (required >= 6.6)
+On Debian/Ubuntu, for example:
 
-**Included Dependencies**
+    sudo apt install meson ninja-build pkg-config python3 \
+        qt6-base-dev qt6-tools-dev libqt6core5compat6-dev libgit2-dev
 
-* libgit2 (required)
-* cmark (required)
-* git (only needed for the credential helpers)
-* libssh2 (needed by `libgit2` for SSH support)
-* openssl (needed by `libssh2` and `libgit2` on some platforms)
+**Fetched automatically** as Meson subprojects when no system package is
+found (needs network on first configure; see `subprojects/*.wrap`) - install
+the system package instead if you'd rather not build these from source:
 
-Note that building `OpenSSL` on Windows requires `Perl` and `NASM`.
+* libssh2, hunspell (>= 1.7), cmark (library + the `cmark` command-line
+  tool), lua (>= 5.3)
+* scintilla, lexilla, scintillua, lpeg
+* zip (test suite only)
 
 How to Build
 ------------
 
-**Initialize Submodules**
+    meson setup build
+    meson compile -C build
 
-    git submodule init
-    git submodule update --depth 1
+For an optimized build pass `--buildtype=release` to `meson setup`. If Qt is in
+a non-standard location, put its `bin` directory on `PATH` or set
+`PKG_CONFIG_PATH` / `CMAKE_PREFIX_PATH` so Meson can find it.
 
-**Build OpenSSL**
+**Run the tests**
 
-    # Start from root of pawmmit repo.
-    cd dep/openssl/openssl
+    meson test -C build
 
-Windows:
+**Install**
 
-    perl Configure VC-WIN64A
-    nmake
+    meson install -C build --destdir <staging-dir>
 
-macOS (Intel):
+On macOS and Windows `meson install` also runs the packaging step
+(`pack/deploy.py`): it bundles Qt with `macdeployqt` / `windeployqt` and writes
+a `.dmg` / NSIS `.exe` into `build/pack/`.
 
-    ./Configure darwin64-x86_64-cc no-shared
-    make
-    
-macOS (Apple Silicon)
-
-    ./Configure darwin64-arm64-cc no-shared
-    make
-    
-Linux:
-
-    ./config -fPIC
-    make
-
-**Configure Build**
-
-    # Start from root of pawmmit repo.
-    mkdir -p build/release
-    cd build/release
-    cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ../..
-
-If you have Qt installed in a non-standard location, you may have to
-specify the path to Qt by passing `-DCMAKE_PREFIX_PATH=<path-to-qt>`
-where `<path-to-qt>` points to the Qt install directory that contains
-`bin`, `lib`, etc.
-
-**Build**
-```
-    ninja
-```
-    
 ### A Convenient Shell Script for Ubuntu is available [here](https://raw.githubusercontent.com/Pawmmit/Pawmmit/master/pack/buildUbuntu.sh), and will install all the necessary prerequisites, and build a release version for immediate use.
 
 How to Install

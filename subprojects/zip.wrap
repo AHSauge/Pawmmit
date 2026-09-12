@@ -1,0 +1,9 @@
+[wrap-file]
+directory = zip-d7a2252a537926cbdef8512741a322a183fcfd09
+source_url = https://github.com/kuba--/zip/archive/d7a2252a537926cbdef8512741a322a183fcfd09.tar.gz
+source_filename = zip-d7a2252a537926cbdef8512741a322a183fcfd09.tar.gz
+source_hash = 21f3d20b8d9d8cdb25bdf4d14d8d5f1364cefd07b12c806ac804d3c11735c16e
+patch_directory = zip
+
+[provide]
+zip = zip_dep

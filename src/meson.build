@@ -1,0 +1,23 @@
+pawmmit_common = declare_dependency(
+    include_directories: include_directories('.'),
+    dependencies: qt6_dep
+)
+
+subdir('util')
+subdir('cli')
+subdir('conf')
+subdir('git')
+subdir('cred')
+subdir('host')
+subdir('index')
+subdir('dialogs')
+subdir('log')
+subdir('tools')
+subdir('update')
+subdir('watcher')
+subdir('ui')
+subdir('editor')
+subdir('plugins')
+
+# Executable last: it link_wholes every module library above.
+subdir('app')
