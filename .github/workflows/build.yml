@@ -180,6 +180,9 @@ jobs:
         run: |
           vcpkg install libgit2[ssh] --triplet x64-windows
           choco install nsis -y
+          # choco's own PATH update (via the registry) doesn't reach later
+          # steps in this job, so add makensis's dir explicitly.
+          echo "C:\Program Files (x86)\NSIS" >> $env:GITHUB_PATH
           echo "CMAKE_PREFIX_PATH=$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows" >> $env:GITHUB_ENV
 
       # Add workaround due to 'shell: bash'
@@ -219,6 +222,11 @@ jobs:
 
       - name: Configure
         shell: bash
+        # Git Bash on Windows rewrites args that look like POSIX paths (e.g.
+        # "/usr") into a Windows path under its own install dir; disable that
+        # so --prefix reaches meson literally.
+        env:
+          MSYS_NO_PATHCONV: 1
         run: |
           meson setup build \
             --buildtype=release \
