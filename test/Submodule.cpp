@@ -209,7 +209,7 @@ void TestSubmodule::discardFile() {
     QAbstractItemModel *unstagedModel = unstagedTree->model();
 
     QCOMPARE(unstagedModel->rowCount(), 2);
-    auto submodule = unstagedModel->index(0, 0);
+    unstagedModel->index(0, 0);
     auto readme = unstagedModel->index(1, 0);
     QCOMPARE(unstagedModel->data(readme).toString(), QString("README.md"));
 

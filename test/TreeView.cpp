@@ -54,14 +54,13 @@ void TestTreeView::restoreStagedFileAfterCommit() {
   INIT_REPO("TreeViewCollapseCount.zip");
 
   // Check for a single file called "test".
-  RepoView *view = window.currentView();
-  auto doubleTree = view->findChild<DoubleTreeWidget *>();
+  auto doubleTree = repoView->findChild<DoubleTreeWidget *>();
   QVERIFY(doubleTree);
 
   {
     auto unstagedTree = doubleTree->findChild<TreeView *>("Unstaged");
     QVERIFY(unstagedTree);
-    disableListView(*unstagedTree, *view);
+    disableListView(*unstagedTree, *repoView);
     QAbstractItemModel *unstagedModel = unstagedTree->model();
     // Wait for refresh
     auto timeout = Timeout(10000, "Repository didn't refresh in time");
@@ -82,7 +81,7 @@ void TestTreeView::restoreStagedFileAfterCommit() {
                unstagedTree->checkRect(file_txt).center());
   }
 
-  refresh(view, true);
+  refresh(repoView, true);
 
   auto stagedTree = doubleTree->findChild<TreeView *>("Staged");
   stagedTree->expandAll();
@@ -101,10 +100,10 @@ void TestTreeView::restoreStagedFileAfterCommit() {
     stagedTree->selectionModel()->select(file_txt, QItemSelectionModel::Select);
   }
 
-  QTextEdit *editor = view->findChild<QTextEdit *>("MessageEditor");
+  QTextEdit *editor = repoView->findChild<QTextEdit *>("MessageEditor");
   QVERIFY(editor);
   editor->setText("conflicting commit b");
-  view->commit();
+  repoView->commit();
 
   // The application should not crash!
 }
@@ -146,8 +145,7 @@ void TestTreeView::discardFiles() {
   QApplication::processEvents();
 
   // Check for a single file called "test".
-  RepoView *view = window.currentView();
-  auto doubleTree = view->findChild<DoubleTreeWidget *>();
+  auto doubleTree = repoView->findChild<DoubleTreeWidget *>();
   QVERIFY(doubleTree);
 
   // stage folder1/file.txt
@@ -173,7 +171,7 @@ void TestTreeView::discardFiles() {
                unstagedTree->checkRect(file_txt).center());
   }
 
-  refresh(view, true);
+  refresh(repoView, true);
 
   auto stagedTree = doubleTree->findChild<TreeView *>("Staged");
   stagedTree->expandAll();
