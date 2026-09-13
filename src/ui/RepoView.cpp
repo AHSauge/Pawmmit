@@ -410,7 +410,7 @@ RepoView::RepoView(const git::Repository &repo, MainWindow *parent)
   mLogView = new LogView(mLogRoot, this);
   connect(mLogView, &LogView::linkActivated, this, &RepoView::visitLink);
   connect(mLogView, &LogView::operationCanceled, this,
-          &RepoView::cancelRemoteTransfer);
+          [this] { cancelRemoteTransfer(); });
 
   mLogTimer.setSingleShot(true);
   connect(&mLogTimer, &QTimer::timeout, this, [this] { setLogVisible(false); });
@@ -465,6 +465,10 @@ void RepoView::diffSelected(const git::Diff diff, const QString &file,
 }
 
 RepoView::~RepoView() {
+  // No processEvents(): it can dispatch a queued signal into a parent
+  // whose destructor already ran.
+  cancelBackgroundTasks(false);
+
   // Work around crash caused by clearing focus from the commit list
   // when it's destroyed. If it gets destroyed after the detail view
   // then the focus change may trigger the menu bar to query the mode
@@ -554,19 +558,22 @@ git::Tree RepoView::tree() const {
   return diff.isValid() ? mRepo.index().writeTree() : git::Tree();
 }
 
-void RepoView::cancelRemoteTransfer() {
+void RepoView::cancelRemoteTransfer(bool processPendingEvents) {
   if (!mCallbacks)
     return;
 
   mCallbacks->setCanceled(true);
-  QCoreApplication::processEvents();
+  // Avoids deadlocking with a blocking-queued credentials/auth request that's
+  // already in flight on the transfer thread.
+  if (processPendingEvents)
+    QCoreApplication::processEvents();
   if (mWatcher && mWatcher->isRunning())
     mWatcher->waitForFinished();
 }
 
-void RepoView::cancelBackgroundTasks() {
+void RepoView::cancelBackgroundTasks(bool processPendingEvents) {
   cancelIndexing();
-  cancelRemoteTransfer();
+  cancelRemoteTransfer(processPendingEvents);
   mCommits->cancelStatus();
   mDetails->cancelBackgroundTasks();
 }

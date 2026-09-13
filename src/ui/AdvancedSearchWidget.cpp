@@ -124,6 +124,19 @@ AdvancedSearchWidget::AdvancedSearchWidget(QWidget *parent)
 
   QShortcut *accept = new QShortcut(tr("Return"), this);
   connect(accept, &QShortcut::activated, this, &AdvancedSearchWidget::accept);
+
+  connect(
+      &mFieldMapWatcher,
+      &QFutureWatcher<QMap<Index::Field, QStringList>>::finished, this, [this] {
+        QMap<Index::Field, QStringList> fields = mFieldMapWatcher.result();
+        for (QLineEdit *lineEdit : mLineEdits) {
+          QVariant var = lineEdit->property(kFieldProp);
+          Index::Field field = static_cast<Index::Field>(var.toInt());
+          QAbstractItemModel *model = lineEdit->completer()->model();
+          if (QStringListModel *list = qobject_cast<QStringListModel *>(model))
+            list->setStringList(fields.value(field));
+        }
+      });
 }
 
 void AdvancedSearchWidget::exec(QLineEdit *parent, Index *index) {
@@ -145,17 +158,10 @@ void AdvancedSearchWidget::exec(QLineEdit *parent, Index *index) {
     lineEdit->setText(map.value(field).join(' '));
   }
 
-  // Load completion data in the background.
-  std::ignore = QtConcurrent::run([this, index] {
-    QMap<Index::Field, QStringList> fields = index->fieldMap();
-    for (QLineEdit *lineEdit : mLineEdits) {
-      QVariant var = lineEdit->property(kFieldProp);
-      Index::Field field = static_cast<Index::Field>(var.toInt());
-      QAbstractItemModel *model = lineEdit->completer()->model();
-      if (QStringListModel *list = qobject_cast<QStringListModel *>(model))
-        list->setStringList(fields.value(field));
-    }
-  });
+  // Compute completion data in the background, then apply it on the GUI
+  // thread once the widget's still around to receive it.
+  mFieldMapWatcher.setFuture(
+      QtConcurrent::run([index] { return index->fieldMap(); }));
 
   show();
 }

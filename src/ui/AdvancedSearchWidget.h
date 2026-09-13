@@ -13,10 +13,11 @@
 #ifndef ADVANCEDSEARCHWIDGET_H
 #define ADVANCEDSEARCHWIDGET_H
 
+#include "index/Index.h"
 #include <QComboBox>
+#include <QFutureWatcher>
 #include <QWidget>
 
-class Index;
 class QFormLayout;
 class QLineEdit;
 
@@ -44,6 +45,7 @@ private:
                 const QString &text, const QString &tooltip);
 
   QList<QLineEdit *> mLineEdits;
+  QFutureWatcher<QMap<Index::Field, QStringList>> mFieldMapWatcher;
 };
 
 #endif

@@ -128,8 +128,8 @@ public:
   git::Tree tree() const;
 
   // background tasks
-  void cancelRemoteTransfer();
-  void cancelBackgroundTasks();
+  void cancelRemoteTransfer(bool processPendingEvents = true);
+  void cancelBackgroundTasks(bool processPendingEvents = true);
 
   // links
   void visitLink(const QString &link);
