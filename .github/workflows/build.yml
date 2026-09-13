@@ -156,7 +156,7 @@ jobs:
         if: matrix.env.name == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y pkg-config xvfb libgit2-dev libqt6core5compat6-dev
+          sudo apt-get install -y pkg-config xvfb libgit2-dev
 
       - name: Install dependencies (macOS)
         if: matrix.env.name == 'macos'
