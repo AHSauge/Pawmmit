@@ -289,3 +289,13 @@ Theme *Theme::create(const QString &defaultName) {
   // Use Qt theme.
   return new Theme();
 }
+QColor Theme::notice(Notice role) {
+  switch (role) {
+    case Notice::Background:
+      return mDark ? "#4A3B12" : "#FFF3CD";
+    case Notice::Foreground:
+      return mDark ? "#FFE9A8" : "#664D03";
+  }
+  throw std::runtime_error("unreachable; value=" +
+                           std::to_string(static_cast<int>(role)));
+}

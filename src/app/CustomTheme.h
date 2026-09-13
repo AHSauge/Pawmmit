@@ -37,6 +37,7 @@ public:
   QColor heatMap(HeatMap color) override;
   QColor remoteComment(Comment color) override;
   QColor star() override;
+  QColor notice(Notice role) override;
   QVariantMap editorStyleProperties() const override;
 
   QVariantMap checkbox() const;

@@ -574,3 +574,15 @@ bool CustomTheme::isValid(const QString &name) {
   return exists &&
          QFileInfo(dir.filePath(QString("%1.lua").arg(name))).exists();
 }
+QColor CustomTheme::notice(Notice role) {
+  QVariantMap notice = mMap.value("notice").toMap();
+
+  switch (role) {
+    case Notice::Background:
+      return QColor(notice.value("background").toString());
+    case Notice::Foreground:
+      return QColor(notice.value("foreground").toString());
+  }
+  throw std::runtime_error("unreachable; value=" +
+                           std::to_string(static_cast<int>(role)));
+}

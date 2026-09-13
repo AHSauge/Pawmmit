@@ -233,3 +233,9 @@ theme.property['style.tag']          = 'fore:#CCCCCC'
 theme.property['style.type']         = 'fore:#CC77DA'
 theme.property['style.variable']     = 'fore:#80CCFF'
 theme.property['style.whitespace']   = '$(style.nothing)'
+-- inline notice/banner colors (e.g. the "diff not loaded" placeholder)
+theme['notice']    = {
+  background       = '#4A3B12',
+  foreground       = '#FFE9A8'
+}
+
