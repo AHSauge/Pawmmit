@@ -393,7 +393,7 @@ private:
     bool exhausted = false;
   };
 
-  int indexOf(const QList<Parent> &parents, const git::Commit &commit) const {
+  static int indexOf(const QList<Parent> &parents, const git::Commit &commit) {
     int count = parents.size();
     for (int i = 0; i < count; ++i) {
       if (parents.at(i).commit == commit)
@@ -403,8 +403,9 @@ private:
     return -1;
   }
 
-  bool contains(const git::Commit &commit, const QList<Row> &existingRows,
-                const QList<Row> &newRows) const {
+  static bool contains(const git::Commit &commit,
+                       const QList<Row> &existingRows,
+                       const QList<Row> &newRows) {
     for (const Row &row : existingRows) {
       if (row.commit == commit)
         return true;
@@ -420,9 +421,9 @@ private:
 
   // The commit and parents parameters represent the current row.
   // The nextParents parameter represents the next row after this one.
-  QVector<Column> columns(const git::Commit &commit,
-                          const QList<Parent> &parents,
-                          const QList<Parent> &nextParents, bool root) const {
+  static QVector<Column> columns(const git::Commit &commit,
+                                 const QList<Parent> &parents,
+                                 const QList<Parent> &nextParents, bool root) {
     int count = parents.size();
     QVector<Column> columns(count);
 
@@ -487,7 +488,7 @@ private:
     return columns;
   }
 
-  QColor nextColor(const QList<Parent> &parents) const {
+  static QColor nextColor(const QList<Parent> &parents) {
     // Get the first unused (or least used) color.
     QMap<QString, int> counts;
     for (const Parent &parent : parents)
@@ -512,10 +513,10 @@ private:
   // returning the new rows. Operates purely on its arguments (no access to
   // 'this' state) so it can run on a background thread as well as
   // synchronously from fetchMore().
-  FetchResult fetchRows(git::RevWalk &walker, QList<Parent> &parents,
-                        const QList<Row> &existingRows, const QString &pathspec,
-                        bool graphVisible,
-                        CommitList::RefsFilter refsFilter) const {
+  static FetchResult fetchRows(git::RevWalk &walker, QList<Parent> &parents,
+                               const QList<Row> &existingRows,
+                               const QString &pathspec, bool graphVisible,
+                               CommitList::RefsFilter refsFilter) {
     FetchResult result;
     int i = 0;
     git::Commit commit = walker.next(pathspec);
@@ -577,7 +578,7 @@ private:
   // Build the walker and the first page of rows. Safe to run off the GUI
   // thread: it only touches the context passed in and returns a fresh
   // result rather than mutating model state directly.
-  ResetResult computeReset(const ResetContext &ctx) const {
+  static ResetResult computeReset(const ResetContext &ctx) {
     ResetResult result;
 
     // Update status row.
@@ -657,8 +658,7 @@ private:
                      emitStatusFinishedAfter};
 
     emit loadingChanged(true);
-    mReset.setFuture(
-        QtConcurrent::run([this, ctx] { return computeReset(ctx); }));
+    mReset.setFuture(QtConcurrent::run([ctx] { return computeReset(ctx); }));
   }
 
   // Apply a completed background reset on the GUI thread.
