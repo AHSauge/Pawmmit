@@ -17,7 +17,7 @@ or can be built from source by following the directions [below](https://github.c
 The [latest development version](https://github.com/Pawmmit/Pawmmit/releases/tag/development) is available pre-built as well.
 
 Pawmmit is a fork of [Gittyup](https://github.com/Murmele/Gittyup), which is a
-continuation of the [GitAhead](https://github.com/gitahead/gitahead) client.
+continuation of the [GitAhead](https://github.com/gitahead/gitahead) client. The rationale behind the fork is provided [here](docs/rationale.md)
 
 ![Pawmmit](https://raw.githubusercontent.com/Pawmmit/Pawmmit/master/rsrc/screenshots/main_dark_orig.png)
 
