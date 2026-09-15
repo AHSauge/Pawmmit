@@ -75,8 +75,7 @@ MergeDialog::MergeDialog(RepoView::MergeFlags flags,
     ui->mNoCommit->setVisible(merge && !ffonly);
   });
 
-  mAccept =
-      ui->mButtons->addButton(buttonText(), QDialogButtonBox::AcceptRole);
+  mAccept = ui->mButtons->addButton(buttonText(), QDialogButtonBox::AcceptRole);
   connect(ui->mButtons, &QDialogButtonBox::accepted, this, &QDialog::accept);
   connect(ui->mButtons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 

@@ -36,8 +36,8 @@ CheckoutDialog::CheckoutDialog(const git::Repository &repo,
     }
   });
 
-  mCheckout = ui->mButtons->addButton(tr("Checkout"),
-                                      QDialogButtonBox::AcceptRole);
+  mCheckout =
+      ui->mButtons->addButton(tr("Checkout"), QDialogButtonBox::AcceptRole);
   connect(ui->mButtons, &QDialogButtonBox::accepted, this, &QDialog::accept);
   connect(ui->mButtons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
