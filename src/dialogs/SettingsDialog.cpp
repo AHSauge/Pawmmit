@@ -78,14 +78,24 @@ void populateExternalTools(QComboBox *comboBox, const QString &type) {
     comboBox->addItem(tool);
 }
 
+// Size to the largest page rather than the current one, so the dialog
+// settles at one size instead of resizing every time the panel changes.
 class StackedWidget : public QStackedWidget {
 public:
   StackedWidget(QWidget *parent = nullptr) : QStackedWidget(parent) {}
 
-  QSize sizeHint() const override { return currentWidget()->sizeHint(); }
+  QSize sizeHint() const override {
+    QSize size;
+    for (int i = 0; i < count(); ++i)
+      size = size.expandedTo(widget(i)->sizeHint());
+    return size;
+  }
 
   QSize minimumSizeHint() const override {
-    return currentWidget()->minimumSizeHint();
+    QSize size;
+    for (int i = 0; i < count(); ++i)
+      size = size.expandedTo(widget(i)->minimumSizeHint());
+    return size;
   }
 };
 
