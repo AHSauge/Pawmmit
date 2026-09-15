@@ -1,3 +1,7 @@
+dialogs_ui = qt6.compile_ui(
+    sources: files('AddRemoteDialog.ui'),
+)
+
 dialogs_moc = qt6.preprocess(
     moc_headers: files(
         'AboutDialog.h',
@@ -82,7 +86,7 @@ dialogs_src = [
 
 dialogs_lib = static_library(
     'dialogs',
-    dialogs_src + dialogs_moc,
+    dialogs_src + dialogs_moc + dialogs_ui,
     dependencies: [
         pawmmit_common,
         version_dep,

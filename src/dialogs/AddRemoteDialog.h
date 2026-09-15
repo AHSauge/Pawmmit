@@ -14,15 +14,20 @@
 #define ADDREMOTEDIALOG_H
 
 #include <QDialog>
+#include <QScopedPointer>
 
-class QLineEdit;
 class QPushButton;
+
+namespace Ui {
+class AddRemoteDialog;
+}
 
 class AddRemoteDialog : public QDialog {
   Q_OBJECT
 
 public:
   AddRemoteDialog(const QString &name = QString(), QWidget *parent = nullptr);
+  ~AddRemoteDialog() override;
 
   QString name() const;
   QString url() const;
@@ -30,8 +35,7 @@ public:
 private:
   void update(const QString &text = QString());
 
-  QLineEdit *mName;
-  QLineEdit *mUrl;
+  QScopedPointer<Ui::AddRemoteDialog> ui;
   QPushButton *mAdd;
 };
 
