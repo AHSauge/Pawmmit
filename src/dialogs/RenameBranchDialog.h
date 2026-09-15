@@ -12,13 +12,16 @@
 
 #include "git/Branch.h"
 #include <QDialog>
-
-class QLineEdit;
+#include <QScopedPointer>
 
 namespace git {
 class Reference;
 class Repository;
 } // namespace git
+
+namespace Ui {
+class RenameBranchDialog;
+}
 
 class RenameBranchDialog : public QDialog {
   Q_OBJECT
@@ -26,11 +29,12 @@ class RenameBranchDialog : public QDialog {
 public:
   RenameBranchDialog(const git::Repository &repo, const git::Branch &branch,
                      QWidget *parent = nullptr);
+  ~RenameBranchDialog() override;
 
   QString name() const;
 
 private:
-  QLineEdit *mName;
+  QScopedPointer<Ui::RenameBranchDialog> ui;
 };
 
 #endif

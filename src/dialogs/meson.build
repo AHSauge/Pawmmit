@@ -1,5 +1,8 @@
 dialogs_ui = qt6.compile_ui(
-    sources: files('AddRemoteDialog.ui'),
+    sources: files(
+        'AddRemoteDialog.ui',
+        'RenameBranchDialog.ui',
+    ),
 )
 
 dialogs_moc = qt6.preprocess(
