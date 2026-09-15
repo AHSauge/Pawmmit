@@ -95,7 +95,7 @@ AboutDialog::AboutDialog(QWidget *parent)
 
   ui->mTabs->setTabData(ui->mTabs->addTab(tr("Changelog")), "changelog.html");
   ui->mTabs->setTabData(ui->mTabs->addTab(tr("Acknowledgments")),
-                       "acknowledgments.html");
+                        "acknowledgments.html");
   ui->mTabs->setTabData(ui->mTabs->addTab(tr("Privacy")), "privacy.html");
 
   ui->mBrowser->document()->setDocumentMargin(12);
