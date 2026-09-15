@@ -24,6 +24,7 @@
 #include "ui/ProgressIndicator.h"
 #include "ui/RepoView.h"
 #include "ui/TabWidget.h"
+#include "ui_StartDialog.h"
 #include "util/Path.h"
 #include <QAbstractItemModel>
 #include <QAbstractListModel>
@@ -32,11 +33,8 @@
 #include <QDesktopServices>
 #include <QDialogButtonBox>
 #include <QFileDialog>
-#include <QHBoxLayout>
 #include <QIcon>
-#include <QLabel>
 #include <QLineEdit>
-#include <QListView>
 #include <QMessageBox>
 #include <QMenu>
 #include <QMultiMap>
@@ -45,8 +43,6 @@
 #include <QSettings>
 #include <QStyledItemDelegate>
 #include <QTimer>
-#include <QTreeView>
-#include <QVBoxLayout>
 
 namespace {
 
@@ -373,31 +369,24 @@ protected:
 
 } // namespace
 
-StartDialog::StartDialog(QWidget *parent) : QDialog(parent) {
+StartDialog::StartDialog(QWidget *parent)
+    : QDialog(parent), ui(new Ui::StartDialog) {
   setAttribute(Qt::WA_DeleteOnClose);
-  setWindowTitle(tr("Choose Repository"));
+
+  ui->setupUi(this);
 
   QIcon icon(":/Pawmmit.iconset/icon_128x128.png");
-  IconLabel *iconLabel = new IconLabel(icon, 128, 128, this);
+  ui->mIconLabel->setIcon(icon, 128, 128);
 
   QIcon title(":/logo-type_light@2x.png");
-  IconLabel *titleLabel = new IconLabel(title, 163, 38, this);
+  ui->mTitleLabel->setIcon(title, 163, 38);
 
   QString subtitleText =
       kSubtitleFmt.arg(tr("Claw your way into your git history"));
-  QLabel *subtitle = new QLabel(subtitleText, this);
-  subtitle->setAlignment(Qt::AlignHCenter);
+  ui->mSubtitle->setText(subtitleText);
 
-  QVBoxLayout *left = new QVBoxLayout;
-  left->addWidget(iconLabel);
-  left->addWidget(titleLabel);
-  left->addWidget(subtitle);
-  left->addStretch();
-
-  mRepoList = new QListView(this);
-  mRepoList->setIconSize(QSize(32, 32));
-  mRepoList->setSelectionMode(QAbstractItemView::ExtendedSelection);
-  connect(mRepoList, &QListView::clicked, this,
+  ui->mRepoList->setSelectionMode(QAbstractItemView::ExtendedSelection);
+  connect(ui->mRepoList, &QListView::clicked, this,
           [this](const QModelIndex &index) {
             if (!index.data(Qt::UserRole).isValid()) {
               switch (index.row()) {
@@ -414,18 +403,18 @@ StartDialog::StartDialog(QWidget *parent) : QDialog(parent) {
             }
           });
 
-  connect(mRepoList, &QListView::doubleClicked, this, &QDialog::accept);
+  connect(ui->mRepoList, &QListView::doubleClicked, this, &QDialog::accept);
 
-  RepoModel *repoModel = new RepoModel(mRepoList);
-  mRepoList->setModel(repoModel);
+  RepoModel *repoModel = new RepoModel(ui->mRepoList);
+  ui->mRepoList->setModel(repoModel);
   connect(repoModel, &RepoModel::modelReset, this, [this] {
-    mRepoList->setCurrentIndex(mRepoList->model()->index(0, 0));
+    ui->mRepoList->setCurrentIndex(ui->mRepoList->model()->index(0, 0));
   });
 
-  mRepoFooter = new Footer(mRepoList);
-  connect(mRepoFooter, &Footer::minusClicked, this, [this] {
+  connect(ui->mRepoFooter, &Footer::minusClicked, this, [this] {
     // Sort selection in reverse order.
-    QModelIndexList indexes = mRepoList->selectionModel()->selectedIndexes();
+    QModelIndexList indexes =
+        ui->mRepoList->selectionModel()->selectedIndexes();
     std::sort(indexes.begin(), indexes.end(),
               [](const QModelIndex &lhs, const QModelIndex &rhs) {
                 return rhs.row() < lhs.row();
@@ -437,7 +426,7 @@ StartDialog::StartDialog(QWidget *parent) : QDialog(parent) {
   });
 
   QMenu *repoPlusMenu = new QMenu(this);
-  mRepoFooter->setPlusMenu(repoPlusMenu);
+  ui->mRepoFooter->setPlusMenu(repoPlusMenu);
 
   mClone = repoPlusMenu->addAction(tr("Clone Repository"));
   connect(mClone, &QAction::triggered, this, [this] {
@@ -474,7 +463,7 @@ StartDialog::StartDialog(QWidget *parent) : QDialog(parent) {
   });
 
   QMenu *repoContextMenu = new QMenu(this);
-  mRepoFooter->setContextMenu(repoContextMenu);
+  ui->mRepoFooter->setContextMenu(repoContextMenu);
 
   QAction *clear = repoContextMenu->addAction(tr("Clear All"));
   connect(clear, &QAction::triggered,
@@ -497,26 +486,14 @@ StartDialog::StartDialog(QWidget *parent) : QDialog(parent) {
   connect(filter, &QAction::triggered,
           [](bool checked) { QSettings().setValue("recent/filter", checked); });
 
-  QVBoxLayout *middle = new QVBoxLayout;
-  middle->setSpacing(0);
-  middle->addWidget(new QLabel(tr("Repositories:"), this));
-  middle->addSpacing(8); // FIXME: Query style?
-  middle->addWidget(mRepoList);
-  middle->addWidget(mRepoFooter);
-
-  mHostTree = new QTreeView(this);
-  mHostTree->setHeaderHidden(true);
-  mHostTree->setExpandsOnDoubleClick(false);
-  mHostTree->setIconSize(QSize(32, 32));
-  mHostTree->setSelectionMode(QAbstractItemView::ExtendedSelection);
-  connect(mHostTree, &QTreeView::clicked, this,
+  connect(ui->mHostTree, &QTreeView::clicked, this,
           [this](const QModelIndex &index) {
-            int rows = mHostTree->model()->rowCount(index);
+            int rows = ui->mHostTree->model()->rowCount(index);
             if (!rows && !index.data(RepositoryRole).isValid())
               edit(index);
           });
 
-  connect(mHostTree, &QTreeView::doubleClicked, this,
+  connect(ui->mHostTree, &QTreeView::doubleClicked, this,
           [this](const QModelIndex &index) {
             QModelIndex parent = index.parent();
             if (parent.isValid()) {
@@ -530,22 +507,21 @@ StartDialog::StartDialog(QWidget *parent) : QDialog(parent) {
             edit(index);
           });
 
-  HostModel *hostModel = new HostModel(style(), mHostTree);
-  mHostTree->setModel(hostModel);
+  HostModel *hostModel = new HostModel(style(), ui->mHostTree);
+  ui->mHostTree->setModel(hostModel);
   connect(hostModel, &QAbstractItemModel::modelReset, this, [this] {
-    QModelIndex index = mHostTree->model()->index(0, 0);
-    mHostTree->setRootIsDecorated(index.data(AccountRole).isValid());
-    mHostTree->expandAll();
+    QModelIndex index = ui->mHostTree->model()->index(0, 0);
+    ui->mHostTree->setRootIsDecorated(index.data(AccountRole).isValid());
+    ui->mHostTree->expandAll();
   });
 
-  mHostTree->setItemDelegate(new ProgressDelegate(this));
+  ui->mHostTree->setItemDelegate(new ProgressDelegate(this));
 
-  mHostFooter = new Footer(mHostTree);
-  connect(mHostFooter, &Footer::plusClicked, this, [this] { edit(); });
-  connect(mHostFooter, &Footer::minusClicked, this, &StartDialog::remove);
+  connect(ui->mHostFooter, &Footer::plusClicked, this, [this] { edit(); });
+  connect(ui->mHostFooter, &Footer::minusClicked, this, &StartDialog::remove);
 
   QMenu *hostContextMenu = new QMenu(this);
-  mHostFooter->setContextMenu(hostContextMenu);
+  ui->mHostFooter->setContextMenu(hostContextMenu);
 
   QAction *refresh = hostContextMenu->addAction(tr("Refresh"));
   connect(refresh, &QAction::triggered, this, [] {
@@ -565,55 +541,41 @@ StartDialog::StartDialog(QWidget *parent) : QDialog(parent) {
   });
 
   // Clear the other list when this selection changes.
-  QItemSelectionModel *repoSelModel = mRepoList->selectionModel();
+  QItemSelectionModel *repoSelModel = ui->mRepoList->selectionModel();
   connect(repoSelModel, &QItemSelectionModel::selectionChanged, this, [this] {
-    if (!mRepoList->selectionModel()->selectedIndexes().isEmpty())
-      mHostTree->clearSelection();
+    if (!ui->mRepoList->selectionModel()->selectedIndexes().isEmpty())
+      ui->mHostTree->clearSelection();
     updateButtons();
   });
 
   // Clear the other list when this selection changes.
-  QItemSelectionModel *hostSelModel = mHostTree->selectionModel();
+  QItemSelectionModel *hostSelModel = ui->mHostTree->selectionModel();
   connect(hostSelModel, &QItemSelectionModel::selectionChanged, this, [this] {
-    if (!mHostTree->selectionModel()->selectedIndexes().isEmpty())
-      mRepoList->clearSelection();
+    if (!ui->mHostTree->selectionModel()->selectedIndexes().isEmpty())
+      ui->mRepoList->clearSelection();
     updateButtons();
   });
 
-  QVBoxLayout *right = new QVBoxLayout;
-  right->setSpacing(0);
-  right->addWidget(new QLabel(tr("Remote:"), this));
-  right->addSpacing(8); // FIXME: Query style?
-  right->addWidget(mHostTree);
-  right->addWidget(mHostFooter);
-
-  QHBoxLayout *top = new QHBoxLayout;
-  top->addLayout(left);
-  top->addSpacing(12);
-  top->addLayout(middle);
-  top->addSpacing(12);
-  top->addLayout(right);
-
-  QDialogButtonBox::StandardButtons buttons =
-      QDialogButtonBox::Open | QDialogButtonBox::Cancel;
-  mButtonBox = new QDialogButtonBox(buttons, this);
-  connect(mButtonBox, &QDialogButtonBox::accepted, this, &StartDialog::accept);
-  connect(mButtonBox, &QDialogButtonBox::rejected, this, &StartDialog::reject);
+  connect(ui->mButtonBox, &QDialogButtonBox::accepted, this,
+          &StartDialog::accept);
+  connect(ui->mButtonBox, &QDialogButtonBox::rejected, this,
+          &StartDialog::reject);
 
   QString text = tr("View Getting Started Video");
-  QPushButton *help = mButtonBox->addButton(text, QDialogButtonBox::ResetRole);
+  QPushButton *help =
+      ui->mButtonBox->addButton(text, QDialogButtonBox::ResetRole);
   connect(help, &QPushButton::clicked, [] {
     QDesktopServices::openUrl(QUrl("https://gitahead.com/#tutorials"));
   });
-
-  QVBoxLayout *layout = new QVBoxLayout(this);
-  layout->addLayout(top);
-  layout->addWidget(mButtonBox);
 }
 
+StartDialog::~StartDialog() = default;
+
 void StartDialog::accept() {
-  QModelIndexList repoIndexes = mRepoList->selectionModel()->selectedIndexes();
-  QModelIndexList hostIndexes = mHostTree->selectionModel()->selectedIndexes();
+  QModelIndexList repoIndexes =
+      ui->mRepoList->selectionModel()->selectedIndexes();
+  QModelIndexList hostIndexes =
+      ui->mHostTree->selectionModel()->selectedIndexes();
 
   QStringList paths;
   for (const QModelIndex &index : repoIndexes)
@@ -693,12 +655,14 @@ void StartDialog::hideEvent(QHideEvent *event) {
 }
 
 void StartDialog::updateButtons() {
-  QModelIndexList repoIndexes = mRepoList->selectionModel()->selectedIndexes();
-  QModelIndexList hostIndexes = mHostTree->selectionModel()->selectedIndexes();
+  QModelIndexList repoIndexes =
+      ui->mRepoList->selectionModel()->selectedIndexes();
+  QModelIndexList hostIndexes =
+      ui->mHostTree->selectionModel()->selectedIndexes();
 
   // Update dialog Open button.
   bool clone = false;
-  QPushButton *open = mButtonBox->button(QDialogButtonBox::Open);
+  QPushButton *open = ui->mButtonBox->button(QDialogButtonBox::Open);
   open->setEnabled(!repoIndexes.isEmpty() || !hostIndexes.isEmpty());
   for (const QModelIndex &index : hostIndexes) {
     QModelIndex parent = index.parent();
@@ -718,10 +682,10 @@ void StartDialog::updateButtons() {
   open->setText((clone && open->isEnabled()) ? tr("Clone") : tr("Open"));
 
   // Update repo list footer buttons.
-  mRepoFooter->setMinusEnabled(!repoIndexes.isEmpty());
+  ui->mRepoFooter->setMinusEnabled(!repoIndexes.isEmpty());
 
   // Update host list footer buttons.
-  mHostFooter->setMinusEnabled(false);
+  ui->mHostFooter->setMinusEnabled(false);
   if (!hostIndexes.isEmpty()) {
     QModelIndex index = hostIndexes.first();
     Account *account = index.data(AccountRole).value<Account *>();
@@ -733,7 +697,7 @@ void StartDialog::updateButtons() {
       repoPath = account->repositoryPath(index.row());
     }
 
-    mHostFooter->setMinusEnabled(account || !repoPath.isEmpty());
+    ui->mHostFooter->setMinusEnabled(account || !repoPath.isEmpty());
   }
 }
 
@@ -772,7 +736,7 @@ void StartDialog::edit(const QModelIndex &index) {
 }
 
 void StartDialog::remove() {
-  QModelIndexList indexes = mHostTree->selectionModel()->selectedIndexes();
+  QModelIndexList indexes = ui->mHostTree->selectionModel()->selectedIndexes();
   Q_ASSERT(!indexes.isEmpty());
 
   // account
@@ -793,7 +757,7 @@ void StartDialog::remove() {
 
     mb.exec();
     if (mb.clickedButton() == remove) {
-      mHostTree->clearSelection();
+      ui->mHostTree->clearSelection();
       Accounts::instance()->removeAccount(index.row());
     }
 

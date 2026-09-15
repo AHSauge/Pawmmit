@@ -12,6 +12,7 @@ dialogs_ui = qt6.compile_ui(
         'PullRequestDialog.ui',
         'RemoteDialog.ui',
         'RenameBranchDialog.ui',
+        'StartDialog.ui',
         'TagDialog.ui',
         'UpdateSubmodulesDialog.ui',
     ),
