@@ -16,13 +16,16 @@
 #include "git/Repository.h"
 #include "ui/RepoView.h"
 #include <QDialog>
+#include <QScopedPointer>
 
-class ReferenceList;
-class QComboBox;
 class QPushButton;
 
 namespace git {
 class Reference;
+}
+
+namespace Ui {
+class MergeDialog;
 }
 
 class MergeDialog : public QDialog {
@@ -31,6 +34,7 @@ class MergeDialog : public QDialog {
 public:
   MergeDialog(RepoView::MergeFlags flags, const git::Repository &repo,
               QWidget *parent = nullptr);
+  ~MergeDialog() override;
 
   git::Commit target() const;
   git::Reference reference() const;
@@ -46,8 +50,8 @@ private:
 
   git::Repository mRepo;
   QPushButton *mAccept;
-  ReferenceList *mRefs;
-  QComboBox *mAction;
+
+  QScopedPointer<Ui::MergeDialog> ui;
 };
 
 #endif

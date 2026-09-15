@@ -3,6 +3,7 @@ dialogs_ui = qt6.compile_ui(
         'AccountDialog.ui',
         'AddRemoteDialog.ui',
         'CheckoutDialog.ui',
+        'MergeDialog.ui',
         'NewBranchDialog.ui',
         'RenameBranchDialog.ui',
     ),
