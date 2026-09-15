@@ -15,81 +15,69 @@
 #include "ui/ExpandButton.h"
 #include "ui/ReferenceList.h"
 #include "ui/RepoView.h"
+#include "ui_NewBranchDialog.h"
 #include <QApplication>
 #include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QLineEdit>
 #include <QPushButton>
-#include <QVBoxLayout>
 
 NewBranchDialog::NewBranchDialog(const git::Repository &repo,
                                  const git::Commit &commit, QWidget *parent)
-    : QDialog(parent) {
+    : QDialog(parent), ui(new Ui::NewBranchDialog) {
   setAttribute(Qt::WA_DeleteOnClose);
 
-  mName = new QLineEdit(this);
+  ui->setupUi(this);
 
   auto kinds = ReferenceView::InvalidRef | ReferenceView::RemoteBranches;
-  mUpstream = new ReferenceList(repo, kinds, this);
+  ui->mUpstream->setRepository(repo, kinds);
 
   kinds = ReferenceView::AllRefs;
   if (commit.isValid())
     kinds |= ReferenceView::InvalidRef;
-  mRefs = new ReferenceList(repo, kinds, this);
-  mRefs->select(repo.head());
-  mRefs->setCommit(commit);
-  mRefs->setVisible(!commit.isValid());
+  ui->mRefs->setRepository(repo, kinds);
+  ui->mRefs->select(repo.head());
+  ui->mRefs->setCommit(commit);
 
-  mCheckout = new QCheckBox(tr("Checkout branch"), this);
-  mCheckout->setVisible(qobject_cast<RepoView *>(parent));
-  mCheckout->setChecked(true);
+  // Only show the start-point row when there's no fixed commit target.
+  ui->formLayout->setRowVisible(ui->mRefs, !commit.isValid());
 
-  QFormLayout *form = new QFormLayout;
-  form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
-  form->addRow(tr("Name:"), mName);
-  if (!commit.isValid()) {
-    form->addRow(tr("Start Point:"), mRefs);
-  }
-  form->addRow(QString(), mCheckout);
+  ui->mCheckout->setVisible(qobject_cast<RepoView *>(parent));
 
-  form->addRow(tr("Upstream:"), mUpstream);
-
-  QDialogButtonBox *buttons = new QDialogButtonBox(this);
-  buttons->addButton(QDialogButtonBox::Cancel);
-  QPushButton *create =
-      buttons->addButton(tr("Create Branch"), QDialogButtonBox::AcceptRole);
+  QPushButton *create = ui->mButtons->addButton(tr("Create Branch"),
+                                                QDialogButtonBox::AcceptRole);
   create->setEnabled(false);
-  connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
-  connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
-
-  QVBoxLayout *layout = new QVBoxLayout(this);
-  layout->addLayout(form);
-  layout->addWidget(buttons);
+  connect(ui->mButtons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+  connect(ui->mButtons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
   // Update button when name text changes.
-  connect(mName, &QLineEdit::textChanged, [repo, create](const QString &text) {
-    create->setEnabled(git::Branch::isNameValid(text) &&
-                       !repo.lookupBranch(text, GIT_BRANCH_LOCAL).isValid());
-  });
+  connect(ui->mName, &QLineEdit::textChanged,
+          [repo, create](const QString &text) {
+            create->setEnabled(
+                git::Branch::isNameValid(text) &&
+                !repo.lookupBranch(text, GIT_BRANCH_LOCAL).isValid());
+          });
 
   // Populate name and start point when upstream changes.
-  connect(mUpstream, &ReferenceList::referenceSelected,
+  connect(ui->mUpstream, &ReferenceList::referenceSelected,
           [this](const git::Reference &ref) {
             if (ref.isValid()) {
-              if (mName->text().isEmpty())
-                mName->setText(ref.name().section('/', -1));
-              mRefs->select(ref);
+              if (ui->mName->text().isEmpty())
+                ui->mName->setText(ref.name().section('/', -1));
+              ui->mRefs->select(ref);
             }
           });
 }
 
-QString NewBranchDialog::name() const { return mName->text(); }
+NewBranchDialog::~NewBranchDialog() = default;
 
-bool NewBranchDialog::checkout() const { return mCheckout->isChecked(); }
+QString NewBranchDialog::name() const { return ui->mName->text(); }
 
-git::Commit NewBranchDialog::target() const { return mRefs->target(); }
+bool NewBranchDialog::checkout() const { return ui->mCheckout->isChecked(); }
+
+git::Commit NewBranchDialog::target() const { return ui->mRefs->target(); }
 
 git::Reference NewBranchDialog::upstream() const {
-  return mUpstream->currentReference();
+  return ui->mUpstream->currentReference();
 }
