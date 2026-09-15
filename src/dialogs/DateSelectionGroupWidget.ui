@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DateSelectionGroupWidget</class>
+ <widget class="QGroupBox" name="DateSelectionGroupWidget">
+  <property name="title">
+   <string>Datetime source</string>
+  </property>
+  <layout class="QHBoxLayout" name="horizontalLayout">
+   <item>
+    <widget class="QRadioButton" name="mCurrent">
+     <property name="objectName">
+      <string notr="true">Current</string>
+     </property>
+     <property name="text">
+      <string>Current</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QRadioButton" name="mManual">
+     <property name="objectName">
+      <string notr="true">Manual</string>
+     </property>
+     <property name="text">
+      <string>Manual</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QRadioButton" name="mOriginal">
+     <property name="objectName">
+      <string notr="true">Original</string>
+     </property>
+     <property name="text">
+      <string>Original</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
