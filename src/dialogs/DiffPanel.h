@@ -14,18 +14,24 @@
 #define DIFFPANEL_H
 
 #include "git/Config.h"
+#include <QScopedPointer>
 #include <QWidget>
 
-class QHBoxLayout;
+namespace Ui {
+class DiffPanel;
+}
 
 class DiffPanel : public QWidget {
   Q_OBJECT
 
 public:
   DiffPanel(const git::Repository &repo, QWidget *parent = nullptr);
+  ~DiffPanel() override;
 
 private:
   git::Config mConfig;
+
+  QScopedPointer<Ui::DiffPanel> ui;
 };
 
 #endif

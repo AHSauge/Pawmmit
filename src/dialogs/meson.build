@@ -5,6 +5,7 @@ dialogs_ui = qt6.compile_ui(
         'AddRemoteDialog.ui',
         'CheckoutDialog.ui',
         'CommitDialog.ui',
+        'DiffPanel.ui',
         'ExternalToolsDialog.ui',
         'MergeDialog.ui',
         'NewBranchDialog.ui',
