@@ -23,8 +23,7 @@
 #include <QSpinBox>
 
 DiffPanel::DiffPanel(const git::Repository &repo, QWidget *parent)
-    : QWidget(parent),
-      mConfig(repo ? repo.gitConfig() : git::Config::global()),
+    : QWidget(parent), mConfig(repo ? repo.gitConfig() : git::Config::global()),
       ui(new Ui::DiffPanel) {
   ui->setupUi(this);
 
