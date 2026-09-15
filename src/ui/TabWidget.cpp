@@ -22,6 +22,7 @@
 #include <QFileDialog>
 #include <QFrame>
 #include <QHBoxLayout>
+#include <QLabel>
 #include <QPushButton>
 #include <QResizeEvent>
 #include <QVBoxLayout>

@@ -18,8 +18,11 @@
 
 class IconLabel : public QWidget {
 public:
+  IconLabel(QWidget *parent = nullptr);
   IconLabel(const QIcon &icon, int width, int height,
             QWidget *parent = nullptr);
+
+  void setIcon(const QIcon &icon, int width, int height);
 
   QSize sizeHint() const override;
   QSize minimumSizeHint() const override;
@@ -29,8 +32,8 @@ protected:
 
 private:
   QIcon mIcon;
-  int mWidth;
-  int mHeight;
+  int mWidth = 0;
+  int mHeight = 0;
 };
 
 #endif

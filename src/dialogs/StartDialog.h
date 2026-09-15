@@ -15,19 +15,20 @@
 
 #include <QDialog>
 #include <QModelIndex>
+#include <QScopedPointer>
 
-class Footer;
 class MainWindow;
-class QDialogButtonBox;
-class QListView;
-class QPushButton;
-class QTreeView;
+
+namespace Ui {
+class StartDialog;
+}
 
 class StartDialog : public QDialog {
   Q_OBJECT
 
 public:
   StartDialog(QWidget *parent = nullptr);
+  ~StartDialog() override;
 
   void accept() override;
 
@@ -45,16 +46,11 @@ private:
 
   MainWindow *openWindow(const QString &repo);
 
-  QListView *mRepoList;
-  Footer *mRepoFooter;
   QAction *mClone;
   QAction *mOpen;
   QAction *mInit;
 
-  QTreeView *mHostTree;
-  Footer *mHostFooter;
-
-  QDialogButtonBox *mButtonBox;
+  QScopedPointer<Ui::StartDialog> ui;
 };
 
 #endif

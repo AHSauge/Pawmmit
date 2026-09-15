@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>WindowPanel</class>
+ <widget class="QWidget" name="WindowPanel">
+  <layout class="QFormLayout" name="formLayout">
+   <item row="0" column="0">
+    <widget class="QLabel" name="label">
+     <property name="text">
+      <string>Theme:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="QComboBox" name="mTheme"/>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="label_2">
+     <property name="text">
+      <string>Title:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="QCheckBox" name="mFullPath">
+     <property name="text">
+      <string>Show full repository path</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="label_3">
+     <property name="text">
+      <string>Log:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1">
+    <widget class="QCheckBox" name="mHideLog">
+     <property name="text">
+      <string>Hide automatically</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0">
+    <widget class="QLabel" name="label_4">
+     <property name="text">
+      <string>Tabs:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="1">
+    <widget class="QCheckBox" name="mSmTabs">
+     <property name="text">
+      <string>Open submodules in tabs</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="1">
+    <widget class="QCheckBox" name="mRepoTabs">
+     <property name="text">
+      <string>Open all repositories in tabs</string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="0">
+    <widget class="QLabel" name="label_5">
+     <property name="text">
+      <string>View:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="1">
+    <widget class="QCheckBox" name="mHideMenuBar">
+     <property name="text">
+      <string>Hide Menubar</string>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="1">
+    <widget class="QCheckBox" name="mAutohideSidebar">
+     <property name="text">
+      <string>Hide Repository Sidebar after opening a repository</string>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="1">
+    <widget class="QCheckBox" name="mShowAvatars">
+     <property name="text">
+      <string>Show Avatars</string>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="1">
+    <widget class="QCheckBox" name="mShowMaximized">
+     <property name="text">
+      <string>Show Window Maximized when opened</string>
+     </property>
+    </widget>
+   </item>
+   <item row="9" column="0">
+    <widget class="QLabel" name="label_6">
+     <property name="text">
+      <string>Prompt:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="9" column="1">
+    <widget class="QCheckBox" name="mMerge"/>
+   </item>
+   <item row="10" column="1">
+    <widget class="QCheckBox" name="mRevert"/>
+   </item>
+   <item row="11" column="1">
+    <widget class="QCheckBox" name="mCherryPick"/>
+   </item>
+   <item row="12" column="1">
+    <widget class="QCheckBox" name="mStash"/>
+   </item>
+   <item row="13" column="1">
+    <widget class="QCheckBox" name="mDirectories"/>
+   </item>
+   <item row="14" column="1">
+    <widget class="QCheckBox" name="mLargeFiles"/>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

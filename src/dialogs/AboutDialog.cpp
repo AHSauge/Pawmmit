@@ -13,24 +13,16 @@
 #include "AboutDialog.h"
 #include "IconLabel.h"
 #include "conf/Settings.h"
+#include "ui_AboutDialog.h"
 #include "version.h"
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDesktopServices>
-#include <QHBoxLayout>
 #include <QLabel>
 #include <QLocale>
-#include <QMessageBox>
 #include <QPointer>
 #include <QTabBar>
 #include <QTextBrowser>
-#include <QVBoxLayout>
-
-#ifdef Q_OS_MAC
-#define TAB_BAR_ALIGNMENT Qt::AlignCenter
-#else
-#define TAB_BAR_ALIGNMENT Qt::Alignment()
-#endif
 
 namespace {
 
@@ -69,72 +61,57 @@ const Qt::TextInteractionFlags kTextFlags =
 
 } // namespace
 
-AboutDialog::AboutDialog(QWidget *parent) : QDialog(parent) {
+AboutDialog::AboutDialog(QWidget *parent)
+    : QDialog(parent), ui(new Ui::AboutDialog) {
   QString name = QCoreApplication::applicationName();
   QString version = QCoreApplication::applicationVersion();
 
   setAttribute(Qt::WA_DeleteOnClose);
+
+  ui->setupUi(this);
   setWindowTitle(tr("About %1").arg(name));
 
+#if defined(Q_OS_MAC)
+  ui->rightLayout->setAlignment(ui->mTabs, Qt::AlignCenter);
+#endif
+
   QIcon icon(":/Pawmmit.iconset/icon_128x128.png");
-  IconLabel *iconLabel = new IconLabel(icon, 128, 128, this);
+  ui->mIconLabel->setIcon(icon, 128, 128);
 
   QIcon title(":/logo-type_light@2x.png");
-  IconLabel *titleLabel = new IconLabel(title, 163, 38, this);
+  ui->mTitleLabel->setIcon(title, 163, 38);
 
-  QString subtitleText =
-      kSubtitleFmt.arg(tr("Claw your way into your git history"));
-  QLabel *subtitle = new QLabel(subtitleText, this);
-  subtitle->setAlignment(Qt::AlignHCenter);
-
-  QVBoxLayout *left = new QVBoxLayout;
-  left->addWidget(iconLabel);
-  left->addWidget(titleLabel);
-  left->addWidget(subtitle);
-  left->addStretch();
+  ui->mSubtitle->setText(
+      kSubtitleFmt.arg(tr("Claw your way into your git history")));
 
   QString revision = PAWMMIT_BUILD_REVISION;
   QDateTime dateTime = QDateTime::fromString(PAWMMIT_BUILD_DATE, Qt::ISODate);
   QString date =
       dateTime.date().toString(QLocale().dateFormat(QLocale::LongFormat));
-  QString text =
-      kTextFmt.arg(name, version, date, revision, kUrl, kIssueTracker);
-  QLabel *label = new QLabel(text, this);
-  label->setWordWrap(true);
-  label->setTextInteractionFlags(kTextFlags);
-  connect(label, &QLabel::linkActivated, QDesktopServices::openUrl);
+  ui->mLabel->setText(
+      kTextFmt.arg(name, version, date, revision, kUrl, kIssueTracker));
+  ui->mLabel->setTextInteractionFlags(kTextFlags);
+  connect(ui->mLabel, &QLabel::linkActivated, QDesktopServices::openUrl);
 
-  mTabs = new QTabBar(this);
-  mTabs->setTabData(mTabs->addTab(tr("Changelog")), "changelog.html");
-  mTabs->setTabData(mTabs->addTab(tr("Acknowledgments")),
-                    "acknowledgments.html");
-  mTabs->setTabData(mTabs->addTab(tr("Privacy")), "privacy.html");
+  ui->mTabs->setTabData(ui->mTabs->addTab(tr("Changelog")), "changelog.html");
+  ui->mTabs->setTabData(ui->mTabs->addTab(tr("Acknowledgments")),
+                        "acknowledgments.html");
+  ui->mTabs->setTabData(ui->mTabs->addTab(tr("Privacy")), "privacy.html");
 
-  QTextBrowser *browser = new QTextBrowser(this);
-  browser->setOpenLinks(false);
-  browser->document()->setDocumentMargin(12);
-  browser->document()->setDefaultStyleSheet(kStyleSheet);
+  ui->mBrowser->document()->setDocumentMargin(12);
+  ui->mBrowser->document()->setDefaultStyleSheet(kStyleSheet);
 
-  connect(mTabs, &QTabBar::currentChanged, this, [this, browser](int index) {
-    QString url = Settings::docDir().filePath(mTabs->tabData(index).toString());
-    browser->setSource(QUrl::fromLocalFile(url));
+  connect(ui->mTabs, &QTabBar::currentChanged, this, [this](int index) {
+    QString url =
+        Settings::docDir().filePath(ui->mTabs->tabData(index).toString());
+    ui->mBrowser->setSource(QUrl::fromLocalFile(url));
   });
 
   // Load the initial content.
-  emit mTabs->currentChanged(mTabs->currentIndex());
-
-  QVBoxLayout *right = new QVBoxLayout;
-  right->setSpacing(0);
-  right->addWidget(label);
-  right->addSpacing(12);
-  right->addWidget(mTabs, 0, TAB_BAR_ALIGNMENT);
-  right->addWidget(browser);
-
-  QHBoxLayout *layout = new QHBoxLayout(this);
-  layout->addLayout(left);
-  layout->addSpacing(8);
-  layout->addLayout(right);
+  emit ui->mTabs->currentChanged(ui->mTabs->currentIndex());
 }
+
+AboutDialog::~AboutDialog() = default;
 
 void AboutDialog::openSharedInstance(Index index) {
   static QPointer<AboutDialog> dialog;
@@ -151,5 +128,5 @@ void AboutDialog::openSharedInstance(Index index) {
 }
 
 void AboutDialog::setCurrentIndex(Index index) {
-  mTabs->setCurrentIndex(index);
+  ui->mTabs->setCurrentIndex(index);
 }

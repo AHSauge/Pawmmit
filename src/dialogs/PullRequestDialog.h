@@ -14,13 +14,16 @@
 #define PULLREQUESTDIALOG_H
 
 #include <QDialog>
+#include <QScopedPointer>
 
 class RepoView;
-class QLineEdit;
-class QTextEdit;
 
 namespace git {
 class Commit;
+}
+
+namespace Ui {
+class PullRequestDialog;
 }
 
 class PullRequestDialog : public QDialog {
@@ -28,12 +31,12 @@ class PullRequestDialog : public QDialog {
 
 public:
   PullRequestDialog(RepoView *view);
+  ~PullRequestDialog() override;
 
 private:
-  QLineEdit *mTitle;
-  QTextEdit *mBody;
-
   void setCommit(const git::Commit &commit);
+
+  QScopedPointer<Ui::PullRequestDialog> ui;
 };
 
 #endif

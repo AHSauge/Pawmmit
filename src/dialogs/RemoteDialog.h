@@ -15,17 +15,13 @@
 
 #include <QDialog>
 #include "git/Repository.h"
+#include <QScopedPointer>
 
-class ReferenceList;
 class RepoView;
-class QCheckBox;
-class QComboBox;
-class QLineEdit;
 
-namespace git {
-class Reference;
-class Remote;
-} // namespace git
+namespace Ui {
+class RemoteDialog;
+}
 
 class RemoteDialog : public QDialog {
   Q_OBJECT
@@ -34,15 +30,10 @@ public:
   enum Kind { Fetch, Pull, Push };
 
   RemoteDialog(Kind kind, RepoView *parent);
+  ~RemoteDialog() override;
 
 private:
-  QComboBox *mRemotes;
-  ReferenceList *mRefs = nullptr;
-  QComboBox *mAction = nullptr;
-  QCheckBox *mTags = nullptr;
-  QCheckBox *mSetUpstream = nullptr;
-  QCheckBox *mForce = nullptr;
-  QLineEdit *mRemoteRef = nullptr;
+  QScopedPointer<Ui::RemoteDialog> ui;
 };
 
 #endif

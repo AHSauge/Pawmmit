@@ -36,7 +36,6 @@
 #include "dialogs/DeleteTagDialog.h"
 #include "dialogs/DiffFileDialog.h"
 #include "dialogs/NewBranchDialog.h"
-#include "dialogs/RebaseConflictDialog.h"
 #include "dialogs/RemoteDialog.h"
 #include "dialogs/RenameBranchDialog.h"
 #include "dialogs/SettingsDialog.h"

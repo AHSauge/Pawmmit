@@ -15,14 +15,14 @@
 
 #include <QDialog>
 #include "git/Remote.h"
-
-class QCheckBox;
-class QLineEdit;
-class QTextEdit;
-class QListWidget;
+#include <QScopedPointer>
 
 namespace git {
 class Repository;
+}
+
+namespace Ui {
+class TagDialog;
 }
 
 class TagDialog : public QDialog {
@@ -32,6 +32,7 @@ public:
   TagDialog(const git::Repository &repo, const QString &id,
             const git::Remote &remote = git::Remote(),
             QWidget *parent = nullptr);
+  ~TagDialog() override;
 
   bool force() const;
   git::Remote remote() const;
@@ -40,14 +41,11 @@ public:
 
 private:
   git::Remote mRemote;
-  QLineEdit *mNameField;
-  QCheckBox *mForce;
-  QCheckBox *mPush;
-  QTextEdit *mMessage;
-  QListWidget *mListWidget{nullptr};
   QStringList mExistingTags;
   QStringList mFilteredTags;
   QString mOldTagname;
+
+  QScopedPointer<Ui::TagDialog> ui;
 };
 
 #endif

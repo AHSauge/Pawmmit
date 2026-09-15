@@ -16,29 +16,22 @@
 #include "git/Config.h"
 #include "ui/MainWindow.h"
 #include "ui/RepoView.h"
-#include <QApplication>
+#include "ui_DiffPanel.h"
 #include <QCheckBox>
 #include <QComboBox>
 #include <QFormLayout>
-#include <QLabel>
-#include <QHBoxLayout>
-#include <QPushButton>
 #include <QSpinBox>
 
 DiffPanel::DiffPanel(const git::Repository &repo, QWidget *parent)
-    : QWidget(parent),
-      mConfig(repo ? repo.gitConfig() : git::Config::global()) {
+    : QWidget(parent), mConfig(repo ? repo.gitConfig() : git::Config::global()),
+      ui(new Ui::DiffPanel) {
+  ui->setupUi(this);
+
   // diff context
-  QSpinBox *context = new QSpinBox(this);
-  QLabel *contextLabel = new QLabel(tr("lines"), this);
-  QHBoxLayout *contextLayout = new QHBoxLayout;
-  contextLayout->addWidget(context);
-  contextLayout->addWidget(contextLabel);
-  contextLayout->addStretch();
-  context->setValue(mConfig.value<int>("diff.context", 3));
+  ui->mContext->setValue(mConfig.value<int>("diff.context", 3));
 
   auto contextSignal = QOverload<int>::of(&QSpinBox::valueChanged);
-  connect(context, contextSignal, [this](int value) {
+  connect(ui->mContext, contextSignal, [this](int value) {
     mConfig.setValue("diff.context", value);
     for (MainWindow *window : MainWindow::windows()) {
       for (int i = 0; i < window->count(); ++i)
@@ -53,22 +46,21 @@ DiffPanel::DiffPanel(const git::Repository &repo, QWidget *parent)
       "Utf32", "Utf32LE", "Utf32BE", "Latin1",
   };
 
-  QComboBox *encoding = new QComboBox(this);
-  encoding->addItem(tr("System Locale"), -1);
-  encoding->insertSeparator(encoding->count());
+  ui->mEncoding->addItem(tr("System Locale"), -1);
+  ui->mEncoding->insertSeparator(ui->mEncoding->count());
   for (int i = 0; i < static_cast<int>(encodings.size()); i++) {
-    encoding->addItem(encodings[i], i);
+    ui->mEncoding->addItem(encodings[i], i);
   }
   QString name = mConfig.value<QString>("gui.encoding");
   if (!name.isEmpty())
-    encoding->setCurrentIndex(encoding->findText(name));
+    ui->mEncoding->setCurrentIndex(ui->mEncoding->findText(name));
 
   auto encodingSignal = QOverload<int>::of(&QComboBox::currentIndexChanged);
-  connect(encoding, encodingSignal, [this, encoding](int index) {
-    if (encoding->itemData(index).toInt() < 0) {
+  connect(ui->mEncoding, encodingSignal, [this](int index) {
+    if (ui->mEncoding->itemData(index).toInt() < 0) {
       mConfig.remove("gui.encoding");
     } else {
-      mConfig.setValue("gui.encoding", encoding->itemText(index));
+      mConfig.setValue("gui.encoding", ui->mEncoding->itemText(index));
     }
 
     for (MainWindow *window : MainWindow::windows()) {
@@ -78,47 +70,40 @@ DiffPanel::DiffPanel(const git::Repository &repo, QWidget *parent)
   });
 
   // Wrap lines
-  QCheckBox *wrapLines = new QCheckBox(tr("Wrap lines"), this);
-  wrapLines->setChecked(Settings::instance()->isTextEditorWrapLines());
-  connect(wrapLines, &QCheckBox::toggled, [](bool wrap) {
+  ui->mWrapLines->setChecked(Settings::instance()->isTextEditorWrapLines());
+  connect(ui->mWrapLines, &QCheckBox::toggled, [](bool wrap) {
     Settings::instance()->setTextEditorWrapLines(wrap);
   });
 
-  QFormLayout *layout = new QFormLayout(this);
-  layout->addRow(tr("Context lines:"), contextLayout);
-  layout->addRow(tr("Wrap lines:"), wrapLines);
-  layout->addRow(tr("Character Encoding:"), encoding);
-
   // Remaining settings are strictly global.
-  if (qobject_cast<ConfigDialog *>(parent))
+  bool global = !qobject_cast<ConfigDialog *>(parent);
+  ui->formLayout->setRowVisible(ui->mIgnoreWs, global);
+  ui->formLayout->setRowVisible(ui->mCollapseAdded, global);
+  ui->formLayout->setRowVisible(ui->mCollapseDeleted, global);
+  if (!global)
     return;
 
   // ignore whitespace
   // The ignore whitespace option is global because it's
   // not a config setting. It's a flag (-w) to git diff.
-  QCheckBox *ignoreWs = new QCheckBox(tr("Ignore Whitespace (-w)"), this);
-  ignoreWs->setChecked(Settings::instance()->isWhitespaceIgnored());
-  connect(ignoreWs, &QCheckBox::toggled, [](bool checked) {
+  ui->mIgnoreWs->setChecked(Settings::instance()->isWhitespaceIgnored());
+  connect(ui->mIgnoreWs, &QCheckBox::toggled, [](bool checked) {
     Settings::instance()->setWhitespaceIgnored(checked);
   });
 
   // auto collapse
   Settings *settings = Settings::instance();
-  QCheckBox *collapseAdded = new QCheckBox(tr("Added files"), this);
-  collapseAdded->setChecked(
+  ui->mCollapseAdded->setChecked(
       settings->value(Setting::Id::AutoCollapseAddedFiles).toBool());
-  connect(collapseAdded, &QCheckBox::toggled, [settings](bool checked) {
+  connect(ui->mCollapseAdded, &QCheckBox::toggled, [settings](bool checked) {
     settings->setValue(Setting::Id::AutoCollapseAddedFiles, checked);
   });
 
-  QCheckBox *collapseDeleted = new QCheckBox(tr("Deleted files"), this);
-  collapseDeleted->setChecked(
+  ui->mCollapseDeleted->setChecked(
       settings->value(Setting::Id::AutoCollapseDeletedFiles).toBool());
-  connect(collapseDeleted, &QCheckBox::toggled, [settings](bool checked) {
+  connect(ui->mCollapseDeleted, &QCheckBox::toggled, [settings](bool checked) {
     settings->setValue(Setting::Id::AutoCollapseDeletedFiles, checked);
   });
-
-  layout->addRow(tr("Whitespace:"), ignoreWs);
-  layout->addRow(tr("Auto Collapse:"), collapseAdded);
-  layout->addRow(QString(), collapseDeleted);
 }
+
+DiffPanel::~DiffPanel() = default;

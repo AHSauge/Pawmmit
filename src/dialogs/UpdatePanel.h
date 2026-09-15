@@ -7,26 +7,28 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Author: Kas
+// Author: Jason Haslam
 //
 
-#ifndef REBASECONFLICTDIALOG_H
-#define REBASECONFLICTDIALOG_H
+#ifndef UPDATEPANEL_H
+#define UPDATEPANEL_H
 
-#include <QDialog>
+#include <QScopedPointer>
+#include <QWidget>
 
-class RebaseConflictDialog : public QDialog {
+namespace Ui {
+class UpdatePanel;
+}
+
+class UpdatePanel : public QWidget {
   Q_OBJECT
 
 public:
-  enum class ChosenAction { Unset, Abort, Fix };
-
-  RebaseConflictDialog(QWidget *parent = nullptr);
-
-  inline ChosenAction userChoice() const { return mUserChoice; }
+  UpdatePanel(QWidget *parent = nullptr);
+  ~UpdatePanel() override;
 
 private:
-  ChosenAction mUserChoice = ChosenAction::Unset;
+  QScopedPointer<Ui::UpdatePanel> ui;
 };
 
 #endif

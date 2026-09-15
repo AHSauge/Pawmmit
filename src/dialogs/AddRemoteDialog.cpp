@@ -11,39 +11,35 @@
 //
 
 #include "AddRemoteDialog.h"
+#include "ui_AddRemoteDialog.h"
 #include <QDialogButtonBox>
-#include <QFormLayout>
 #include <QLineEdit>
 #include <QPushButton>
 
 AddRemoteDialog::AddRemoteDialog(const QString &name, QWidget *parent)
-    : QDialog(parent) {
-  setWindowTitle(tr("Add Remote"));
+    : QDialog(parent), ui(new Ui::AddRemoteDialog) {
+  ui->setupUi(this);
 
-  mName = new QLineEdit(name, this);
-  connect(mName, &QLineEdit::textChanged, this, &AddRemoteDialog::update);
+  ui->mName->setText(name);
+  connect(ui->mName, &QLineEdit::textChanged, this, &AddRemoteDialog::update);
+  connect(ui->mUrl, &QLineEdit::textChanged, this, &AddRemoteDialog::update);
 
-  mUrl = new QLineEdit(this);
-  connect(mUrl, &QLineEdit::textChanged, this, &AddRemoteDialog::update);
+  connect(ui->mButtons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+  connect(ui->mButtons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
-  QDialogButtonBox *buttons = new QDialogButtonBox(this);
-  connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
-  connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
-
-  buttons->addButton(QDialogButtonBox::Cancel);
-  mAdd = buttons->addButton(tr("Add Remote"), QDialogButtonBox::AcceptRole);
-
-  QFormLayout *layout = new QFormLayout(this);
-  layout->addRow(tr("Name:"), mName);
-  layout->addRow(tr("URL:"), mUrl);
-  layout->addRow(buttons);
+  // Custom-role, custom-text button: Designer's QDialogButtonBox only
+  // supports standard buttons declaratively.
+  mAdd =
+      ui->mButtons->addButton(tr("Add Remote"), QDialogButtonBox::AcceptRole);
 
   update();
 }
 
-QString AddRemoteDialog::name() const { return mName->text(); }
+AddRemoteDialog::~AddRemoteDialog() = default;
 
-QString AddRemoteDialog::url() const { return mUrl->text(); }
+QString AddRemoteDialog::name() const { return ui->mName->text(); }
+
+QString AddRemoteDialog::url() const { return ui->mUrl->text(); }
 
 void AddRemoteDialog::update(const QString &text) {
   mAdd->setEnabled(!name().isEmpty() && !url().isEmpty());

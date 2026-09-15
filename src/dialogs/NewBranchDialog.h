@@ -15,15 +15,16 @@
 
 #include "git/Commit.h"
 #include <QDialog>
-
-class ReferenceList;
-class QLineEdit;
-class QCheckBox;
+#include <QScopedPointer>
 
 namespace git {
 class Reference;
 class Repository;
 } // namespace git
+
+namespace Ui {
+class NewBranchDialog;
+}
 
 class NewBranchDialog : public QDialog {
   Q_OBJECT
@@ -32,6 +33,7 @@ public:
   NewBranchDialog(const git::Repository &repo,
                   const git::Commit &commit = git::Commit(),
                   QWidget *parent = nullptr);
+  ~NewBranchDialog() override;
 
   QString name() const;
   bool checkout() const;
@@ -39,10 +41,7 @@ public:
   git::Reference upstream() const;
 
 private:
-  QLineEdit *mName;
-  ReferenceList *mUpstream;
-  ReferenceList *mRefs;
-  QCheckBox *mCheckout;
+  QScopedPointer<Ui::NewBranchDialog> ui;
 };
 
 #endif

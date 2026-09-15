@@ -14,17 +14,19 @@
 #define ACCOUNTDIALOG
 
 #include "host/Account.h"
-#include <QComboBox>
 #include <QDialog>
-#include <QDialogButtonBox>
-#include <QLabel>
-#include <QLineEdit>
+#include <QScopedPointer>
+
+namespace Ui {
+class AccountDialog;
+}
 
 class AccountDialog : public QDialog {
   Q_OBJECT
 
 public:
   AccountDialog(Account *account, QWidget *parent = nullptr);
+  ~AccountDialog() override;
 
   void accept() override;
 
@@ -33,12 +35,7 @@ public:
 private:
   void updateButtons();
 
-  QComboBox *mHost;
-  QLineEdit *mUsername;
-  QLineEdit *mPassword;
-  QLabel *mLabel;
-  QLineEdit *mUrl;
-  QDialogButtonBox *mButtons;
+  QScopedPointer<Ui::AccountDialog> ui;
 };
 
 #endif

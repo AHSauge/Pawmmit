@@ -13,60 +13,54 @@
 #include "CheckoutDialog.h"
 #include "git/Branch.h"
 #include "ui/ReferenceList.h"
+#include "ui_CheckoutDialog.h"
 #include <QCheckBox>
 #include <QDialogButtonBox>
-#include <QFormLayout>
 #include <QPushButton>
-#include <QVBoxLayout>
 
 CheckoutDialog::CheckoutDialog(const git::Repository &repo,
                                const git::Reference &ref, QWidget *parent)
-    : QDialog(parent) {
+    : QDialog(parent), ui(new Ui::CheckoutDialog) {
   setAttribute(Qt::WA_DeleteOnClose);
 
-  mRefs = new ReferenceList(repo, ReferenceView::AllRefs, this);
-  connect(mRefs, &ReferenceList::referenceSelected, this,
+  ui->setupUi(this);
+
+  ui->mRefs->setRepository(repo, ReferenceView::AllRefs);
+  connect(ui->mRefs, &ReferenceList::referenceSelected, this,
           &CheckoutDialog::update);
 
-  mDetachBox = new QCheckBox(tr("Detach HEAD"), this);
-  connect(mDetachBox, &QCheckBox::toggled, [this](bool checked) {
-    if (mDetachBox->isEnabled()) {
+  connect(ui->mDetachBox, &QCheckBox::toggled, [this](bool checked) {
+    if (ui->mDetachBox->isEnabled()) {
       mDetach = checked;
-      update(mRefs->currentReference());
+      update(ui->mRefs->currentReference());
     }
   });
 
-  QFormLayout *form = new QFormLayout;
-  form->addRow(tr("References:"), mRefs);
-  form->addRow(QString(), mDetachBox);
+  mCheckout =
+      ui->mButtons->addButton(tr("Checkout"), QDialogButtonBox::AcceptRole);
+  connect(ui->mButtons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+  connect(ui->mButtons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
-  QDialogButtonBox *buttons = new QDialogButtonBox(this);
-  buttons->addButton(QDialogButtonBox::Cancel);
-  mCheckout = buttons->addButton(tr("Checkout"), QDialogButtonBox::AcceptRole);
-  connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
-  connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
-
-  QVBoxLayout *layout = new QVBoxLayout(this);
-  layout->addLayout(form);
-  layout->addWidget(buttons);
-
-  mRefs->select(ref);
-  update(mRefs->currentReference());
+  ui->mRefs->select(ref);
+  update(ui->mRefs->currentReference());
 }
 
+CheckoutDialog::~CheckoutDialog() = default;
+
 git::Reference CheckoutDialog::reference() const {
-  return mRefs->currentReference();
+  return ui->mRefs->currentReference();
 }
 
 void CheckoutDialog::update(const git::Reference &ref) {
   if (!ref.isValid()) {
-    mDetachBox->setEnabled(false);
+    ui->mDetachBox->setEnabled(false);
     mCheckout->setEnabled(false);
     return;
   }
 
   bool local = ref.isLocalBranch();
-  mDetachBox->setEnabled(local);
-  mDetachBox->setChecked(!mDetachBox->isEnabled() || mDetach);
-  mCheckout->setEnabled(!ref.isHead() || (local && mDetachBox->isChecked()));
+  ui->mDetachBox->setEnabled(local);
+  ui->mDetachBox->setChecked(!ui->mDetachBox->isEnabled() || mDetach);
+  mCheckout->setEnabled(!ref.isHead() ||
+                        (local && ui->mDetachBox->isChecked()));
 }

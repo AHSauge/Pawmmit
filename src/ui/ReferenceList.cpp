@@ -36,12 +36,21 @@ QModelIndex findReference(QAbstractItemModel *model,
 
 } // namespace
 
-ReferenceList::ReferenceList(const git::Repository &repo,
-                             ReferenceView::Kinds kinds, QWidget *parent)
-    : QComboBox(parent), mRepo(repo) {
+ReferenceList::ReferenceList(QWidget *parent) : QComboBox(parent) {
   setStyleSheet(kStyleSheet);
   setMaxVisibleItems(0); // disable
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+}
+
+ReferenceList::ReferenceList(const git::Repository &repo,
+                             ReferenceView::Kinds kinds, QWidget *parent)
+    : ReferenceList(parent) {
+  setRepository(repo, kinds);
+}
+
+void ReferenceList::setRepository(const git::Repository &repo,
+                                  ReferenceView::Kinds kinds) {
+  mRepo = repo;
 
   mView = new ReferenceView(repo, kinds, true, this);
   QAbstractItemModel *model = mView->model();

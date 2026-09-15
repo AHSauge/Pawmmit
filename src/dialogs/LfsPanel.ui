@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>LfsPanel</class>
+ <widget class="QWidget" name="LfsPanel">
+  <layout class="QVBoxLayout" name="rootLayout">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <widget class="QWidget" name="mNotInitializedPage">
+     <layout class="QVBoxLayout" name="notInitializedLayout">
+       <item>
+        <spacer name="topSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Fixed</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>16</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item alignment="Qt::AlignHCenter">
+        <widget class="QPushButton" name="mInitializeButton">
+         <property name="text">
+          <string>Initialize LFS</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="bottomSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Fixed</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>12</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="mInitializedPage">
+     <layout class="QVBoxLayout" name="initializedLayout">
+      <item>
+       <widget class="QLabel" name="mIncludedLabel">
+         <property name="text">
+          <string>Included patterns:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QVBoxLayout" name="includedLayout">
+         <property name="spacing">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QListView" name="mIncludedList">
+           <property name="editTriggers">
+            <set>QAbstractItemView::NoEditTriggers</set>
+           </property>
+           <property name="selectionMode">
+            <enum>QAbstractItemView::ExtendedSelection</enum>
+           </property>
+           <property name="selectionBehavior">
+            <enum>QAbstractItemView::SelectRows</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="Footer" name="mIncludedFooter"/>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QLabel" name="mExcludedLabel">
+         <property name="text">
+          <string>Excluded patterns:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QListView" name="mExcludedList">
+         <property name="editTriggers">
+          <set>QAbstractItemView::NoEditTriggers</set>
+         </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::ExtendedSelection</enum>
+         </property>
+         <property name="selectionBehavior">
+          <enum>QAbstractItemView::SelectRows</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QFormLayout" name="formLayout">
+         <property name="fieldGrowthPolicy">
+          <enum>QFormLayout::ExpandingFieldsGrow</enum>
+         </property>
+         <item row="0" column="0">
+          <widget class="QLabel" name="label">
+           <property name="text">
+            <string>Server URL:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QLineEdit" name="mUrl"/>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="label_2">
+           <property name="text">
+            <string>Prune Offset:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <layout class="QHBoxLayout" name="pruneOffsetLayout">
+           <item>
+            <widget class="QSpinBox" name="mPruneOffsetDays"/>
+           </item>
+           <item>
+            <widget class="QLabel" name="mPruneOffsetLabel">
+             <property name="text">
+              <string>days</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="pruneOffsetSpacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="label_3">
+           <property name="text">
+            <string>Fetch Recent:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QCheckBox" name="mFetchRecentAlways">
+           <property name="text">
+            <string>Fetch LFS objects from all references for the past</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <layout class="QHBoxLayout" name="refDaysLayout">
+           <item>
+            <widget class="QSpinBox" name="mFetchRecentRefsDays"/>
+           </item>
+           <item>
+            <widget class="QLabel" name="mRefDaysLabel">
+             <property name="text">
+              <string>reference days or</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="refDaysSpacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </item>
+         <item row="4" column="1">
+          <layout class="QHBoxLayout" name="commitDaysLayout">
+           <item>
+            <widget class="QSpinBox" name="mFetchRecentCommitsDays"/>
+           </item>
+           <item>
+            <widget class="QLabel" name="mCommitDaysLabel">
+             <property name="text">
+              <string>commit days</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="commitDaysSpacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </item>
+         <item row="5" column="0">
+          <widget class="QLabel" name="label_4">
+           <property name="text">
+            <string>Advanced:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="1">
+          <widget class="QPushButton" name="mEnvironment">
+           <property name="text">
+            <string>View Environment</string>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="1">
+          <widget class="QPushButton" name="mDeinit">
+           <property name="text">
+            <string>Deinitialize LFS</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>Footer</class>
+   <extends>QWidget</extends>
+   <header>ui/Footer.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

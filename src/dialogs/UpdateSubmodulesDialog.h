@@ -14,14 +14,16 @@
 #define UPDATESUBMODULESDIALOG_H
 
 #include <QDialog>
-
-class QCheckBox;
-class QTableView;
+#include <QScopedPointer>
 
 namespace git {
 class Repository;
 class Submodule;
 } // namespace git
+
+namespace Ui {
+class UpdateSubmodulesDialog;
+}
 
 class UpdateSubmodulesDialog : public QDialog {
   Q_OBJECT
@@ -29,15 +31,14 @@ class UpdateSubmodulesDialog : public QDialog {
 public:
   UpdateSubmodulesDialog(const git::Repository &repo,
                          QWidget *parent = nullptr);
+  ~UpdateSubmodulesDialog() override;
 
   QList<git::Submodule> submodules() const;
   bool recursive() const;
   bool init() const;
 
 private:
-  QTableView *mTable;
-  QCheckBox *mRecursive;
-  QCheckBox *mInit;
+  QScopedPointer<Ui::UpdateSubmodulesDialog> ui;
 };
 
 #endif

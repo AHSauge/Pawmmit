@@ -14,9 +14,8 @@
 #define CHECKOUTDIALOG_H
 
 #include <QDialog>
+#include <QScopedPointer>
 
-class ReferenceList;
-class QCheckBox;
 class QPushButton;
 
 namespace git {
@@ -24,12 +23,17 @@ class Reference;
 class Repository;
 } // namespace git
 
+namespace Ui {
+class CheckoutDialog;
+}
+
 class CheckoutDialog : public QDialog {
   Q_OBJECT
 
 public:
   CheckoutDialog(const git::Repository &repo, const git::Reference &ref,
                  QWidget *parent = nullptr);
+  ~CheckoutDialog() override;
 
   git::Reference reference() const;
   bool detach() const { return mDetach; }
@@ -39,9 +43,9 @@ private:
 
   bool mDetach = false;
 
-  ReferenceList *mRefs;
-  QCheckBox *mDetachBox;
   QPushButton *mCheckout;
+
+  QScopedPointer<Ui::CheckoutDialog> ui;
 };
 
 #endif

@@ -14,19 +14,21 @@
 #define EXTERNALTOOLSDIALOG_H
 
 #include <QDialog>
+#include <QScopedPointer>
 
-class ExternalToolsModel;
-class QVBoxLayout;
+namespace Ui {
+class ExternalToolsDialog;
+}
 
 class ExternalToolsDialog : public QDialog {
   Q_OBJECT
 
 public:
   ExternalToolsDialog(const QString &type, QWidget *parent = nullptr);
+  ~ExternalToolsDialog() override;
 
 private:
-  QVBoxLayout *createDetectedLayout(const QString &type);
-  QVBoxLayout *createUserDefinedLayout(const QString &type);
+  QScopedPointer<Ui::ExternalToolsDialog> ui;
 };
 
 #endif
