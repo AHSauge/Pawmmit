@@ -13,13 +13,13 @@
 #include "UpdateSubmodulesDialog.h"
 #include "git/Repository.h"
 #include "git/Submodule.h"
+#include "ui_UpdateSubmodulesDialog.h"
 #include <QAbstractTableModel>
 #include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QHeaderView>
 #include <QPushButton>
 #include <QTableView>
-#include <QVBoxLayout>
 
 namespace {
 
@@ -95,51 +95,39 @@ private:
 
 UpdateSubmodulesDialog::UpdateSubmodulesDialog(const git::Repository &repo,
                                                QWidget *parent)
-    : QDialog(parent) {
+    : QDialog(parent), ui(new Ui::UpdateSubmodulesDialog) {
   setAttribute(Qt::WA_DeleteOnClose);
-  mTable = new QTableView(this);
-  mTable->setShowGrid(false);
-  mTable->setSelectionMode(QAbstractItemView::NoSelection);
+
+  ui->setupUi(this);
 
   Model *model = new Model(repo, this);
-  mTable->setModel(model);
+  ui->mTable->setModel(model);
 
-  mTable->verticalHeader()->hide();
-  mTable->horizontalHeader()->hide();
-  mTable->horizontalHeader()->setStretchLastSection(false);
-  mTable->horizontalHeader()->setSectionResizeMode(
+  ui->mTable->verticalHeader()->hide();
+  ui->mTable->horizontalHeader()->hide();
+  ui->mTable->horizontalHeader()->setStretchLastSection(false);
+  ui->mTable->horizontalHeader()->setSectionResizeMode(
       QHeaderView::ResizeToContents);
 
-  mRecursive = new QCheckBox(tr("Recursive"), this);
-  mRecursive->setChecked(true);
-
-  mInit = new QCheckBox(tr("Init"), this);
-
-  QDialogButtonBox *buttons = new QDialogButtonBox(this);
-  buttons->addButton(QDialogButtonBox::Cancel);
   QPushButton *update =
-      buttons->addButton(tr("Update"), QDialogButtonBox::AcceptRole);
+      ui->mButtons->addButton(tr("Update"), QDialogButtonBox::AcceptRole);
   update->setEnabled(!model->enabledSubmodules().isEmpty());
-  connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
-  connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+  connect(ui->mButtons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+  connect(ui->mButtons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
   connect(model, &Model::dataChanged, [model, update] {
     update->setEnabled(!model->enabledSubmodules().isEmpty());
   });
-
-  QVBoxLayout *layout = new QVBoxLayout(this);
-  layout->addWidget(mTable);
-  layout->addWidget(mRecursive);
-  layout->addWidget(mInit);
-  layout->addWidget(buttons);
 }
 
+UpdateSubmodulesDialog::~UpdateSubmodulesDialog() = default;
+
 QList<git::Submodule> UpdateSubmodulesDialog::submodules() const {
-  return static_cast<Model *>(mTable->model())->enabledSubmodules();
+  return static_cast<Model *>(ui->mTable->model())->enabledSubmodules();
 }
 
 bool UpdateSubmodulesDialog::recursive() const {
-  return mRecursive->isChecked();
+  return ui->mRecursive->isChecked();
 }
 
-bool UpdateSubmodulesDialog::init() const { return mInit->isChecked(); }
+bool UpdateSubmodulesDialog::init() const { return ui->mInit->isChecked(); }
