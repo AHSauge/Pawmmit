@@ -1,5 +1,6 @@
 dialogs_ui = qt6.compile_ui(
     sources: files(
+        'AboutDialog.ui',
         'AccountDialog.ui',
         'AddRemoteDialog.ui',
         'CheckoutDialog.ui',

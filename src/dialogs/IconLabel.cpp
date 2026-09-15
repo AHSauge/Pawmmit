@@ -14,9 +14,21 @@
 #include <QPainter>
 #include <QStyle>
 
-IconLabel::IconLabel(const QIcon &icon, int width, int height, QWidget *parent)
-    : QWidget(parent), mIcon(icon), mWidth(width), mHeight(height) {
+IconLabel::IconLabel(QWidget *parent) : QWidget(parent) {
   setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
+}
+
+IconLabel::IconLabel(const QIcon &icon, int width, int height, QWidget *parent)
+    : IconLabel(parent) {
+  setIcon(icon, width, height);
+}
+
+void IconLabel::setIcon(const QIcon &icon, int width, int height) {
+  mIcon = icon;
+  mWidth = width;
+  mHeight = height;
+  updateGeometry();
+  update();
 }
 
 QSize IconLabel::sizeHint() const { return QSize(mWidth, mHeight); }
