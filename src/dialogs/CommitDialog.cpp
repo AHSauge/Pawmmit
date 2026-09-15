@@ -13,18 +13,20 @@
 #include "CommitDialog.h"
 
 #include "conf/Settings.h"
+#include "ui_CommitDialog.h"
 
 #include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QLabel>
 #include <QPushButton>
 #include <QTextEdit>
-#include <QVBoxLayout>
 
 CommitDialog::CommitDialog(const QString &message, Prompt::Kind kind,
                            QWidget *parent)
-    : QDialog(parent) {
+    : QDialog(parent), ui(new Ui::CommitDialog) {
   setAttribute(Qt::WA_DeleteOnClose);
+
+  ui->setupUi(this);
 
   QString title;
   switch (kind) {
@@ -51,43 +53,39 @@ CommitDialog::CommitDialog(const QString &message, Prompt::Kind kind,
   }
 
   setWindowTitle(title);
-  QLabel *label = new QLabel(QString("<b>%1:</b>").arg(title), this);
+  ui->mLabel->setText(QString("<b>%1:</b>").arg(title));
 
-  mEditor = new QTextEdit(this);
-  mEditor->setFixedWidth(400);
-  mEditor->setFixedHeight(120);
-  mEditor->setText(message);
+  ui->mEditor->setText(message);
 
   Settings *settings = Settings::instance();
-  QCheckBox *prompt = new QCheckBox(settings->promptDescription(kind), this);
-  prompt->setChecked(settings->prompt(kind));
-  connect(prompt, &QCheckBox::toggled, this, [kind](bool checked) {
+  ui->mPrompt->setText(settings->promptDescription(kind));
+  ui->mPrompt->setChecked(settings->prompt(kind));
+  connect(ui->mPrompt, &QCheckBox::toggled, this, [kind](bool checked) {
     Settings::instance()->setPrompt(kind, checked);
   });
 
-  QDialogButtonBox *buttons = new QDialogButtonBox(this);
-  connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
-  connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+  connect(ui->mButtons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+  connect(ui->mButtons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
   switch (kind) {
     case Prompt::Kind::Merge:
-      buttons->addButton(tr("Merge"), QDialogButtonBox::AcceptRole);
-      buttons->addButton(tr("Abort"), QDialogButtonBox::RejectRole);
+      ui->mButtons->addButton(tr("Merge"), QDialogButtonBox::AcceptRole);
+      ui->mButtons->addButton(tr("Abort"), QDialogButtonBox::RejectRole);
       break;
 
     case Prompt::Kind::Stash:
-      buttons->addButton(tr("Stash"), QDialogButtonBox::AcceptRole);
-      buttons->addButton(QDialogButtonBox::Cancel);
+      ui->mButtons->addButton(tr("Stash"), QDialogButtonBox::AcceptRole);
+      ui->mButtons->addButton(QDialogButtonBox::Cancel);
       break;
 
     case Prompt::Kind::Revert:
-      buttons->addButton(tr("Revert"), QDialogButtonBox::AcceptRole);
-      buttons->addButton(tr("Abort"), QDialogButtonBox::RejectRole);
+      ui->mButtons->addButton(tr("Revert"), QDialogButtonBox::AcceptRole);
+      ui->mButtons->addButton(tr("Abort"), QDialogButtonBox::RejectRole);
       break;
 
     case Prompt::Kind::CherryPick:
-      buttons->addButton(tr("Cherry-pick"), QDialogButtonBox::AcceptRole);
-      buttons->addButton(tr("Abort"), QDialogButtonBox::RejectRole);
+      ui->mButtons->addButton(tr("Cherry-pick"), QDialogButtonBox::AcceptRole);
+      ui->mButtons->addButton(tr("Abort"), QDialogButtonBox::RejectRole);
       break;
 
     case Prompt::Kind::Directories:
@@ -96,19 +94,15 @@ CommitDialog::CommitDialog(const QString &message, Prompt::Kind kind,
       break;
   }
 
-  QVBoxLayout *layout = new QVBoxLayout(this);
-  layout->addWidget(label);
-  layout->addWidget(mEditor);
-  layout->addWidget(prompt);
-  layout->addWidget(buttons);
-
   // Start with focus on the accept button.
-  buttons->setFocus();
+  ui->mButtons->setFocus();
 }
 
-QString CommitDialog::message() const { return mEditor->toPlainText(); }
+CommitDialog::~CommitDialog() = default;
+
+QString CommitDialog::message() const { return ui->mEditor->toPlainText(); }
 
 void CommitDialog::open() {
   QDialog::open();
-  mEditor->clearFocus();
+  ui->mEditor->clearFocus();
 }

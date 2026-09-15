@@ -15,8 +15,11 @@
 
 #include "conf/Setting.h"
 #include <QDialog>
+#include <QScopedPointer>
 
-class QTextEdit;
+namespace Ui {
+class CommitDialog;
+}
 
 class CommitDialog : public QDialog {
   Q_OBJECT
@@ -24,13 +27,14 @@ class CommitDialog : public QDialog {
 public:
   CommitDialog(const QString &message, Prompt::Kind kind,
                QWidget *parent = nullptr);
+  ~CommitDialog() override;
 
   QString message() const;
 
   void open() override;
 
 private:
-  QTextEdit *mEditor;
+  QScopedPointer<Ui::CommitDialog> ui;
 };
 
 #endif
