@@ -6,6 +6,7 @@ dialogs_ui = qt6.compile_ui(
         'MergeDialog.ui',
         'NewBranchDialog.ui',
         'RenameBranchDialog.ui',
+        'TagDialog.ui',
     ),
 )
 
