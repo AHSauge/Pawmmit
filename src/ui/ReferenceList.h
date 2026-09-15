@@ -22,9 +22,13 @@ class ReferenceList : public QComboBox {
   Q_OBJECT
 
 public:
+  ReferenceList(QWidget *parent = nullptr);
   ReferenceList(const git::Repository &repo,
                 ReferenceView::Kinds kinds = ReferenceView::AllRefs,
                 QWidget *parent = nullptr);
+
+  void setRepository(const git::Repository &repo,
+                     ReferenceView::Kinds kinds = ReferenceView::AllRefs);
 
   git::Commit target() const;
   git::Reference currentReference() const;
@@ -52,7 +56,7 @@ private:
   // direct commit
   git::Commit mCommit;
 
-  ReferenceView *mView;
+  ReferenceView *mView = nullptr;
 };
 
 #endif
