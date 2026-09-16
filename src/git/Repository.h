@@ -357,6 +357,8 @@ signals:
 
   void lfsNotFound();
   void lfsLocksChanged();
+
+  void repositoryWatchError(const QString &message);
 };
 
 } // namespace git

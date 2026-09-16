@@ -434,6 +434,13 @@ RepoView::RepoView(const git::Repository &repo, MainWindow *parent)
             delete context; // Disconnect after the first error.
           });
 
+  QObject *watchErrorContext = new QObject(this);
+  connect(notifier, &git::RepositoryNotifier::repositoryWatchError,
+          watchErrorContext, [this, watchErrorContext](const QString &message) {
+            mLogRoot->addEntry(LogEntry::Error, message);
+            delete watchErrorContext; // Disconnect after the first error.
+          });
+
   // Automatically hide the log when the model changes.
   connect(mLogView->model(), &QAbstractItemModel::rowsInserted, this,
           &RepoView::startLogTimer);
