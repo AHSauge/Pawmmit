@@ -173,6 +173,8 @@ RepoView::RepoView(const git::Repository &repo, MainWindow *parent)
           &RepoView::rebaseCommitInvalid);
   connect(notifier, &git::RepositoryNotifier::rebaseFinished, this,
           &RepoView::rebaseFinished);
+  connect(notifier, &git::RepositoryNotifier::rebaseFinishError, this,
+          &RepoView::rebaseFinishError);
   connect(notifier, &git::RepositoryNotifier::rebaseCommitSuccess, this,
           &RepoView::rebaseCommitSuccess);
   connect(notifier, &git::RepositoryNotifier::rebaseConflict, this,
@@ -1518,6 +1520,13 @@ void RepoView::rebaseCommitSuccess(const git::Rebase rebase,
 void RepoView::rebaseFinished(const git::Rebase rebase) {
   QString text = tr("Rebase finished");
   mRebase->addEntry(text, tr("Rebase"));
+  mRebase = nullptr;
+}
+
+void RepoView::rebaseFinishError(const git::Rebase rebase) {
+  const git::Branch head = mRepo.head();
+  Q_ASSERT(head.isValid());
+  error(mRebase, tr("finish rebase"), head.name());
   mRebase = nullptr;
 }
 

@@ -350,6 +350,7 @@ signals:
   void rebaseCommitInvalid(const Rebase rebase);
   void rebaseAboutToRebase(const Rebase rebase, const Commit before, int count);
   void rebaseFinished(const Rebase rebase);
+  void rebaseFinishError(const Rebase rebase);
   void rebaseCommitSuccess(const Rebase rebase, const Commit before,
                            const Commit after, int counter);
   void rebaseConflict(const Rebase rebase);

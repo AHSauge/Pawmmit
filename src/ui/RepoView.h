@@ -368,6 +368,7 @@ private slots:
   void rebaseAboutToRebase(const git::Rebase rebase, const git::Commit before,
                            int currIndex);
   void rebaseFinished(const git::Rebase rebase);
+  void rebaseFinishError(const git::Rebase rebase);
   void rebaseCommitSuccess(const git::Rebase rebase, const git::Commit before,
                            const git::Commit after, int currIndex);
   void rebaseConflict(const git::Rebase rebase);

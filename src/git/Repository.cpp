@@ -1005,9 +1005,8 @@ void Repository::rebaseContinue(const QString &commitMessage) {
 
   if (r.finish())
     emit d->notifier->rebaseFinished(r);
-  // TODO: implement
-  // else
-  // emit error
+  else
+    emit d->notifier->rebaseFinishError(r);
 }
 
 bool Repository::rebaseOngoing() {
