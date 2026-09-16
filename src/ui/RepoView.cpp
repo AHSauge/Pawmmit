@@ -2228,7 +2228,6 @@ void RepoView::promptToDeleteTag(const git::Reference &ref) {
 void RepoView::promptToAmend(const git::Commit &commit) {
   auto *d = new AmendDialog(commit.author(), commit.committer(),
                             commit.message(), this);
-  d->setAttribute(Qt::WA_DeleteOnClose);
   connect(d, &QDialog::accepted, [this, d, commit]() {
     auto info = d->getInfo();
 
@@ -2238,7 +2237,7 @@ void RepoView::promptToAmend(const git::Commit &commit) {
     amend(commit, author, committer, info.commitMessage);
   });
 
-  d->show();
+  d->open();
 }
 
 void RepoView::amend(const git::Commit &commit, const git::Signature &author,

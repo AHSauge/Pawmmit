@@ -18,6 +18,8 @@ AmendDialog::AmendDialog(const git::Signature &author,
                          const git::Signature &committer,
                          const QString &commitMessage, QWidget *parent)
     : QDialog(parent), ui(new Ui::AmendDialog) {
+  setAttribute(Qt::WA_DeleteOnClose);
+
   ui->setupUi(this);
 
   ui->mAuthorInfo->setSignature(author);
