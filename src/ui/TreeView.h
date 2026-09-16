@@ -85,6 +85,7 @@ signals:
   void linkActivated(const QString &link);
   void filesSelected(const QModelIndexList &indexes);
   void collapseCountChanged(int count);
+  void deleteRequested();
 
 protected:
   void paintEvent(QPaintEvent *event) override;

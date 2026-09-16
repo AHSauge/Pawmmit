@@ -20,6 +20,7 @@
 #include "ui/MainWindow.h"
 #include "ui/RepoView.h"
 #include <QFileDialog>
+#include <QFont>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -31,7 +32,6 @@ namespace {
 
 const QString kLinkFmt = "<a href='%1'>%2</a>";
 const QString kSupportLink = "https://github.com/Pawmmit/Pawmmit/discussions";
-const QString kVideoLink = "TODO";
 
 class DefaultWidget : public QFrame {
   Q_OBJECT
@@ -41,6 +41,15 @@ public:
     setFrameShape(QFrame::Box);
     setAutoFillBackground(true);
     setBackgroundRole(QPalette::Base);
+
+    QLabel *heading = new QLabel(tr("Get started"), this);
+    heading->setAlignment(Qt::AlignHCenter);
+    heading->setStyleSheet("color: palette(bright-text)");
+    QFont headingFont = heading->font();
+    headingFont.setBold(true);
+    headingFont.setCapitalization(QFont::AllUppercase);
+    headingFont.setLetterSpacing(QFont::AbsoluteSpacing, 0.6);
+    heading->setFont(headingFont);
 
     QPushButton *clone =
         addButton(QIcon(":/clone.png"), tr("Clone repository"));
@@ -82,6 +91,7 @@ public:
 
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->setSpacing(12);
+    layout->addWidget(heading);
     layout->addWidget(clone);
     layout->addWidget(open);
     layout->addWidget(init);
@@ -90,7 +100,8 @@ public:
     for (int i = 0; i < Account::NUM_KINDS; ++i) {
       Account::Kind kind = static_cast<Account::Kind>(i);
       QString text = tr("Add %1 account").arg(Account::name(kind));
-      QPushButton *account = addButton(Account::icon(kind), text);
+      QPushButton *account =
+          addButton(Account::icon(kind), text, QSize(20, 20), 1);
       connect(account, &QPushButton::clicked, [this, kind] {
         AccountDialog *dialog = new AccountDialog(nullptr, this);
         dialog->setKind(kind);
@@ -101,21 +112,20 @@ public:
     }
 
     layout->addWidget(addSeparator());
-    // TODO: uncomment as soon as we have videos
-    // layout->addWidget(addLink(tr("View getting started videos"),
-    // kVideoLink));
     layout->addWidget(addLink(tr("Contact us for support"), kSupportLink));
   }
 
 private:
-  QPushButton *addButton(const QIcon &icon, const QString &text) {
+  QPushButton *addButton(const QIcon &icon, const QString &text,
+                         const QSize &iconSize = QSize(26, 26),
+                         int pointSizeDelta = 4) {
     QPushButton *button = new QPushButton(icon, text, this);
     button->setStyleSheet("color: palette(bright-text); text-align: left");
-    button->setIconSize(QSize(32, 32));
+    button->setIconSize(iconSize);
     button->setFlat(true);
 
     QFont font = button->font();
-    font.setPointSize(font.pointSize() + 10);
+    font.setPointSize(font.pointSize() + pointSizeDelta);
     button->setFont(font);
 
     return button;
@@ -123,6 +133,7 @@ private:
 
   QLabel *addLink(const QString &text, const QString &link = QString()) {
     QLabel *label = new QLabel(kLinkFmt.arg(link, text), this);
+    label->setAlignment(Qt::AlignHCenter);
     label->setOpenExternalLinks(true);
 
     QFont font = label->font();
@@ -134,7 +145,7 @@ private:
 
   QFrame *addSeparator() {
     QFrame *separator = new QFrame(this);
-    separator->setStyleSheet("border: 2px solid palette(dark)");
+    separator->setStyleSheet("border: 1px solid palette(dark)");
     separator->setFrameShape(QFrame::HLine);
     return separator;
   }

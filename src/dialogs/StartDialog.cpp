@@ -14,9 +14,11 @@
 #include "AccountDialog.h"
 #include "CloneDialog.h"
 #include "IconLabel.h"
+#include "SettingsDialog.h"
 #include "app/Application.h"
 #include "conf/RecentRepositories.h"
 #include "conf/RecentRepository.h"
+#include "git/Config.h"
 #include "host/Accounts.h"
 #include "host/Repository.h"
 #include "ui/Footer.h"
@@ -30,10 +32,10 @@
 #include <QAbstractListModel>
 #include <QApplication>
 #include <QComboBox>
-#include <QDesktopServices>
 #include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QIcon>
+#include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QMenu>
@@ -202,7 +204,7 @@ public:
     // no accounts
     Accounts *accounts = Accounts::instance();
     if (accounts->count() <= 0)
-      return !parent.isValid() ? 4 : 0;
+      return !parent.isValid() ? Account::NUM_KINDS : 0;
 
     // account
     if (!parent.isValid())
@@ -385,6 +387,43 @@ StartDialog::StartDialog(QWidget *parent)
       kSubtitleFmt.arg(tr("Claw your way into your git history"));
   ui->mSubtitle->setText(subtitleText);
 
+  bool addedInfoSpacing = false;
+  auto addInfoSpacing = [&] {
+    if (!addedInfoSpacing) {
+      ui->leftLayout->insertSpacing(ui->leftLayout->count() - 1, 16);
+      addedInfoSpacing = true;
+    }
+  };
+
+  if (RecentRepositories::instance()->count() <= 0) {
+    addInfoSpacing();
+    QLabel *welcome = new QLabel(
+        tr("New here? Clone, open, or create a repository to get started."),
+        this);
+    welcome->setWordWrap(true);
+    welcome->setMaximumWidth(230);
+    ui->leftLayout->insertWidget(ui->leftLayout->count() - 1, welcome);
+  }
+
+  git::Config config = git::Config::global();
+  bool hasIdentity = !config.value<QString>("user.name").isEmpty() &&
+                     !config.value<QString>("user.email").isEmpty();
+  if (!hasIdentity) {
+    addInfoSpacing();
+    QLabel *identity = new QLabel(
+        tr("Set your <a href='#'>name and email</a> so your commits are "
+           "properly attributed."),
+        this);
+    identity->setWordWrap(true);
+    identity->setMaximumWidth(230);
+    connect(identity, &QLabel::linkActivated, this,
+            [] { SettingsDialog::openSharedInstance(); });
+    ui->leftLayout->insertWidget(ui->leftLayout->count() - 1, identity);
+  }
+
+  ui->mRepoList->setMinimumWidth(230);
+  ui->mHostTree->setMinimumWidth(180);
+
   ui->mRepoList->setSelectionMode(QAbstractItemView::ExtendedSelection);
   connect(ui->mRepoList, &QListView::clicked, this,
           [this](const QModelIndex &index) {
@@ -560,13 +599,6 @@ StartDialog::StartDialog(QWidget *parent)
           &StartDialog::accept);
   connect(ui->mButtonBox, &QDialogButtonBox::rejected, this,
           &StartDialog::reject);
-
-  QString text = tr("View Getting Started Video");
-  QPushButton *help =
-      ui->mButtonBox->addButton(text, QDialogButtonBox::ResetRole);
-  connect(help, &QPushButton::clicked, [] {
-    QDesktopServices::openUrl(QUrl("https://gitahead.com/#tutorials"));
-  });
 }
 
 StartDialog::~StartDialog() = default;

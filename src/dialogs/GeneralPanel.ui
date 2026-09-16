@@ -129,52 +129,28 @@
      <item row="8" column="0">
       <widget class="QLabel" name="label_6">
        <property name="text">
-        <string>Credentials:</string>
+        <string>Credential store:</string>
        </property>
       </widget>
      </item>
      <item row="8" column="1">
-      <widget class="QCheckBox" name="mStoreCredentials">
-       <property name="text">
-        <string>Store credentials in secure storage</string>
-       </property>
-      </widget>
-     </item>
-     <item row="9" column="0">
-      <widget class="QLabel" name="label_7">
-       <property name="text">
-        <string>Credential store type:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="9" column="1">
       <widget class="QComboBox" name="mAvailableStores"/>
      </item>
-     <item row="10" column="0">
-      <widget class="QLabel" name="label_8">
-       <property name="text">
-        <string>Available Credential stores:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="10" column="1">
-      <widget class="QLabel" name="mCredentialStoresDescription"/>
-     </item>
-     <item row="11" column="1">
+     <item row="9" column="1">
       <widget class="QLabel" name="mPrivacy">
        <property name="text">
         <string>&lt;a href='view'&gt;View privacy policy&lt;/a&gt;</string>
        </property>
       </widget>
      </item>
-     <item row="12" column="0">
+     <item row="10" column="0">
       <widget class="QLabel" name="label_9">
        <property name="text">
         <string>Single instance:</string>
        </property>
       </widget>
      </item>
-     <item row="12" column="1">
+     <item row="10" column="1">
       <widget class="QCheckBox" name="mSingleInstance">
        <property name="text">
         <string>Only allow a single running instance</string>

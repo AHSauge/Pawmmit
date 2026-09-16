@@ -202,6 +202,8 @@ void TreeView::keyPressEvent(QKeyEvent *event) {
     QKeyEvent *down =
         new QKeyEvent(event->type(), Qt::Key_Down, event->modifiers());
     QTreeView::keyPressEvent(down);
+  } else if (index.isValid() && event->key() == Qt::Key_Delete) {
+    emit deleteRequested();
   } else
     QTreeView::keyPressEvent(event);
 }
