@@ -195,6 +195,9 @@ DoubleTreeWidget::DoubleTreeWidget(const git::Repository &repo, QWidget *parent)
           [repoView](const QModelIndex &index) {
             openExternalDiffTool(index, repoView, false);
           });
+  connect(unstagedFiles, &TreeView::deleteRequested, [repoView, this] {
+    discardOrRemoveSelection(repoView, unstagedFiles);
+  });
 
   hBoxLayout = new QHBoxLayout();
   mUnstagedCommitedFiles = new QLabel(kUnstagedFiles);
@@ -340,6 +343,34 @@ void DoubleTreeWidget::showFileContextMenu(const QPoint &pos, RepoView *view,
   auto menu = new FileContextMenu(view, files, git::Index(), tree);
   menu->setAttribute(Qt::WA_DeleteOnClose);
   menu->popup(tree->mapToGlobal(pos));
+}
+
+// Delete key handler for the unstaged tree: reuses FileContextMenu's own
+// "Discard Changes" / "Remove Untracked Files" actions (and their
+// confirmation dialogs) instead of a separate deletion path.
+void DoubleTreeWidget::discardOrRemoveSelection(RepoView *view,
+                                                QTreeView *tree) {
+  QStringList files;
+  QModelIndexList indexes = tree->selectionModel()->selectedIndexes();
+  const auto diff = view->diff();
+  if (!diff.isValid())
+    return;
+
+  const bool statusDiff = diff.isStatusDiff();
+  for (const QModelIndex &index : indexes) {
+    auto node = index.data(Qt::UserRole).value<Node *>();
+    addNodeToMenu(view->repo().index(), files, node, false, statusDiff);
+  }
+
+  if (files.isEmpty())
+    return;
+
+  FileContextMenu menu(view, files, git::Index(), tree);
+  for (QAction *action : {menu.findChild<QAction *>("DiscardAction"),
+                          menu.findChild<QAction *>("RemoveAction")}) {
+    if (action && action->isEnabled())
+      action->trigger();
+  }
 }
 
 void DoubleTreeWidget::openExternalDiffTool(const QModelIndex &index,
