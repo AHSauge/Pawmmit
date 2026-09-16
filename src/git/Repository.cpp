@@ -747,8 +747,6 @@ int Repository::submoduleStatus(const QString &name) const {
 }
 
 Remote Repository::addRemote(const QString &name, const QString &url) {
-  // FIXME: Validate name?
-
   emit d->notifier->remoteAboutToBeAdded(name);
 
   git_remote *remote = nullptr;
