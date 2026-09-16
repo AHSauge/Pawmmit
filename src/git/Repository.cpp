@@ -747,8 +747,6 @@ int Repository::submoduleStatus(const QString &name) const {
 }
 
 Remote Repository::addRemote(const QString &name, const QString &url) {
-  // FIXME: Validate name?
-
   emit d->notifier->remoteAboutToBeAdded(name);
 
   git_remote *remote = nullptr;
@@ -1007,9 +1005,8 @@ void Repository::rebaseContinue(const QString &commitMessage) {
 
   if (r.finish())
     emit d->notifier->rebaseFinished(r);
-  // TODO: implement
-  // else
-  // emit error
+  else
+    emit d->notifier->rebaseFinishError(r);
 }
 
 bool Repository::rebaseOngoing() {

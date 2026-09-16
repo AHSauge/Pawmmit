@@ -58,8 +58,15 @@ RemotesPanel::~RemotesPanel() = default;
 
 void RemotesPanel::addRemote(const QString &name) {
   AddRemoteDialog *dialog = new AddRemoteDialog(name, this);
-  connect(dialog, &QDialog::accepted, this,
-          [this, dialog] { mRepo.addRemote(dialog->name(), dialog->url()); });
+  connect(dialog, &QDialog::accepted, this, [this, dialog] {
+    git::Remote remote = mRepo.addRemote(dialog->name(), dialog->url());
+    if (!remote.isValid()) {
+      QString text = tr("Failed to add remote '%1' - %2");
+      QMessageBox::warning(
+          this, tr("Error"),
+          text.arg(dialog->name(), git::Repository::lastError()));
+    }
+  });
 
   dialog->setAttribute(Qt::WA_DeleteOnClose);
   dialog->open();

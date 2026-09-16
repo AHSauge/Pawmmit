@@ -173,6 +173,8 @@ RepoView::RepoView(const git::Repository &repo, MainWindow *parent)
           &RepoView::rebaseCommitInvalid);
   connect(notifier, &git::RepositoryNotifier::rebaseFinished, this,
           &RepoView::rebaseFinished);
+  connect(notifier, &git::RepositoryNotifier::rebaseFinishError, this,
+          &RepoView::rebaseFinishError);
   connect(notifier, &git::RepositoryNotifier::rebaseCommitSuccess, this,
           &RepoView::rebaseCommitSuccess);
   connect(notifier, &git::RepositoryNotifier::rebaseConflict, this,
@@ -197,8 +199,8 @@ RepoView::RepoView(const git::Repository &repo, MainWindow *parent)
             if (status == QProcess::CrashExit) {
               QString text =
                   tr("The indexer worker process crashed. If this problem "
-                     "persists please contact us at <TODO: "
-                     "replace.support@gitahead.com>.");
+                     "persists please contact us at "
+                     "https://github.com/Pawmmit/Pawmmit/issues.");
               addLogEntry(text, tr("Indexer Crashed"));
             }
 
@@ -430,6 +432,13 @@ RepoView::RepoView(const git::Repository &repo, MainWindow *parent)
                               "Install Git LFS</a> to use LFS integration.");
             mLogRoot->addEntry(LogEntry::Error, text);
             delete context; // Disconnect after the first error.
+          });
+
+  QObject *watchErrorContext = new QObject(this);
+  connect(notifier, &git::RepositoryNotifier::repositoryWatchError,
+          watchErrorContext, [this, watchErrorContext](const QString &message) {
+            mLogRoot->addEntry(LogEntry::Error, message);
+            delete watchErrorContext; // Disconnect after the first error.
           });
 
   // Automatically hide the log when the model changes.
@@ -1518,6 +1527,13 @@ void RepoView::rebaseCommitSuccess(const git::Rebase rebase,
 void RepoView::rebaseFinished(const git::Rebase rebase) {
   QString text = tr("Rebase finished");
   mRebase->addEntry(text, tr("Rebase"));
+  mRebase = nullptr;
+}
+
+void RepoView::rebaseFinishError(const git::Rebase rebase) {
+  const git::Branch head = mRepo.head();
+  Q_ASSERT(head.isValid());
+  error(mRebase, tr("finish rebase"), head.name());
   mRebase = nullptr;
 }
 

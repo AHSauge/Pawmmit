@@ -13,6 +13,8 @@
 #include "RepositoryWatcher.h"
 #include <QMap>
 #include <QThread>
+#include <cerrno>
+#include <cstring>
 #include <poll.h>
 #include <unistd.h>
 #include <sys/inotify.h>
@@ -35,11 +37,15 @@ public:
                            QObject *parent = nullptr)
       : QThread(parent), mRepo(repo) {
     mFd = inotify_init1(IN_NONBLOCK);
-    if (mFd < 0)
-      return; // FIXME: Report error?
+    if (mFd < 0) {
+      reportError(tr("Failed to initialize file watching: %1.")
+                      .arg(QString::fromLocal8Bit(strerror(errno))));
+      return;
+    }
 
     if (pipe(mPipe) < 0) {
-      // FIXME: Report error?
+      reportError(tr("Failed to initialize file watching: %1.")
+                      .arg(QString::fromLocal8Bit(strerror(errno))));
       close(mFd);
       mFd = -1;
     }
@@ -64,8 +70,11 @@ public:
       pollFds[0].events = POLLIN;
       pollFds[1].fd = mFd;
       pollFds[1].events = POLLIN;
-      if (poll(pollFds, 2, -1) < 0)
-        return; // FIXME: Report error?
+      if (poll(pollFds, 2, -1) < 0) {
+        reportError(tr("File watching stopped unexpectedly: %1.")
+                        .arg(QString::fromLocal8Bit(strerror(errno))));
+        return;
+      }
 
       // Check for signal to quit.
       if (pollFds[0].revents & POLLIN)
@@ -108,8 +117,14 @@ public:
 
   void watch(const QDir &dir) {
     int wd = inotify_add_watch(mFd, dir.path().toUtf8(), kFlags);
-    if (wd < 0)
-      return; // FIXME: Report error?
+    if (wd < 0) {
+      reportError(
+          tr("Failed to watch '%1' for changes: %2. This usually means the "
+             "system's inotify watch limit (fs.inotify.max_user_watches) "
+             "has been reached; automatic refresh may be incomplete.")
+              .arg(dir.path(), QString::fromLocal8Bit(strerror(errno))));
+      return;
+    }
 
     // Associate the dir with this watch descriptor.
     mWds[wd] = dir;
@@ -123,18 +138,33 @@ public:
   }
 
   void stop() {
-    if (write(mPipe[1], "\n", 1) < 0)
-      terminate(); // FIXME: Report error?
+    if (write(mPipe[1], "\n", 1) < 0) {
+      // The thread is shutting down; there's no one left to show a
+      // dialog to, so just log it and fall back to killing the thread.
+      qWarning("RepositoryWatcher: failed to signal stop (%s), terminating",
+               strerror(errno));
+      terminate();
+    }
   }
 
 signals:
   void notificationReceived();
 
 private:
+  // Reports at most one error per watcher instance so a repository with
+  // e.g. an exhausted inotify watch limit doesn't flood the log.
+  void reportError(const QString &message) {
+    if (mErrorReported)
+      return;
+    mErrorReported = true;
+    emit mRepo.notifier()->repositoryWatchError(message);
+  }
+
   git::Repository mRepo;
   int mFd = -1;
   int mPipe[2] = {-1, -1};
   QMap<int, QDir> mWds;
+  bool mErrorReported = false;
 };
 
 RepositoryWatcher::RepositoryWatcher(const git::Repository &repo,
