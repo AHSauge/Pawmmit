@@ -73,9 +73,7 @@ CredentialHelper::getAvailableHelperInformation() {
                          "enter credentials on every startup")));
   list.append(HelperInformation(
       storeStoreName, tr("Storing the credentials unencrypted on disk, "
-                         "protected only by filesystem permissions <a "
-                         "href=\"https://git-scm.com/docs/"
-                         "git-credential-store\">git-credential-store</a>")));
+                         "protected only by filesystem permissions")));
 #if defined(Q_OS_MAC)
   list.append(
       HelperInformation(osxKeyChainStoreName, tr("MacOS credential manager")));

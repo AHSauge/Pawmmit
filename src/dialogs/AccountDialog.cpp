@@ -29,10 +29,10 @@ AccountDialog::AccountDialog(Account *account, QWidget *parent)
   ui->setupUi(this);
   ui->gridLayout->setColumnStretch(1, 1);
 
-  ui->mHost->addItem("GitHub", Account::GitHub);
-  ui->mHost->addItem("Gitea", Account::Gitea);
-  ui->mHost->addItem("Bitbucket", Account::Bitbucket);
   ui->mHost->addItem("Beanstalk", Account::Beanstalk);
+  ui->mHost->addItem("Bitbucket", Account::Bitbucket);
+  ui->mHost->addItem("Gitea", Account::Gitea);
+  ui->mHost->addItem("GitHub", Account::GitHub);
   ui->mHost->addItem("GitLab", Account::GitLab);
 
   Account::Kind kind = account ? account->kind() : Account::GitHub;

@@ -321,14 +321,15 @@ bool Application::restoreWindows() {
   // repository from the current directory. Windows opened in this mode aren't
   // saved to settings. FIXME: Save subsequently opened windows?
 
-  // Load command line arg.
+  // Load command line arg. If the current directory isn't a valid
+  // repository, fall through to restoring the last real session instead of
+  // giving up - this is the common case when running a locally built binary
+  // from a terminal outside the app directory.
   if (dir != Settings::appDir()) {
     if (MainWindow *win = MainWindow::open(dir.path(), false)) {
       win->currentView()->setPathspec(mPathspec);
       return true;
     }
-
-    return false;
   }
 
   // Save on exit.

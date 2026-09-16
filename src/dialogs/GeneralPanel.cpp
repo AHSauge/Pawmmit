@@ -24,7 +24,6 @@
 #include <QFormLayout>
 #include <QLabel>
 #include <QLineEdit>
-#include <QMessageBox>
 #include <QSpinBox>
 
 GeneralPanel::GeneralPanel(QWidget *parent)
@@ -97,23 +96,16 @@ GeneralPanel::GeneralPanel(QWidget *parent)
             Settings::instance()->setValue(Setting::Id::Language, language);
           });
 
-  connect(ui->mStoreCredentials, &QCheckBox::toggled, [this](bool checked) {
-    git::Config config = git::Config::global();
-    ui->mAvailableStores->setEnabled(checked);
-    if (checked) {
-      auto store = ui->mAvailableStores->currentText();
-      config.setValue("credential.helper", store);
-    } else {
-      config.remove("credential.helper");
-    }
-
-    delete CredentialHelper::instance();
-  });
-
-  connect(ui->mAvailableStores, &QComboBox::currentTextChanged,
-          [](const QString &text) {
+  connect(ui->mAvailableStores,
+          QOverload<int>::of(&QComboBox::currentIndexChanged),
+          [this](int index) {
             git::Config config = git::Config::global();
-            config.setValue("credential.helper", text);
+            auto store = ui->mAvailableStores->itemData(index).toString();
+            if (store.isEmpty()) {
+              config.remove("credential.helper");
+            } else {
+              config.setValue("credential.helper", store);
+            }
 
             delete CredentialHelper::instance();
           });
@@ -157,27 +149,24 @@ void GeneralPanel::init() {
   }
 
   auto currentHelper = config.value<QString>("credential.helper");
-  auto checked = CredentialHelper::isHelperValid(currentHelper);
-  if (!checked) {
-    QMessageBox msg(QMessageBox::Information, tr("No credential store set"),
-                    tr("No credential store is set. Go to the application "
-                       "settings to set the desired credential store"));
-    msg.exec();
-  }
-  ui->mStoreCredentials->setChecked(checked);
 
-  QString info = "<table>";
+  ui->mAvailableStores->clear();
+  ui->mAvailableStores->addItem(tr("None"), QString());
   for (const auto &helper : CredentialHelper::getAvailableHelperInformation()) {
-    info += QStringLiteral("<tr><td><b>%1</b></td><td>%2</td><td>")
-                .arg(helper.name, helper.description);
-    ui->mAvailableStores->addItem(helper.name);
+    ui->mAvailableStores->addItem(helper.name, helper.name);
+    ui->mAvailableStores->setItemData(ui->mAvailableStores->count() - 1,
+                                      helper.description, Qt::ToolTipRole);
   }
-  info += "</table>";
-  ui->mCredentialStoresDescription->setText(info);
-  ui->mAvailableStores->setToolTip(tr("Available Credential stores"));
-  ui->mAvailableStores->setWhatsThis(info);
-  ui->mAvailableStores->setEditable(true);
-  ui->mAvailableStores->setCurrentText(currentHelper);
+
+  // Preserve an existing helper we don't otherwise recognize (e.g. a custom
+  // script) instead of silently switching the selection to None.
+  int index = ui->mAvailableStores->findData(currentHelper);
+  if (index < 0 && !currentHelper.isEmpty()) {
+    ui->mAvailableStores->addItem(currentHelper, currentHelper);
+    index = ui->mAvailableStores->count() - 1;
+  }
+
+  ui->mAvailableStores->setCurrentIndex(index < 0 ? 0 : index);
 
   ui->mSingleInstance->setChecked(
       settings->value(Setting::Id::AllowSingleInstanceOnly).toBool());

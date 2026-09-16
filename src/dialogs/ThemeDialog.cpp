@@ -12,6 +12,9 @@
 
 #include "ThemeDialog.h"
 #include "conf/Settings.h"
+#include "languages.h"
+#include <QComboBox>
+#include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
 #include <QPushButton>
@@ -89,7 +92,7 @@ private:
 } // namespace
 
 ThemeDialog::ThemeDialog(QWidget *parent) : QDialog(parent) {
-  setWindowTitle(tr("Pick a theme for Pawmmit"));
+  setWindowTitle(tr("Pick a theme and language for Pawmmit"));
 
   ThemeButton *native = new ThemeButton(
       tr("Default Theme"), QIcon(":/native.png"),
@@ -110,8 +113,38 @@ ThemeDialog::ThemeDialog(QWidget *parent) : QDialog(parent) {
   themeButtons->addSpacing(20);
   themeButtons->addWidget(system);
 
+  QComboBox *language = new QComboBox(this);
+  QMapIterator<const char *, const char *> i(Languages::languages);
+  while (i.hasNext()) {
+    i.next();
+    language->addItem(tr(i.key()), QVariant(i.value()));
+  }
+
+  const QString &current =
+      Settings::instance()->value(Setting::Id::Language).toString();
+  for (int i = 0; i < language->count(); ++i) {
+    if (language->itemData(i).toString() == current) {
+      language->setCurrentIndex(i);
+      break;
+    }
+  }
+
+  connect(language, QOverload<int>::of(&QComboBox::currentIndexChanged),
+          [language] {
+            Settings::instance()->setValue(Setting::Id::Language,
+                                           language->currentData().toString());
+          });
+
+  QHBoxLayout *languageRow = new QHBoxLayout;
+  languageRow->addStretch();
+  languageRow->addWidget(new QLabel(tr("Language:"), this));
+  languageRow->addWidget(language);
+  languageRow->addStretch();
+
   QVBoxLayout *layout = new QVBoxLayout(this);
   layout->addLayout(themeButtons);
+  layout->addSpacing(12);
+  layout->addLayout(languageRow);
 }
 
 #include "ThemeDialog.moc"

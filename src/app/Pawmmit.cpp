@@ -11,8 +11,8 @@
 //
 
 #include "Application.h"
+#include "dialogs/StartDialog.h"
 #include "git/Config.h"
-#include "ui/MainWindow.h"
 #include <QMessageBox>
 
 int main(int argc, char *argv[]) {
@@ -31,8 +31,12 @@ int main(int argc, char *argv[]) {
 
   // Restore windows before checking for updates so that
   // the update dialog pops up on top of the other windows.
+  //
+  // If there's nothing to restore, show the repository chooser instead of an
+  // empty window. Dismissing it without opening anything quits the app, via
+  // Qt's default quitOnLastWindowClosed behavior.
   if (!app.restoreWindows())
-    MainWindow::open();
+    StartDialog::openSharedInstance();
 
   // Check for updates.
   app.autoUpdate();
