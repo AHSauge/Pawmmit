@@ -1037,7 +1037,7 @@ void MenuBar::updateRepository() {
 
   bool lfs = view && view->repo().lfsIsInitialized();
   mLfsUnlock->setEnabled(lfs);
-  mLfsInitialize->setEnabled(!lfs);
+  mLfsInitialize->setEnabled(view && !lfs);
 }
 
 void MenuBar::updateRemote() {
@@ -1063,7 +1063,7 @@ void MenuBar::updateBranch() {
   mCheckoutCurrent->setEnabled(ref.isValid() && head.isValid() &&
                                ref.qualifiedName() != head.qualifiedName());
   mCheckout->setEnabled(head.isValid() && !view->repo().isBare());
-  mRenameBranch->setEnabled(ref.isLocalBranch());
+  mRenameBranch->setEnabled(ref.isValid() && ref.isLocalBranch());
   mNewBranch->setEnabled(head.isValid());
 
   mMerge->setEnabled(head.isValid());
