@@ -40,7 +40,7 @@ update_dep = declare_dependency(
 relauncher_kwargs = {}
 if is_mac
     relauncher_kwargs += {'install_rpath': '@loader_path/../Frameworks'}
-elif not is_win
+elif not is_win and get_option('bundled')
     relauncher_kwargs += {'install_rpath': '$ORIGIN'}
 endif
 
