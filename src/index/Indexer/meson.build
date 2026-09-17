@@ -17,7 +17,7 @@ if is_win
     indexer_deps += cc.find_library('dbghelp')
 elif is_mac
     indexer_kwargs += {'install_rpath': '@loader_path/../Frameworks'}
-else
+elif get_option('bundled')
     indexer_kwargs += {'install_rpath': '$ORIGIN'}
 endif
 

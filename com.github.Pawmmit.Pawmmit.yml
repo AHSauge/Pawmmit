@@ -92,7 +92,7 @@ modules:
 
   - name: Pawmmit
     buildsystem: meson
-    config-opts: ["--buildtype=release", "-Dflatpak=true", "-Denable_update_over_gui=false", "-Dtests=false"]
+    config-opts: ["--buildtype=release", "-Dflatpak=true", "-Dbundled=true", "-Denable_update_over_gui=false", "-Dtests=false"]
     builddir: true
     sources:
       - type: git

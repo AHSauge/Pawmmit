@@ -65,6 +65,9 @@ test_env.set('QT_QPA_PLATFORM', 'offscreen')
 # Every test .cpp ends with #include "<name>.moc" except this one.
 tests_without_moc = ['Diff']
 
+# Both reach a real git remote, unavailable in offline build environments.
+tests_needing_network = ['branches_panel', 'referencelist']
+
 foreach name : tests
     sources = [files(name + '.cpp')]
     if name not in tests_without_moc
@@ -83,6 +86,11 @@ foreach name : tests
     )
     # fileContextMenu opens a real context menu, which doesn't work under
     # offscreen QPA on Windows; CI excludes this suite there.
-    suites = name == 'fileContextMenu' ? ['no_win32_offscreen'] : []
+    suites = []
+    if name == 'fileContextMenu'
+        suites = ['no_win32_offscreen']
+    elif name in tests_needing_network
+        suites = ['needs_network']
+    endif
     test(name, exe, env: test_env, suite: suites, timeout: 300)
 endforeach

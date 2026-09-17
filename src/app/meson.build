@@ -4,12 +4,20 @@ conf_dir = meson.project_source_root() / 'conf'
 rsrc_dir = meson.project_source_root() / 'rsrc'
 
 # Render the bundled markdown docs to HTML (About dialog, plugin help, ...).
+# changelog now lives at the repo root as CHANGELOG.md, shared with the
+# AppStream <releases> generation below; the rest are still under docs/.
 cmark = find_program('cmark')
 doc_html = []
-foreach doc : ['changelog', 'acknowledgments', 'privacy', 'plugin']
+doc_sources = {
+    'changelog': meson.project_source_root() / 'CHANGELOG.md',
+    'acknowledgments': meson.project_source_root() / 'docs' / 'acknowledgments.md',
+    'privacy': meson.project_source_root() / 'docs' / 'privacy.md',
+    'plugin': meson.project_source_root() / 'docs' / 'plugin.md',
+}
+foreach doc, doc_source : doc_sources
     doc_html += custom_target(
         doc + '.html',
-        input: meson.project_source_root() / 'docs' / (doc + '.md'),
+        input: doc_source,
         output: doc + '.html',
         command: [cmark, '@INPUT@'],
         capture: true,
@@ -143,7 +151,7 @@ endif
 
 if is_mac
     exe_kwargs += {'install_rpath': '@executable_path/../Frameworks'}
-elif not is_win
+elif not is_win and get_option('bundled')
     exe_kwargs += {'install_rpath': '$ORIGIN'}
 endif
 
@@ -211,5 +219,26 @@ if not is_mac and not is_win
     install_data(
         rsrc_dir / 'linux' / 'com.github.Pawmmit.Pawmmit.desktop',
         install_dir: get_option('datadir') / 'applications',
+    )
+
+    appdata_conf = configuration_data()
+    appdata_conf.set('PAWMMIT_IDENTIFIER', 'com.github.Pawmmit.Pawmmit')
+    appdata_configured = configure_file(
+        input: rsrc_dir / 'linux' / 'com.github.Pawmmit.Pawmmit.appdata.xml.in',
+        output: 'com.github.Pawmmit.Pawmmit.appdata.xml.configured',
+        configuration: appdata_conf,
+    )
+
+    # Merges CHANGELOG.md into a <releases> block, or omits it if empty.
+    appstreamcli = find_program('appstreamcli')
+    custom_target(
+        'com.github.Pawmmit.Pawmmit.appdata.xml',
+        input: [meson.project_source_root() / 'CHANGELOG.md', appdata_configured],
+        output: 'com.github.Pawmmit.Pawmmit.appdata.xml',
+        # --format text avoids appstreamcli's autodetection
+        command: [appstreamcli, 'news-to-metainfo', '--format', 'text', '@INPUT0@', '@INPUT1@', '@OUTPUT@'],
+        build_by_default: true,
+        install: true,
+        install_dir: get_option('datadir') / 'metainfo',
     )
 endif

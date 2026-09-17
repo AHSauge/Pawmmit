@@ -39,6 +39,13 @@ option(
 )
 
 option(
+    'bundled',
+    type: 'boolean',
+    value: false,
+    description: 'On Linux, set an $ORIGIN rpath for a self-contained build (e.g. AppImage)',
+)
+
+option(
     'enable_update_over_gui',
     type: 'boolean',
     value: true,

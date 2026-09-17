@@ -151,12 +151,13 @@ jobs:
 
       # libgit2 needs a real system package everywhere (see meson.build for
       # why); everything else has a wrap fallback and builds from source if
-      # missing, so CI doesn't install it.
+      # missing, so CI doesn't install it. appstream provides appstreamcli,
+      # required on Linux for AppStream metadata generation.
       - name: Install dependencies (Linux)
         if: matrix.env.name == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y pkg-config xvfb libgit2-dev
+          sudo apt-get install -y pkg-config xvfb libgit2-dev appstream
 
       - name: Install dependencies (macOS)
         if: matrix.env.name == 'macos'
@@ -233,7 +234,8 @@ jobs:
             --prefix=/usr \
             -Dci_tests=true \
             -Dupdate_translations=true \
-            ${DEV_BUILD:+-Ddev_build="$DEV_BUILD"}
+            ${DEV_BUILD:+-Ddev_build="$DEV_BUILD"} \
+            $( [ "${{ matrix.env.name }}" = "linux" ] && echo -Dbundled=true )
 
       - name: Build
         run: meson compile -C build
