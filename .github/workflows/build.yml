@@ -333,3 +333,25 @@ jobs:
           else
             gh release upload development "${files[@]}" --repo "${{ github.repository }}" --clobber
           fi
+
+      - name: Update GitHub release (version tag)
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          TAG="${{ github.ref_name }}"
+          files=(
+            artifacts/PawmmitFlatpak/*.flatpak
+            artifacts/PawmmitAppImage/Pawmmit*.AppImage
+            "artifacts/Pawmmit win64"/Pawmmit-*.exe
+            "artifacts/Pawmmit macos"/Pawmmit-*.dmg
+          )
+          if [ ${#files[@]} -eq 0 ]; then echo "No assets."; exit 1; fi
+          if ! gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release create "$TAG" --repo "${{ github.repository }}" \
+              --title "Pawmmit ${{ steps.version.outputs.VERSION }}" --target "${{ github.sha }}" "${files[@]}"
+          else
+            gh release upload "$TAG" "${files[@]}" --repo "${{ github.repository }}" --clobber
+          fi
