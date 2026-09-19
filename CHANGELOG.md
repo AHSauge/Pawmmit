@@ -1,3 +1,23 @@
+Version 0.1.2
+-------------
+Released: 2026-09-19
+
+Features:
+ * Add CI unit testing for macOS
+ * Add smoke testing for Linux, macOS and Windows
+
+Bugfix:
+ * Fix packaging issues for macOS
+ * Fix misc. issues causing flaky CI pipeline
+ * Fix several issues related file updates being missed
+
+Version 0.1.1
+-------------
+Released: 2026-09-19
+
+Bugfix:
+ * Fix packaging issues for AppImage and Windows
+
 Version 0.1.0
 -------------
 Released: 2026-09-18
