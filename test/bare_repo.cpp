@@ -69,7 +69,7 @@ void TestBareRepo::initTestCase() {
   cloneDialog->setField("name", "test_bare_repo");
   cloneDialog->setField("path", QDir::tempPath());
   cloneDialog->setField("bare", true);
-  qWait(2000);
+  QTRY_VERIFY(cloneDialog->button(QWizard::FinishButton)->isEnabled());
   Debug(cloneDialog->field("bare").toBool());
 
   // Click return.

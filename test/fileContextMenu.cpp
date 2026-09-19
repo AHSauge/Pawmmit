@@ -160,7 +160,9 @@ void TestFileContextMenu::testDiscardSubmodule() {
   QVERIFY(button->isEnabled());
   emit button->clicked(true);
 
-  QTest::qWait(10); // Wait until submodule discarded
+  // The submodule is discarded asynchronously, followed by a refresh.
+  QTRY_VERIFY_WITH_TIMEOUT(!repoView->isBusy() && !repoView->isLoading(),
+                           10000);
 
   // original text
   //  {"file.txt", "File.txt\n"},

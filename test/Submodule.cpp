@@ -84,11 +84,7 @@ void TestSubmodule::updateSubmoduleClone() {
   d->setField("bare", "false");
   d->page(2)->initializePage(); // start clone
 
-  {
-    auto timeout = Timeout(10e3, "Failed to clone");
-    while (!cloneFinished)
-      qWait(300);
-  }
+  QTRY_VERIFY_WITH_TIMEOUT(cloneFinished, 10000);
 
   QVERIFY(view);
   QCOMPARE(view->repo().submodules().count(), 1);
@@ -136,11 +132,7 @@ void TestSubmodule::noUpdateSubmoduleClone() {
   d->setField("bare", "false");
   d->page(2)->initializePage(); // start clone
 
-  {
-    auto timeout = Timeout(10e3, "Failed to clone");
-    while (!cloneFinished)
-      qWait(300);
-  }
+  QTRY_VERIFY_WITH_TIMEOUT(cloneFinished, 10000);
 
   QVERIFY(view);
   QCOMPARE(view->repo().submodules().count(), 1);
@@ -160,8 +152,9 @@ void TestSubmodule::discardFile() {
   INIT_REPO("SubmoduleTest.zip");
   repoView->updateSubmodules(repo.submodules(), true, true);
 
-  qWait(1000); // Not needed if the test is long enough and the fetch operation
-               // finishes
+  // The update also starts a refresh, which must finish before files change.
+  QTRY_VERIFY_WITH_TIMEOUT(!repoView->isBusy() && !repoView->isLoading(),
+                           10000);
 
   QCOMPARE(repo.submodules().count(), 1);
   for (const auto &submodule : repo.submodules())
@@ -197,10 +190,10 @@ void TestSubmodule::discardFile() {
     auto unstagedTree = doubleTree->findChild<TreeView *>("Unstaged");
     QVERIFY(unstagedTree);
     QAbstractItemModel *unstagedModel = unstagedTree->model();
-    auto timeout = Timeout(10000, "Repository didn't refresh in time");
-    while (unstagedModel->rowCount() < 2 ||
-           unstagedModel->data(unstagedModel->index(1, 0)) != "README.md")
-      qWait(300);
+    QTRY_VERIFY_WITH_TIMEOUT(
+        unstagedModel->rowCount() >= 2 &&
+            unstagedModel->data(unstagedModel->index(1, 0)) == "README.md",
+        10000);
   }
 
   {

@@ -122,12 +122,8 @@ void TestInitRepo::addFile() {
 
   QAbstractItemModel *model = files->model();
 
-  {
-    // Wait for refresh
-    auto timeout = Timeout(10000, "Repository didn't refresh in time");
-    while (model->rowCount() < 1)
-      qWait(300);
-  }
+  // Wait for refresh
+  QTRY_VERIFY_WITH_TIMEOUT(model->rowCount() >= 1, 10000);
 
   QCOMPARE(model->rowCount(), 1);
   QCOMPARE(model->data(model->index(0, 0)).toString(), QString("test"));
@@ -159,14 +155,7 @@ void TestInitRepo::amendCommit() {
   dialog->findChild<QTextEdit *>()->setText("Some other commit message");
   dialog->accept();
 
-  qWait(300);
-
-  {
-    auto timeout =
-        Timeout(10000, "Repository didn't detect status change in time");
-    while (!finished)
-      qWait(300);
-  }
+  QTRY_VERIFY_WITH_TIMEOUT(finished, 10000);
 
   // Verify commit amended
   CommitList *commitList = view->findChild<CommitList *>();
@@ -198,12 +187,8 @@ void TestInitRepo::editFile() {
   // asynchronously, so it may not exist yet right after selecting the
   // file.
   QToolButton *edit = nullptr;
-  {
-    auto timeout = Timeout(10000, "Diff didn't finish loading in time");
-    while (!(edit = diff->findChild<QToolButton *>("EditButton")))
-      qWait(300);
-  }
-  QVERIFY(edit);
+  QTRY_VERIFY_WITH_TIMEOUT(
+      (edit = diff->findChild<QToolButton *>("EditButton")), 10000);
 
   // Set up timer to dismiss the popup.
   QTimer::singleShot(500, [] {

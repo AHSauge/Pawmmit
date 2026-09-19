@@ -53,11 +53,7 @@ void TestReferenceList::test() {
   d->setField("bare", "false");
   d->page(2)->initializePage(); // start clone
 
-  {
-    auto timeout = Timeout(1000e3, "Failed to clone");
-    while (!cloneFinished)
-      qWait(300);
-  }
+  QTRY_VERIFY_WITH_TIMEOUT(cloneFinished, 1000000);
   QVERIFY(view);
   git::Repository repo = view->repo();
   QVERIFY(repo.isValid());

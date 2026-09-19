@@ -191,16 +191,15 @@ void TestMerge::resolve() {
 
   // Wait for refresh
   QAbstractItemModel *model = files->model();
-  qWait(1000); // Because before the merge, there is already an item in the
-               // unstaged model
-  while (model->rowCount() < 1)
-    qWait(300);
+  QTRY_VERIFY_WITH_TIMEOUT(model->rowCount() >= 1, 10000);
 
   files->selectionModel()->select(files->model()->index(0, 0),
                                   QItemSelectionModel::Select);
 
-  QToolButton *theirs = diffView->findChild<QToolButton *>("ConflictTheirs");
-  QVERIFY(theirs);
+  // The diff loads asynchronously, so the buttons don't exist right away.
+  QToolButton *theirs = nullptr;
+  QTRY_VERIFY_WITH_TIMEOUT(
+      (theirs = diffView->findChild<QToolButton *>("ConflictTheirs")), 10000);
   mouseClick(theirs, Qt::LeftButton, Qt::KeyboardModifiers(), QPoint(),
              inputDelay);
 
@@ -224,10 +223,8 @@ void TestMerge::resolve() {
 
   DetailView *detailView = view->findChild<DetailView *>();
   QPushButton *stageAll = nullptr;
-  while (stageAll == nullptr) {
-    stageAll = detailView->findChild<QPushButton *>("StageAll");
-    qWait(100);
-  }
+  QTRY_VERIFY_WITH_TIMEOUT(
+      (stageAll = detailView->findChild<QPushButton *>("StageAll")), 10000);
   mouseClick(stageAll, Qt::LeftButton, Qt::KeyboardModifiers(), QPoint(),
              inputDelay);
 
