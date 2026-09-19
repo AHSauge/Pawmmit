@@ -253,9 +253,8 @@ void TestRebase::conflictingRebase() {
   QCOMPARE(rebaseConflict, 1);
 
   // Check that buttons are visible
-  QTest::qWait(100);
-  QCOMPARE(continueRebaseButton->isVisible(), true);
-  QCOMPARE(abortRebaseButton->isVisible(), true);
+  QTRY_COMPARE(continueRebaseButton->isVisible(), true);
+  QTRY_COMPARE(abortRebaseButton->isVisible(), true);
 
   // Resolve conflicts
   diff = mRepo.status(mRepo.index(), nullptr, false);
@@ -299,11 +298,9 @@ void TestRebase::conflictingRebase() {
   // Check that rebase was really finished
   QCOMPARE(mRepo.rebaseOngoing(), false);
 
-  QTest::qWait(100); // Wait until refresh finished
-
   // Check that buttons are visible
-  QCOMPARE(continueRebaseButton->isVisible(), false);
-  QCOMPARE(abortRebaseButton->isVisible(), false);
+  QTRY_COMPARE(continueRebaseButton->isVisible(), false);
+  QTRY_COMPARE(abortRebaseButton->isVisible(), false);
 
   // Check call counters
   QCOMPARE(rebaseFinished, 1);
@@ -388,11 +385,9 @@ void TestRebase::conflictingRebaseCustomMessage() {
   // Check that rebase was really finished
   QCOMPARE(mRepo.rebaseOngoing(), false);
 
-  QTest::qWait(100); // Wait until refresh finished
-
   // Check that buttons are visible
-  QCOMPARE(continueRebaseButton->isVisible(), false);
-  QCOMPARE(abortRebaseButton->isVisible(), false);
+  QTRY_COMPARE(continueRebaseButton->isVisible(), false);
+  QTRY_COMPARE(abortRebaseButton->isVisible(), false);
 }
 
 void TestRebase::continueExternalStartedRebase() {
@@ -759,9 +754,8 @@ void TestRebase::abortMR() {
   QCOMPARE(rebaseConflict, 1);
 
   // Check that buttons are visible
-  QTest::qWait(100);
-  QCOMPARE(continueRebaseButton->isVisible(), true);
-  QCOMPARE(abortRebaseButton->isVisible(), true);
+  QTRY_COMPARE(continueRebaseButton->isVisible(), true);
+  QTRY_COMPARE(abortRebaseButton->isVisible(), true);
 
   refreshTriggered = 0;
   rebaseConflict = 0;
@@ -771,12 +765,9 @@ void TestRebase::abortMR() {
   // Check that rebase was really finished
   QCOMPARE(mRepo.rebaseOngoing(), false);
 
-  QTest::qWait(1000); // wait until detailview will be updated, after updating
-                      // status is finished
-
   // Check that buttons are visible
-  QCOMPARE(continueRebaseButton->isVisible(), false);
-  QCOMPARE(abortRebaseButton->isVisible(), false);
+  QTRY_COMPARE(continueRebaseButton->isVisible(), false);
+  QTRY_COMPARE(abortRebaseButton->isVisible(), false);
 
   // Check call counters
   QCOMPARE(rebaseFinished, 0);
@@ -867,9 +858,8 @@ void TestRebase::commitDuringRebase() {
   QCOMPARE(rebaseConflict, 1);
 
   // Check that buttons are visible
-  QTest::qWait(100);
-  QCOMPARE(continueRebaseButton->isVisible(), true);
-  QCOMPARE(abortRebaseButton->isVisible(), true);
+  QTRY_COMPARE(continueRebaseButton->isVisible(), true);
+  QTRY_COMPARE(abortRebaseButton->isVisible(), true);
 
   // Resolve conflicts
   diff = mRepo.status(mRepo.index(), nullptr, false);
@@ -916,11 +906,9 @@ void TestRebase::commitDuringRebase() {
   // Check that rebase was really finished
   QCOMPARE(mRepo.rebaseOngoing(), false);
 
-  QTest::qWait(10); // Wait until refresh is finished
-
   // Check that buttons are visible
-  QCOMPARE(continueRebaseButton->isVisible(), false);
-  QCOMPARE(abortRebaseButton->isVisible(), false);
+  QTRY_COMPARE(continueRebaseButton->isVisible(), false);
+  QTRY_COMPARE(abortRebaseButton->isVisible(), false);
 
   // Check call counters
   QCOMPARE(rebaseFinished, 1);
