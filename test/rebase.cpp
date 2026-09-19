@@ -51,25 +51,6 @@
   RepoView *repoView = window.currentView();                                   \
   auto diff = mRepo.status(mRepo.index(), nullptr, false);
 
-#ifndef GIT_EXECUTABLE
-#error                                                                         \
-    "To execute those tests it is neccessary to have git installed on your computer. Turn off tests or exclude this test to build the project"
-#endif
-
-#define EXECUTE_GIT_COMMAND(workdir, arguments, expectedExitCode)              \
-  {                                                                            \
-    QProcess p(this);                                                          \
-    p.setWorkingDirectory(workdir);                                            \
-    QString bash = git::Command::bashPath();                                   \
-    QVERIFY(!bash.isEmpty());                                                  \
-    QString command = QString(GIT_EXECUTABLE) + " " + arguments;               \
-    QStringList a = {"-c", command};                                           \
-    p.start(bash, a);                                                          \
-    p.waitForStarted();                                                        \
-    QCOMPARE(p.waitForFinished(), true);                                       \
-    QCOMPARE(p.exitCode(), expectedExitCode);                                  \
-  }
-
 using namespace git;
 
 class TestRebase : public QObject {

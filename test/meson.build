@@ -1,12 +1,11 @@
 qt_test_dep = dependency('qt6', modules: ['Test'])
 zip_dep = dependency('zip')  # kuba--/zip, via subprojects/zip.wrap
 
-# SSH_CONFIG and GIT_EXECUTABLE are used by the individual tests too, so they
+# SSH_CONFIG is used by the individual tests too, so they
 # have to propagate; TESTREPOSITORIES_PATH is only read by Test.cpp.
 # NOTE: Slash conversion needed for MSVC
 testlib_public_args = [
     '-DSSH_CONFIG="' + meson.current_source_dir().replace('\\', '/') + '"',
-    '-DGIT_EXECUTABLE="' + find_program('git').full_path().replace('\\', '/') + '"',
 ]
 
 # Qt's test headers hide keyClick, qWaitForWindowActive and friends unless the
