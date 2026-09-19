@@ -1,7 +1,7 @@
 project(
     'pawmmit',
     ['cpp', 'c'],
-    version: '0.1.0',
+    version: '0.1.2',
     meson_version: '>= 1.3',
     # buildtype=release alone doesn't define NDEBUG, but confDir()/l10nDir()
     # need it to prefer installed paths. The fallback Lua would otherwise be a
