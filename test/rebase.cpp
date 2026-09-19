@@ -26,7 +26,6 @@
 #include "git/Commit.h"
 #include "git/Tree.h"
 #include "git/Patch.h"
-#include "git/Command.h"
 
 #include "log/LogEntry.h"
 
@@ -62,13 +61,18 @@ private slots:
   void conflictingRebaseCustomMessage();
   void continueExternalStartedRebase(); // must have conflicts otherwise it is
                                         // not possible to continue
-  void startRebaseContinueInCLI();
-  void startRebaseContinueInCLIContinueGUI(); // start rebase, continue in the
-                                              // cli and finish in the GUI
+  void startRebaseContinueExternally();
+  void startRebaseContinueExternallyContinueGUI(); // start rebase, commit
+                                                   // externally and finish in
+                                                   // the GUI
   void abortMR();
   void commitDuringRebase();
 
 private:
+  void startExternalRebase(git::Repository &external);
+  void startGuiRebase(RepoView *repoView);
+  void resolveConflict(git::Repository &repo);
+
   git::Repository mRepo;
 };
 
@@ -371,293 +375,198 @@ void TestRebase::conflictingRebaseCustomMessage() {
   QTRY_COMPARE(abortRebaseButton->isVisible(), false);
 }
 
+// A second handle on the repository has its own notifier, so the GUI only
+// sees its changes after a refresh, like with an external tool.
+void TestRebase::startExternalRebase(git::Repository &external) {
+  git::Reference branch = external.lookupRef("refs/heads/singleCommitConflict");
+  QVERIFY(branch.isValid());
+  QVERIFY(external.checkout(branch.target()));
+  QVERIFY(external.setHead(branch));
+
+  git::Reference mainBranch = external.lookupRef("refs/heads/main");
+  QVERIFY(mainBranch.isValid());
+  external.rebase(mainBranch.annotatedCommit());
+  QVERIFY(external.rebaseOngoing());
+}
+
+void TestRebase::startGuiRebase(RepoView *repoView) {
+  git::Reference branch = mRepo.lookupRef("refs/heads/singleCommitConflict");
+  QVERIFY(branch.isValid());
+  repoView->checkout(branch);
+
+  QTest::qWait(100);
+
+  git::Reference mainBranch = mRepo.lookupRef("refs/heads/main");
+  QVERIFY(mainBranch.isValid());
+  LogEntry *entry = repoView->addLogEntry("Rebase", "Rebase", nullptr);
+  repoView->rebase(mainBranch.annotatedCommit(), entry);
+  QCOMPARE(mRepo.rebaseOngoing(), true);
+}
+
+void TestRebase::resolveConflict(git::Repository &repo) {
+  auto status = repo.status(repo.index(), nullptr, false);
+  QCOMPARE(status.count(), 1);
+  QCOMPARE(status.patch(0).isConflicted(), true);
+
+  const QString name = status.patch(0).name();
+  QFile f(repo.workdir().filePath(name));
+  QCOMPARE(f.open(QIODevice::WriteOnly), true);
+  QVERIFY(f.write("Test123") != -1); // just write something to resolve it
+  f.close();
+
+  repo.index().setStaged({name}, true);
+}
+
 void TestRebase::continueExternalStartedRebase() {
-  //    INIT_REPO("rebaseConflicts.zip");
+  INIT_REPO("rebaseConflicts.zip");
 
-  //    QCOMPARE(repoView->isRebaseContinueVisible(), false);
-  //    QCOMPARE(repoView->isRebaseAbortVisible(), false);
+  auto *detailview = repoView->findChild<DetailView *>();
+  QVERIFY(detailview);
+  auto *abortRebaseButton = detailview->findChild<QPushButton *>("AbortRebase");
+  QVERIFY(abortRebaseButton);
+  auto *continueRebaseButton =
+      detailview->findChild<QPushButton *>("ContinueRebase");
+  QVERIFY(continueRebaseButton);
+  QCOMPARE(continueRebaseButton->isVisible(), false);
+  QCOMPARE(abortRebaseButton->isVisible(), false);
 
-  //    int rebaseFinished = 0;
-  //    int rebaseAboutToRebase = 0;
-  //    int rebaseCommitSuccess = 0;
-  //    int rebaseConflict = 0;
-  //    int refreshTriggered = 0;
-  //    int workdirChangeTriggered = 0;
-  //    int referenceUpdated = 0;
+  int rebaseFinished = 0;
+  int rebaseAboutToRebase = 0;
+  int rebaseCommitSuccess = 0;
+  int rebaseConflict = 0;
 
-  //    connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseInitError,
-  //    [](){QVERIFY(false);});  // Should not be called
-  //    connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseAboutToRebase,
-  //    [&rebaseAboutToRebase](const Rebase rebase, const Commit before, int
-  //    count){
-  //        QVERIFY(rebase.isValid());
-  //        QCOMPARE(count, 1);
-  //        QCOMPARE(before.message(), "File.txt changed by second branch\n");
-  //        rebaseAboutToRebase++;
-  //    });
-  //    connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseCommitInvalid,
-  //    [](){QVERIFY(false);}); // Should not be called
-  //    connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseFinished,
-  //    [&rebaseFinished](){rebaseFinished++;}); connect(mRepo.notifier(),
-  //    &git::RepositoryNotifier::rebaseCommitSuccess,
-  //    [&rebaseCommitSuccess](const Rebase rebase, const Commit before, const
-  //    Commit after, int counter) {
-  //        QVERIFY(rebase.isValid());
-  //        rebaseCommitSuccess++;
-  //    });
-  //    connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseConflict, [=,
-  //    &rebaseConflict, &rebaseCommitSuccess](){
-  //        QCOMPARE(rebaseCommitSuccess, 0); // was not called yet
-  //        rebaseConflict++;
-  //    });
+  connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseInitError,
+          []() { QVERIFY(false); }); // Should not be called
+  connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseAboutToRebase,
+          [&rebaseAboutToRebase]() { rebaseAboutToRebase++; });
+  connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseCommitInvalid,
+          []() { QVERIFY(false); }); // Should not be called
+  connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseFinished,
+          [&rebaseFinished]() { rebaseFinished++; });
+  connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseCommitSuccess,
+          [&rebaseCommitSuccess]() { rebaseCommitSuccess++; });
+  connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseConflict,
+          [&rebaseConflict]() { rebaseConflict++; });
 
-  //    connect(mRepo.notifier(), &RepositoryNotifier::referenceUpdated, [this,
-  //    &refreshTriggered](const Reference &ref) {
-  //        // TODO: enable
-  //        //QCOMPARE(ref, mRepo.head());
-  //        refreshTriggered++;
-  //    });
+  git::Repository external = git::Repository::open(path);
+  QVERIFY(external.isValid());
+  startExternalRebase(external);
+  Test::refresh(repoView); // The GUI is not notified of external changes
 
-  //    connect(mRepo.notifier(), &RepositoryNotifier::workdirChanged, [this,
-  //    &workdirChangeTriggered]() {
-  //        workdirChangeTriggered++;
-  //    });
+  QTRY_COMPARE(continueRebaseButton->isVisible(), true);
+  QTRY_COMPARE(abortRebaseButton->isVisible(), true);
 
-  //    connect(mRepo.notifier(), &RepositoryNotifier::referenceUpdated, [this,
-  //    &referenceUpdated]() {
+  resolveConflict(external);
+  Test::refresh(repoView);
 
-  //    });
+  repoView->continueRebase();
 
-  //    referenceUpdated = 0;
-  //    workdirChangeTriggered = 0;
-  //    EXECUTE_GIT_COMMAND(path, "checkout singleCommitConflict", 0) // this
-  //    should lead to an update of the tree
-  //    //QCOMPARE(referenceUpdated, 1);
-  //    EXECUTE_GIT_COMMAND(path, "rebase main", 1)
-  //    //QCOMPARE(referenceUpdated, 2);
-  //    Test::refresh(repoView); // TODO: must be called, because when changing
-  //    externally the repoView will not be notified
+  // Check that branch is based on "main" now
+  git::Reference branch = mRepo.lookupRef("refs/heads/singleCommitConflict");
+  QVERIFY(branch.isValid());
+  git::Reference mainBranch = mRepo.lookupRef("refs/heads/main");
+  QVERIFY(mainBranch.isValid());
+  QList<Commit> parents = branch.annotatedCommit().commit().parents();
+  QCOMPARE(parents.count(), 1);
+  QCOMPARE(parents.at(0).id(), mainBranch.annotatedCommit().commit().id());
 
-  ////    while (workdirChangeTriggered == 0)
-  ////        QTest::qWait(100);
+  QCOMPARE(mRepo.rebaseOngoing(), false);
+  QTRY_COMPARE(continueRebaseButton->isVisible(), false);
+  QTRY_COMPARE(abortRebaseButton->isVisible(), false);
 
-  //    // TODO: currently rebaseOpen does not detect an interactive rebase
-  //    // Fix was merged to libgit2 with
-  //    https://github.com/libgit2/libgit2/pull/6334
-  //    // So update of libgit2 is needed
-  //    // TODO: turn on again
-  //    //QCOMPARE(repoView->isRebaseContinueVisible(), true);
-  //    //QCOMPARE(repoView->isRebaseAbortVisible(), true);
-
-  //    diff = mRepo.status(mRepo.index(), nullptr, false);
-  //    QCOMPARE(diff.count(), 1);
-  //    QCOMPARE(diff.patch(0).isConflicted(), true);
-  //    QFile f(mRepo.workdir().filePath(diff.patch(0).name()));
-  //    QCOMPARE(f.open(QIODevice::WriteOnly), true);
-  //    QVERIFY(f.write("Test123") != -1); // just write something to resolve
-  //    the conflict f.close();
-
-  //    // TODO: currently not possible, because no interactive rebase is
-  //    detected. Libgit2 must be updated to a newer version
-  //    repoView->continueRebase();
-
-  //    QCOMPARE(rebaseFinished, 1);
-  //    QCOMPARE(rebaseAboutToRebase, 1);
-  //    QCOMPARE(rebaseCommitSuccess, 1);
-  //    QCOMPARE(rebaseConflict, 0);
+  // Only the continue was done by the GUI
+  QCOMPARE(rebaseFinished, 1);
+  QCOMPARE(rebaseAboutToRebase, 0);
+  QCOMPARE(rebaseCommitSuccess, 1);
+  QCOMPARE(rebaseConflict, 0);
 }
 
-void TestRebase::startRebaseContinueInCLI() {
-  //    // Check that GUI is updated correctly
-  //    INIT_REPO("rebaseConflicts.zip");
+void TestRebase::startRebaseContinueExternally() {
+  INIT_REPO("rebaseConflicts.zip");
 
-  //    int rebaseFinished = 0;
-  //    int rebaseAboutToRebase = 0;
-  //    int rebaseCommitSuccess = 0;
-  //    int rebaseConflict = 0;
-  //    int refreshTriggered = 0;
+  auto *detailview = repoView->findChild<DetailView *>();
+  QVERIFY(detailview);
+  auto *abortRebaseButton = detailview->findChild<QPushButton *>("AbortRebase");
+  QVERIFY(abortRebaseButton);
+  auto *continueRebaseButton =
+      detailview->findChild<QPushButton *>("ContinueRebase");
+  QVERIFY(continueRebaseButton);
 
-  //    connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseInitError,
-  //    [](){QVERIFY(false);});  // Should not be called
-  //    connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseAboutToRebase,
-  //    [&rebaseAboutToRebase](const Rebase rebase, const Commit before, int
-  //    count){
-  //        QVERIFY(rebase.isValid());
-  //        QCOMPARE(count, 1);
-  //        QCOMPARE(before.message(), "File.txt changed by second branch\n");
-  //        rebaseAboutToRebase++;
-  //    });
-  //    connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseCommitInvalid,
-  //    [](){QVERIFY(false);}); // Should not be called
-  //    connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseFinished,
-  //    [&rebaseFinished](){rebaseFinished++;}); connect(mRepo.notifier(),
-  //    &git::RepositoryNotifier::rebaseCommitSuccess,
-  //    [&rebaseCommitSuccess](const Rebase rebase, const Commit before, const
-  //    Commit after, int counter) {
-  //        QVERIFY(rebase.isValid());
-  //        rebaseCommitSuccess++;
-  //    });
-  //    connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseConflict,
-  //    [&rebaseConflict, &rebaseCommitSuccess](){
-  //        QCOMPARE(rebaseCommitSuccess, 0); // was not called yet
-  //        rebaseConflict++;
-  //    });
+  int rebaseConflict = 0;
+  connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseInitError,
+          []() { QVERIFY(false); }); // Should not be called
+  connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseCommitInvalid,
+          []() { QVERIFY(false); }); // Should not be called
+  connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseConflict,
+          [&rebaseConflict]() { rebaseConflict++; });
 
-  //    connect(mRepo.notifier(), &RepositoryNotifier::referenceUpdated, [this,
-  //    &refreshTriggered](const Reference &ref) {
-  //        // TODO: enable
-  //        //QCOMPARE(ref, mRepo.head());
-  //        refreshTriggered++;
-  //    });
+  startGuiRebase(repoView);
+  QCOMPARE(rebaseConflict, 1);
+  QTRY_COMPARE(continueRebaseButton->isVisible(), true);
+  QTRY_COMPARE(abortRebaseButton->isVisible(), true);
 
-  //    const QString rebaseBranchName = "refs/heads/singleCommitConflict";
+  git::Repository external = git::Repository::open(path);
+  QVERIFY(external.isValid());
+  resolveConflict(external);
+  git::Rebase rebase = external.rebaseOpen();
+  QVERIFY(rebase.isValid());
+  external.rebaseContinue(rebase.commitToRebase().message());
+  QCOMPARE(external.rebaseOngoing(), false);
 
-  //    git::Reference branch = mRepo.lookupRef(rebaseBranchName);
-  //    QVERIFY(branch.isValid());
-  //    auto c = branch.annotatedCommit().commit();
+  Test::refresh(repoView, false); // The GUI is not notified of external changes
 
-  //    // Checkout correct branch
-  //    repoView->checkout(branch);
-
-  //    // Rebase on main
-  //    git::Reference mainBranch = mRepo.lookupRef(QString("refs/heads/main"));
-  //    QVERIFY(mainBranch.isValid());
-  //    auto ac = mainBranch.annotatedCommit();
-  //    refreshTriggered = 0;
-  //    LogEntry *entry = repoView->addLogEntry("Rebase", "Rebase", nullptr);
-  //    repoView->rebase(ac, entry);
-  //    QCOMPARE(refreshTriggered, 1); // Check that refresh was triggered
-
-  //    QCOMPARE(mRepo.rebaseOngoing(), true);
-  //    QCOMPARE(rebaseFinished, 0);
-  //    QCOMPARE(rebaseConflict, 1);
-
-  //    QTest::qWait(100); // Needed otherwise it is not refreshed and therefore
-  //    the buttons are not updated
-  //    QCOMPARE(repoView->isRebaseContinueVisible(), true);
-  //    QCOMPARE(repoView->isRebaseAbortVisible(), true);
-
-  //    //Test::refresh(repoView); // TODO: should not be needed!
-
-  //    // Solve conflict
-  //    diff = mRepo.status(mRepo.index(), nullptr, false);
-  //    QCOMPARE(diff.count(), 1);
-  //    QCOMPARE(diff.patch(0).isConflicted(), true);
-  //    QFile f(mRepo.workdir().filePath(diff.patch(0).name()));
-  //    QCOMPARE(f.open(QIODevice::WriteOnly), true);
-  //    QVERIFY(f.write("Test123") != -1); // just write something to resolve
-  //    the conflict f.close();
-
-  //    EXECUTE_GIT_COMMAND(path, "rebase --continue", 1)
-
-  //    Test::refresh(repoView);  // TODO: must be called, because when changing
-  //    externally the repoView will not be notified. QTest::qWait(100);
-
-  //    // Does not work, because libgit2 does not detect interactive rebases
-  //    QCOMPARE(repoView->isRebaseContinueVisible(), false);
-  //    QCOMPARE(repoView->isRebaseAbortVisible(), false);
-
-  //    // Check that rebase was really finished
-  //    QCOMPARE(mRepo.rebaseOngoing(), false);
+  QCOMPARE(mRepo.rebaseOngoing(), false);
+  QTRY_COMPARE(continueRebaseButton->isVisible(), false);
+  QTRY_COMPARE(abortRebaseButton->isVisible(), false);
 }
 
-void TestRebase::startRebaseContinueInCLIContinueGUI() {
-  //    // Check that GUI is updated correctly
+void TestRebase::startRebaseContinueExternallyContinueGUI() {
+  INIT_REPO("rebaseConflicts.zip");
 
-  //    INIT_REPO("rebaseConflicts.zip");
+  auto *detailview = repoView->findChild<DetailView *>();
+  QVERIFY(detailview);
+  auto *abortRebaseButton = detailview->findChild<QPushButton *>("AbortRebase");
+  QVERIFY(abortRebaseButton);
+  auto *continueRebaseButton =
+      detailview->findChild<QPushButton *>("ContinueRebase");
+  QVERIFY(continueRebaseButton);
 
-  //    QCOMPARE(repoView->isRebaseContinueVisible(), false);
-  //    QCOMPARE(repoView->isRebaseAbortVisible(), false);
+  int rebaseFinished = 0;
+  int rebaseConflict = 0;
+  connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseInitError,
+          []() { QVERIFY(false); }); // Should not be called
+  connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseCommitInvalid,
+          []() { QVERIFY(false); }); // Should not be called
+  connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseFinished,
+          [&rebaseFinished]() { rebaseFinished++; });
+  connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseConflict,
+          [&rebaseConflict]() { rebaseConflict++; });
 
-  //    int rebaseFinished = 0;
-  //    int rebaseAboutToRebase = 0;
-  //    int rebaseCommitSuccess = 0;
-  //    int rebaseConflict = 0;
-  //    int refreshTriggered = 0;
-  //    int workdirChangeTriggered = 0;
+  startGuiRebase(repoView);
+  QCOMPARE(rebaseFinished, 0);
+  QCOMPARE(rebaseConflict, 1);
+  QTRY_COMPARE(continueRebaseButton->isVisible(), true);
+  QTRY_COMPARE(abortRebaseButton->isVisible(), true);
 
-  //    connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseInitError,
-  //    [=](){QVERIFY(false);});  // Should not be called
-  //    connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseAboutToRebase,
-  //    [=, &rebaseAboutToRebase](const Rebase rebase, const Commit before, int
-  //    count){
-  //        QVERIFY(rebase.isValid());
-  //        QCOMPARE(count, 1);
-  //        QCOMPARE(before.message(), "File.txt changed by second branch\n");
-  //        rebaseAboutToRebase++;
-  //    });
-  //    // TODO: = needed?
-  //    connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseCommitInvalid,
-  //    [=](){QVERIFY(false);}); // Should not be called
-  //    connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseFinished, [=,
-  //    &rebaseFinished](){rebaseFinished++;}); connect(mRepo.notifier(),
-  //    &git::RepositoryNotifier::rebaseCommitSuccess, [=,
-  //    &rebaseCommitSuccess](const Rebase rebase, const Commit before, const
-  //    Commit after, int counter) {
-  //        QVERIFY(rebase.isValid());
-  //        rebaseCommitSuccess++;
-  //    });
-  //    connect(mRepo.notifier(), &git::RepositoryNotifier::rebaseConflict, [=,
-  //    &rebaseConflict, &rebaseCommitSuccess](){
-  //        QCOMPARE(rebaseCommitSuccess, 0); // was not called yet
-  //        rebaseConflict++;
-  //    });
+  // Commit the conflicting step but leave finishing the rebase open
+  git::Repository external = git::Repository::open(path);
+  QVERIFY(external.isValid());
+  resolveConflict(external);
+  git::Rebase rebase = external.rebaseOpen();
+  QVERIFY(rebase.isValid());
+  QVERIFY(rebase.commit(rebase.commitToRebase().message()).isValid());
+  QCOMPARE(external.rebaseOngoing(), true);
 
-  //    connect(mRepo.notifier(), &RepositoryNotifier::referenceUpdated, [this,
-  //    &refreshTriggered](const Reference &ref) {
-  //        // TODO: enable
-  //        //QCOMPARE(ref, mRepo.head());
-  //        refreshTriggered++;
-  //    });
+  Test::refresh(repoView, false); // The GUI is not notified of external changes
 
-  //    connect(mRepo.notifier(), &RepositoryNotifier::workdirChanged, [this,
-  //    &workdirChangeTriggered]() {
-  //        workdirChangeTriggered++;
-  //    });
+  QCOMPARE(mRepo.rebaseOngoing(), true);
 
-  //    const QString rebaseBranchName = "refs/heads/singleCommitConflict";
+  repoView->continueRebase();
 
-  //    git::Reference branch = mRepo.lookupRef(rebaseBranchName);
-  //    QVERIFY(branch.isValid());
-  //    auto c = branch.annotatedCommit().commit();
-
-  //    // Checkout correct branch
-  //    repoView->checkout(branch);
-
-  //    // Rebase on main
-  //    git::Reference mainBranch = mRepo.lookupRef(QString("refs/heads/main"));
-  //    QVERIFY(mainBranch.isValid());
-  //    auto ac = mainBranch.annotatedCommit();
-  //    refreshTriggered = 0;
-  //    LogEntry *entry = repoView->addLogEntry("Rebase", "Rebase", nullptr);
-  //    repoView->rebase(ac, entry);
-  //    QCOMPARE(refreshTriggered, 1); // Check that refresh was triggered
-
-  //    QCOMPARE(mRepo.rebaseOngoing(), true);
-  //    QCOMPARE(rebaseFinished, 0);
-  //    QCOMPARE(rebaseConflict, 1);
-
-  //    // Gui updated
-  //    QCOMPARE(repoView->isRebaseContinueVisible(), true);
-  //    QCOMPARE(repoView->isRebaseAbortVisible(), true);
-
-  //    // Solve conflict
-  //    QFile f(mRepo.workdir().filePath(diff.patch(0).name()));
-  //    QCOMPARE(f.open(QIODevice::WriteOnly), true);
-  //    QVERIFY(f.write("Test123") != -1); // just write something to resolve
-  //    the conflict f.close();
-
-  //    EXECUTE_GIT_COMMAND(path, "rebase --continue", 1)
-
-  //    workdirChangeTriggered = 0;
-  //    while (workdirChangeTriggered == 0)
-  //        QTest::qWait(100);
-
-  //    // TODO: another condition is needed, because there is no change in
-  //    those visible so
-  //    // it is not enough
-  //    QCOMPARE(repoView->isRebaseContinueVisible(), true);
-  //    QCOMPARE(repoView->isRebaseAbortVisible(), true);
+  QCOMPARE(rebaseFinished, 1);
+  QCOMPARE(mRepo.rebaseOngoing(), false);
+  QTRY_COMPARE(continueRebaseButton->isVisible(), false);
+  QTRY_COMPARE(abortRebaseButton->isVisible(), false);
 }
 
 void TestRebase::abortMR() {
