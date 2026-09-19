@@ -235,6 +235,11 @@ void TestRepositoryWatcher::trackedFileMatchingIgnoreRule() {
 }
 
 void TestRepositoryWatcher::untrackedFileMatchingIgnoreRule() {
+#ifdef Q_OS_MAC
+  QSKIP("FSEvents reports whole directories, so ignored files can't be told "
+        "apart");
+#endif
+
   QVERIFY(writeFile(mWorkdir.filePath("untracked.ign")));
   QVERIFY2(!mSpy->wait(kQuietMs),
            "notification for an ignored file that isn't tracked");
