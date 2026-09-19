@@ -273,22 +273,83 @@ jobs:
           sudo apt -y install appstream libfuse2 \
             libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 \
             libxcb-shape0 libxcb-cursor0 libxkbcommon0 libx11-xcb1 libxcb-shm0 libxcb-sync1 \
-            libxcb-util1 libxcb-xinerama0 libxcb-xinput0 libxcb-xkb1
+            libxcb-util1 libxcb-xinerama0 libxcb-xinput0 libxcb-xkb1 \
+            libwayland-client0 libwayland-cursor0 libwayland-egl1
 
           DESTDIR="$PWD/AppDir" meson install -C build
-
-          export QTDIR=${QT_ROOT_DIR:-$RUNNER_WORKSPACE/Qt/${{ matrix.qt.version }}/gcc_64}
-          export QT_ROOT_DIR=$QTDIR
           rm -rf ./AppDir/usr/include/
           strip ./AppDir/usr/bin/pawmmit ./AppDir/usr/bin/pawmmit-indexer ./AppDir/usr/bin/pawmmit-relauncher || true
 
-          wget -c "https://github.com/$(wget -q https://github.com/probonopd/go-appimage/releases/expanded_assets/continuous -O - | grep 'appimagetool-.*-x86_64.AppImage' | head -n 1 | cut -d '"' -f 2)"
-          chmod +x appimagetool-*.AppImage
-          QTDIR=$QTDIR ./appimagetool-*.AppImage -s deploy ./AppDir/usr/share/applications/*.desktop --appimage-extract-and-run
+          # Subproject libs (e.g. lua) only exist inside AppDir, not on the
+          # system lib path, so linuxdeploy can't resolve them without this.
+          # Prepend rather than overwrite: install-qt-action already put Qt's
+          # own lib dir in LD_LIBRARY_PATH, which linuxdeploy also needs.
+          export LD_LIBRARY_PATH="$(find "$PWD/AppDir" -name '*.so*' -printf '%h\n' | sort -u | paste -sd: -):${LD_LIBRARY_PATH:-}"
 
-          mv ./AppDir/lib64/ld-${{ matrix.env.ld_library_arch }}.so.2 ./AppDir/usr/bin/ || true
-          sed -i -e 's@^LD_LINUX.*@LD_LINUX=$(find "$HERE/usr/bin" -name "ld-*.so.*" | head -n 1)@g' ./AppDir/AppRun
-          VERSION="$(cat build/Version.txt)" ./appimagetool-*.AppImage ./AppDir
+          wget -c https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          wget -c https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          wget -c https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage linuxdeploy-plugin-qt-x86_64.AppImage linuxdeploy-plugin-appimage-x86_64.AppImage
+          export PATH="$PWD:$PATH"
+          export APPIMAGE_EXTRACT_AND_RUN=1
+          export VERSION="$(cat build/Version.txt)"
+          # linuxdeploy-plugin-qt only bundles libqxcb.so by default.
+          export EXTRA_PLATFORM_PLUGINS="libqwayland-generic.so;libqwayland-egl.so"
+          # appdata.xml currently fails strict AppStream validation (see PR/commit
+          # notes); skip it here rather than block every AppImage build on that.
+          export LDAI_NO_APPSTREAM=1
+
+          # Custom AppRun: exec's via the bundled glibc loader below instead of
+          # the kernel's own interpreter lookup, so the host's glibc version
+          # doesn't matter; still sources apprun-hooks like the default one.
+          printf '%s\n' \
+            '#!/bin/sh' \
+            'HERE="$(dirname "$(readlink -f "$0")")"' \
+            'for hook in "$HERE"/apprun-hooks/*.sh; do' \
+            '  [ -f "$hook" ] && . "$hook"' \
+            'done' \
+            'exec "$HERE/usr/lib/ld-linux-x86-64.so.2" "$HERE/usr/bin/pawmmit" "$@"' \
+            > ./AppRun.custom
+          chmod +x ./AppRun.custom
+
+          linuxdeploy-x86_64.AppImage \
+            --appdir ./AppDir \
+            --executable ./AppDir/usr/bin/pawmmit \
+            --desktop-file ./AppDir/usr/share/applications/com.github.Pawmmit.Pawmmit.desktop \
+            --icon-file ./AppDir/usr/share/icons/hicolor/256x256/apps/pawmmit.png \
+            --custom-apprun ./AppRun.custom \
+            --plugin qt
+
+          # EXTRA_PLATFORM_PLUGINS doesn't pull in wayland's graphics-integration
+          # plugins; copy them in and rerun the qt plugin to deploy their deps.
+          qt_plugins_dir="$(qmake -query QT_INSTALL_PLUGINS)"
+          if [ -d "$qt_plugins_dir/wayland-graphics-integration-client" ]; then
+            mkdir -p ./AppDir/usr/plugins/wayland-graphics-integration-client
+            cp "$qt_plugins_dir"/wayland-graphics-integration-client/*.so \
+              ./AppDir/usr/plugins/wayland-graphics-integration-client/
+            linuxdeploy-plugin-qt-x86_64.AppImage --appdir ./AppDir
+          fi
+
+          # Bundle glibc's loader and libraries so the AppImage isn't tied to
+          # this build machine's (very new) glibc version.
+          lib_dir="$(dirname "$(find ./AppDir -name 'libQt6Core.so*' | head -n1)")"
+          interp="$(readelf -p .interp ./AppDir/usr/bin/pawmmit | awk '/\[/{print $NF}')"
+          cp "$interp" "$lib_dir/ld-linux-x86-64.so.2"
+
+          targets="./AppDir/usr/bin/pawmmit ./AppDir/usr/bin/pawmmit-indexer ./AppDir/usr/bin/pawmmit-relauncher $(find ./AppDir -name '*.so*')"
+          for f in $targets; do
+            [ -f "$f" ] || continue
+            ldd "$f" 2>/dev/null
+          done | awk '/lib(c|m|dl|pthread|rt|resolv|nss_[a-z]+)(-[0-9.]+)?\.so/ {print $1, $3}' | sort -u |
+            while read -r name path; do
+              [ -f "$path" ] && [ ! -e "$lib_dir/$name" ] && cp "$path" "$lib_dir/"
+            done
+
+          # Package via the appimage plugin directly rather than through
+          # linuxdeploy's own --output appimage: that path re-runs its
+          # dependency/rpath/strip pass over the whole AppDir first, which
+          # corrupts the hand-bundled ld.so above.
+          linuxdeploy-plugin-appimage-x86_64.AppImage --appdir ./AppDir
 
       - name: Publish AppImage
         if: matrix.env.name == 'linux'

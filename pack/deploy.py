@@ -67,6 +67,17 @@ def deploy_windows():
         if h.exists():
             run(windeployqt, "--release", "--dir", PREFIX / "bin", h)
 
+    # windeployqt only bundles Qt, not libgit2's own vcpkg DLLs. Copy the
+    # whole vcpkg triplet bin dir so git2.dll/libssh2.dll etc. aren't missing.
+    vcpkg_prefix = os.environ.get("CMAKE_PREFIX_PATH")
+    if not vcpkg_prefix:
+        sys.exit("pack/deploy.py: CMAKE_PREFIX_PATH not set; can't find vcpkg's runtime DLLs")
+    vcpkg_bin = Path(vcpkg_prefix) / "bin"
+    if not vcpkg_bin.is_dir():
+        sys.exit(f"pack/deploy.py: {vcpkg_bin} not found")
+    for dll in vcpkg_bin.glob("*.dll"):
+        shutil.copy2(dll, PREFIX / "bin" / dll.name)
+
     shutil.copy2(SOURCE_ROOT / "rsrc" / "vcredist_x64.exe", PREFIX / "vcredist_x64.exe")
 
     nsi = PACK_DIR / "pawmmit.nsi"
