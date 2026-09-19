@@ -222,8 +222,6 @@ void TestRebase::conflictingRebase() {
   // Checkout correct branch
   repoView->checkout(branch);
 
-  QTest::qWait(100);
-
   // Rebase on main
   git::Reference mainBranch = mRepo.lookupRef(QString("refs/heads/main"));
   QVERIFY(mainBranch.isValid());
@@ -251,18 +249,14 @@ void TestRebase::conflictingRebase() {
           -1); // just write something to resolve the conflict
   f.close();
 
-  QTest::qWait(100);
-
   refreshTriggered = 0;
   repoView->continueRebase();  // should fail
   QCOMPARE(rebaseConflict, 2); // User tries to continue without staging
   QCOMPARE(refreshTriggered, 1);
 
-  QTest::qWait(100); // Wait until refresh is done
-
   // Staging the file
+  QTRY_COMPARE(repoView->findChildren<FileWidget *>().length(), 1);
   auto filewidgets = repoView->findChildren<FileWidget *>();
-  QCOMPARE(filewidgets.length(), 1);
   filewidgets.at(0)->stageStateChanged(filewidgets.at(0)->modelIndex(),
                                        git::Index::StagedState::Staged);
 
@@ -316,8 +310,6 @@ void TestRebase::conflictingRebaseCustomMessage() {
   // Checkout correct branch
   repoView->checkout(branch);
 
-  QTest::qWait(100);
-
   // Rebase on main
   git::Reference mainBranch = mRepo.lookupRef(QString("refs/heads/main"));
   QVERIFY(mainBranch.isValid());
@@ -328,7 +320,8 @@ void TestRebase::conflictingRebaseCustomMessage() {
   QCOMPARE(mRepo.rebaseOngoing(), true);
 
   // Check that buttons are visible
-  QTest::qWait(100);
+  QTRY_COMPARE(continueRebaseButton->isVisible(), true);
+  QTRY_COMPARE(abortRebaseButton->isVisible(), true);
 
   // Resolve conflicts
   diff = mRepo.status(mRepo.index(), nullptr, false);
@@ -340,15 +333,11 @@ void TestRebase::conflictingRebaseCustomMessage() {
           -1); // just write something to resolve the conflict
   f.close();
 
-  QTest::qWait(100);
-
   repoView->continueRebase(); // should fail
 
-  QTest::qWait(100); // Wait until refresh is done
-
   // Staging the file
+  QTRY_COMPARE(repoView->findChildren<FileWidget *>().length(), 1);
   auto filewidgets = repoView->findChildren<FileWidget *>();
-  QCOMPARE(filewidgets.length(), 1);
   filewidgets.at(0)->stageStateChanged(filewidgets.at(0)->modelIndex(),
                                        git::Index::StagedState::Staged);
 
@@ -393,8 +382,6 @@ void TestRebase::startGuiRebase(RepoView *repoView) {
   git::Reference branch = mRepo.lookupRef("refs/heads/singleCommitConflict");
   QVERIFY(branch.isValid());
   repoView->checkout(branch);
-
-  QTest::qWait(100);
 
   git::Reference mainBranch = mRepo.lookupRef("refs/heads/main");
   QVERIFY(mainBranch.isValid());
