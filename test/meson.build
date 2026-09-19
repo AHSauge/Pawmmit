@@ -9,6 +9,13 @@ testlib_public_args = [
     '-DGIT_EXECUTABLE="' + find_program('git').full_path().replace('\\', '/') + '"',
 ]
 
+# Qt's test headers hide keyClick, qWaitForWindowActive and friends unless the
+# module macros are defined, which the macOS Qt lookup doesn't do. This is a
+# suspected inconsistency in Meson's handling of Qt frameworks on macOS.
+if host_machine.system() == 'darwin'
+    testlib_public_args += ['-DQT_GUI_LIB', '-DQT_WIDGETS_LIB']
+endif
+
 testlib = static_library(
     'testlib',
     files('Test.cpp'),
@@ -65,6 +72,16 @@ endif
 test_env = environment()
 test_env.set('QT_QPA_PLATFORM', 'offscreen')
 
+# Meson adds no rpath for Qt frameworks, so the tests can't load them from the
+# build directory without one.
+test_rpath = ''
+if host_machine.system() == 'darwin' and _qtpaths.found()
+    _libs = run_command(_qtpaths, '--query', 'QT_INSTALL_LIBS', check: false)
+    if _libs.returncode() == 0
+        test_rpath = _libs.stdout().strip()
+    endif
+endif
+
 # Every test .cpp ends with #include "<name>.moc" except this one.
 tests_without_moc = ['Diff']
 
@@ -85,6 +102,7 @@ foreach name : tests
         cpp_args: app_public_args,
         link_whole: pawmmit_module_libs,
         dependencies: [testlib_dep] + pawmmit_link_deps,
+        build_rpath: test_rpath,
         build_by_default: false,
     )
     # fileContextMenu opens a real context menu, which doesn't work under
