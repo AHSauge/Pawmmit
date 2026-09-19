@@ -4,8 +4,15 @@ project(
     version: '0.1.0',
     meson_version: '>= 1.3',
     # buildtype=release alone doesn't define NDEBUG, but confDir()/l10nDir()
-    # need it to prefer installed paths.
-    default_options: ['cpp_std=c++17', 'c_std=c99', 'warning_level=1', 'b_ndebug=if-release'],
+    # need it to prefer installed paths. The fallback Lua would otherwise be a
+    # shared library that no packaging step bundles.
+    default_options: [
+        'cpp_std=c++17',
+        'c_std=c99',
+        'warning_level=1',
+        'b_ndebug=if-release',
+        'lua:default_library=static',
+    ],
 )
 
 qt6 = import('qt6')
