@@ -51,6 +51,9 @@ tests = [
     'Setting',
     'commitMessageTemplate',
     'commitEditor',
+    'RepositoryWatcher',
+    'RepoViewAutoRefresh',
+    'PathFilter',
 ]
 if host_machine.system() != 'windows'
     tests += 'Filter'

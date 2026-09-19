@@ -18,7 +18,7 @@ endif
 
 watcher_lib = static_library(
     'watcher',
-    files('RepositoryWatcher.cpp', watcher_impl) + watcher_moc,
+    files('PathFilter.cpp', 'RepositoryWatcher.cpp', watcher_impl) + watcher_moc,
     dependencies: watcher_deps,
 )
 
