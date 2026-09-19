@@ -98,6 +98,8 @@ public:
     watcher->watch();
 
     // Iterate over notifications.
+    bool changed = false;
+    bool other = false;
     const BYTE *ptr = buffer.constData();
     forever {
       const FILE_NOTIFY_INFORMATION *info =
@@ -106,20 +108,27 @@ public:
       int size = info->FileNameLength / sizeof(wchar_t);
       QString native = QString::fromWCharArray(info->FileName, size);
       QString path = QDir::fromNativeSeparators(native);
-      if (!path.isEmpty() && watcher->filter().isRelevant(path)) {
-        emit watcher->notificationReceived();
-        return;
+      if (!path.isEmpty()) {
+        PathFilter::Kind kind = watcher->filter().classify(path);
+        if (kind != PathFilter::Kind::Irrelevant) {
+          changed = true;
+          other = other || kind == PathFilter::Kind::Other;
+        }
       }
 
-      if (!info->NextEntryOffset)
-        return;
+      // Anything besides the index already settles it.
+      if (other || !info->NextEntryOffset)
+        break;
 
       ptr += info->NextEntryOffset;
     }
+
+    if (changed)
+      emit watcher->notificationReceived(!other);
   }
 
 signals:
-  void notificationReceived();
+  void notificationReceived(bool indexOnly);
 
 private:
   PathFilter mFilter;
@@ -134,7 +143,12 @@ public:
   WindowsRepositoryWatcher(const git::Repository &repo, QObject *parent)
       : RepositoryWatcher(repo, parent), mThread(repo) {
     connect(&mThread, &DirectoryChangesThread::notificationReceived, this,
-            &WindowsRepositoryWatcher::scheduleNotification);
+            [this](bool indexOnly) {
+              if (indexOnly)
+                scheduleIndexNotification();
+              else
+                scheduleNotification();
+            });
     mThread.start();
   }
 

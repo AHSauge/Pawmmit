@@ -577,9 +577,10 @@ void DoubleTreeWidget::loadSelection() {
         mDiffTreeModel->data(index, Qt::CheckStateRole).toInt());
   }
 
+  // A partially staged file is listed in both views, like in TreeProxy.
   if (!index.isValid() ||
-      (mSelectedFile.stagedModel && state != Qt::CheckState::Checked) ||
-      (!mSelectedFile.stagedModel && state != Qt::CheckState::Unchecked)) {
+      (mSelectedFile.stagedModel && state == Qt::CheckState::Unchecked) ||
+      (!mSelectedFile.stagedModel && state == Qt::CheckState::Checked)) {
     mSelectedFile.filename = "";
     if (mDiffTreeModel->rowCount() > 0) {
       index = mDiffTreeModel->index(0, 0);

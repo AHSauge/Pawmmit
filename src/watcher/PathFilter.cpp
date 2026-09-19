@@ -4,27 +4,60 @@
 
 #include "PathFilter.h"
 
-PathFilter::PathFilter(const git::Repository &repo)
-    : mWorkdir(repo.workdir()), mRepo(git::Repository::open(mWorkdir.path())) {
+namespace {
+
+// Whether `absolute` is `dir` or lies inside it; `relative` gets the remainder.
+bool isInside(const QDir &dir, const QString &absolute, QString &relative) {
+  relative = dir.relativeFilePath(absolute);
+  return relative == "." || !(relative == ".." || relative.startsWith("../") ||
+                              QDir::isAbsolutePath(relative));
+}
+
+// Only the git directory entries that change what the app shows.
+bool isRelevantInGitDir(const QString &path) {
+  if (path == "." || path == "refs" || path.startsWith("refs/"))
+    return !path.endsWith(".lock");
+
+  return path == "index" || path == "HEAD" || path == "packed-refs" ||
+         path == "MERGE_HEAD" || path == "CHERRY_PICK_HEAD" ||
+         path == "REVERT_HEAD";
+}
+
+} // namespace
+
+PathFilter::PathFilter(const git::Repository &repo, bool includeGitDir)
+    : mWorkdir(repo.workdir()), mGitDir(repo.dir()),
+      mIncludeGitDir(includeGitDir),
+      mRepo(git::Repository::open(mWorkdir.path())) {
   if (mRepo.isValid())
     mIndex = mRepo.index();
 }
 
-bool PathFilter::isRelevant(const QString &path) {
+PathFilter::Kind PathFilter::classify(const QString &path) {
   // Without a handle of our own, over-report rather than drop changes.
   if (!mRepo.isValid())
-    return true;
+    return Kind::Other;
 
-  // libgit2 expects workdir-relative paths.
-  QString relative =
-      QDir::isAbsolutePath(path) ? mWorkdir.relativeFilePath(path) : path;
-  if (!mRepo.isIgnored(relative))
-    return true;
+  QString absolute =
+      QDir::isAbsolutePath(path) ? path : mWorkdir.filePath(path);
+
+  QString inGitDir;
+  if (isInside(mGitDir, absolute, inGitDir)) {
+    if (!mIncludeGitDir || !isRelevantInGitDir(inGitDir))
+      return Kind::Irrelevant;
+
+    return inGitDir == "index" ? Kind::Index : Kind::Other;
+  }
+
+  // libgit2 expects workdir-relative paths, and calls "." ignored.
+  QString relative = mWorkdir.relativeFilePath(absolute);
+  if (relative == "." || !mRepo.isIgnored(relative))
+    return Kind::Other;
 
   // Ignore rules don't apply to tracked files.
   if (!mIndex.isValid())
-    return true;
+    return Kind::Other;
 
   mIndex.read();
-  return mIndex.isTracked(relative);
+  return mIndex.isTracked(relative) ? Kind::Other : Kind::Irrelevant;
 }

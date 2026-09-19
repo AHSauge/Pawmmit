@@ -26,7 +26,6 @@ const uint kFlags =
     (IN_ATTRIB | IN_CLOSE_WRITE | IN_CREATE | IN_DELETE | IN_DELETE_SELF |
      IN_MODIFY | IN_MOVED_FROM | IN_MOVED_TO | IN_MOVE_SELF);
 
-// `.git` is excluded by isIgnored().
 const QDir::Filters kFilters =
     (QDir::Dirs | QDir::Hidden | QDir::NoDotAndDotDot);
 
@@ -63,7 +62,13 @@ public:
 
   void run() override {
     // Watch the root directory.
-    watch(mRepo.workdir());
+    QDir workdir = mRepo.workdir();
+    watch(workdir);
+
+    // A git dir outside the workdir isn't reached by the recursion above.
+    QDir gitDir = mRepo.dir();
+    if (!gitDir.path().startsWith(workdir.path()))
+      watch(gitDir);
 
     // Start listening for notifications.
     forever {
@@ -87,7 +92,8 @@ public:
         continue;
 
       // Read notifications.
-      bool ignored = true;
+      bool changed = false;
+      bool other = false;
       forever {
         char buf[4096];
         int len = read(mFd, buf, sizeof(buf));
@@ -100,8 +106,10 @@ public:
           event = reinterpret_cast<inotify_event *>(ptr);
           if (event->len) {
             QString path = mWds.value(event->wd).filePath(event->name);
-            if (mFilter.isRelevant(path)) {
-              ignored = false;
+            PathFilter::Kind kind = mFilter.classify(path);
+            if (kind != PathFilter::Kind::Irrelevant) {
+              changed = true;
+              other = other || kind == PathFilter::Kind::Other;
 
               // Start watching new directories.
               uint32_t mask = (IN_CREATE | IN_ISDIR);
@@ -112,8 +120,8 @@ public:
         }
       }
 
-      if (!ignored)
-        emit notificationReceived();
+      if (changed)
+        emit notificationReceived(!other);
     }
   }
 
@@ -150,7 +158,7 @@ public:
   }
 
 signals:
-  void notificationReceived();
+  void notificationReceived(bool indexOnly);
 
 private:
   // Reports at most one error per watcher instance so a repository with
@@ -176,7 +184,12 @@ public:
   LinuxRepositoryWatcher(const git::Repository &repo, QObject *parent)
       : RepositoryWatcher(repo, parent), mThread(repo) {
     connect(&mThread, &InotifyThread::notificationReceived, this,
-            &LinuxRepositoryWatcher::scheduleNotification);
+            [this](bool indexOnly) {
+              if (indexOnly)
+                scheduleIndexNotification();
+              else
+                scheduleNotification();
+            });
     if (mThread.isValid())
       mThread.start();
   }

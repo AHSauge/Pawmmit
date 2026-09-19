@@ -9,6 +9,13 @@ testlib_public_args = [
     '-DGIT_EXECUTABLE="' + find_program('git').full_path().replace('\\', '/') + '"',
 ]
 
+# Qt's test headers hide keyClick, qWaitForWindowActive and friends unless the
+# module macros are defined, which the macOS Qt lookup doesn't do. This is a
+# suspected inconsistency in Meson's handling of Qt frameworks on macOS.
+if host_machine.system() == 'darwin'
+    testlib_public_args += ['-DQT_GUI_LIB', '-DQT_WIDGETS_LIB']
+endif
+
 testlib = static_library(
     'testlib',
     files('Test.cpp'),
@@ -54,6 +61,7 @@ tests = [
     'RepositoryWatcher',
     'RepoViewAutoRefresh',
     'PathFilter',
+    'RepoViewStaging',
 ]
 if host_machine.system() != 'windows'
     tests += 'Filter'

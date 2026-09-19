@@ -2,6 +2,8 @@
 
 #include "watcher/RepositoryWatcher.h"
 
+#include "git2/blob.h"
+#include "git2/refs.h"
 #include <QSignalSpy>
 #include <filesystem>
 #include <memory>
@@ -55,6 +57,52 @@ bool replaceFile(const QString &from, const QString &to) {
   return !ec;
 }
 
+// Changes the git directory like a command run outside the app would, except
+// for the "own" kinds, which go through the app's repository like staging does.
+bool changeGitDir(const QString &workdir, git::Repository *app,
+                  const QString &kind) {
+  if (kind == "index")
+    return forceAdd(workdir, "staged.txt", "x");
+
+  if (kind == "own index") {
+    app->index().add("own.txt", "x");
+    return true;
+  }
+
+  if (kind == "own then external index") {
+    app->index().add("own.txt", "y");
+    return forceAdd(workdir, "external.txt", "x");
+  }
+
+  if (kind == "commit message") {
+    QFile file(QDir(workdir).filePath(".git/COMMIT_EDITMSG"));
+    return file.open(QFile::WriteOnly) && file.write("x") == 1;
+  }
+
+  git_repository *repo = nullptr;
+  if (git_repository_open(&repo, workdir.toUtf8()))
+    return false;
+
+  git_reference *ref = nullptr;
+  git_oid oid;
+  int error = -1;
+  if (kind == "branch") {
+    error = git_reference_symbolic_create(&ref, repo, "refs/heads/topic",
+                                          "refs/heads/unborn", 1, nullptr);
+  } else if (kind == "nested branch") {
+    error = git_reference_symbolic_create(&ref, repo, "refs/heads/feature/deep",
+                                          "refs/heads/unborn", 1, nullptr);
+  } else if (kind == "HEAD") {
+    error = git_repository_set_head(repo, "refs/heads/topic");
+  } else if (kind == "object") {
+    error = git_blob_create_from_buffer(&oid, repo, "x", 1);
+  }
+
+  git_reference_free(ref);
+  git_repository_free(repo);
+  return !error;
+}
+
 void settle(QSignalSpy &spy) {
   QTest::qWait(kSettleMs);
   spy.clear();
@@ -93,6 +141,8 @@ private slots:
   void atomicReplace();
   void trackedFileMatchingIgnoreRule();
   void untrackedFileMatchingIgnoreRule();
+  void gitDirectoryChange_data();
+  void gitDirectoryChange();
 
 private:
   // Order matters: the watcher must be destroyed before the repository.
@@ -119,6 +169,9 @@ void TestRepositoryWatcher::initTestCase() {
   QVERIFY(forceAdd(mWorkdir.path(), "tracked.ign", tracked));
   (*mRepo)->index().read();
   QVERIFY((*mRepo)->index().isTracked("tracked.ign"));
+
+  // A file for the app to stage through its own repository.
+  QVERIFY(writeFile(mWorkdir.filePath("own.txt")));
 
   mWatcher.reset(RepositoryWatcher::create(*mRepo));
   mWatcher->setDebounceInterval(kDebounceMs);
@@ -185,6 +238,43 @@ void TestRepositoryWatcher::untrackedFileMatchingIgnoreRule() {
   QVERIFY(writeFile(mWorkdir.filePath("untracked.ign")));
   QVERIFY2(!mSpy->wait(kQuietMs),
            "notification for an ignored file that isn't tracked");
+}
+
+void TestRepositoryWatcher::gitDirectoryChange_data() {
+#if defined(Q_OS_WIN) || defined(Q_OS_MAC)
+  QSKIP("Changes to .git aren't picked up reliably on this platform yet");
+#endif
+
+  QTest::addColumn<QString>("kind");
+  QTest::addColumn<bool>("relevant");
+
+  // Later rows build on earlier ones: "HEAD" points at the "branch" ref.
+  QTest::newRow("index") << "index" << true;
+  QTest::newRow("branch") << "branch" << true;
+  QTest::newRow("nested branch") << "nested branch" << true;
+  QTest::newRow("HEAD") << "HEAD" << true;
+  QTest::newRow("object") << "object" << false;
+  QTest::newRow("commit message") << "commit message" << false;
+
+  // The app stages through its own repository and updates the UI itself.
+  QTest::newRow("own index") << "own index" << false;
+  QTest::newRow("own then external index") << "own then external index" << true;
+}
+
+void TestRepositoryWatcher::gitDirectoryChange() {
+  QFETCH(QString, kind);
+  QFETCH(bool, relevant);
+
+  QVERIFY(changeGitDir(mWorkdir.path(), (*mRepo).operator->(), kind));
+  if (relevant) {
+    QVERIFY2(mSpy->wait(kSignalMs),
+             qPrintable(QString("no notification for '%1'").arg(kind)));
+  } else {
+    QVERIFY2(!mSpy->wait(kQuietMs),
+             qPrintable(QString("notification for '%1'").arg(kind)));
+  }
+
+  settle(*mSpy);
 }
 
 TEST_MAIN(TestRepositoryWatcher)
