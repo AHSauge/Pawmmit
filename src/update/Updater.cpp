@@ -53,7 +53,7 @@ const QString kTemplateFmt = "%1-XXXXXX.%2";
 const QString kLinkFmt = "https://github.com/Pawmmit/Pawmmit/releases/latest/"
                          "download/Pawmmit%1%2.%3";
 const QString kChangelogUrl =
-    "https://raw.githubusercontent.com/Pawmmit/Pawmmit/gh-pages/changelog.md";
+    "https://raw.githubusercontent.com/Pawmmit/Pawmmit/main/CHANGELOG.md";
 
 } // namespace
 
@@ -129,8 +129,8 @@ void Updater::update(bool spontaneous) {
     while (!reply->atEnd()) {
       QByteArray line = reply->readLine();
       QList<QByteArray> tokens = line.split(' ');
-      if (tokens.size() > 1 && tokens.first() == "###") {
-        QByteArray version = tokens.at(1).mid(1); // Strip 'v' prefix.
+      if (tokens.size() > 1 && tokens.first() == "Version") {
+        QByteArray version = tokens.at(1).trimmed();
         if (QVersionNumber::fromString(version) <= appVersion)
           break;
         versions.append(version);
