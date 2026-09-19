@@ -118,5 +118,5 @@ Create you commit messages according a defined template. The first template is a
 Changelog
 =========
 
-{% include_relative changelog.md %}
+See the [releases page](https://github.com/pawmmit/Pawmmit/releases) on GitHub for release notes.
 
