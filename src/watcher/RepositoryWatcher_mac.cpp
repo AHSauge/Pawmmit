@@ -10,13 +10,14 @@
 // Author: Jason Haslam
 //
 
+#include "PathFilter.h"
 #include "RepositoryWatcher.h"
 #include <CoreServices/CoreServices.h>
 
 class MacRepositoryWatcher : public RepositoryWatcher {
 public:
   MacRepositoryWatcher(const git::Repository &repo, QObject *parent)
-      : RepositoryWatcher(repo, parent), mRepo(repo) {
+      : RepositoryWatcher(repo, parent), mFilter(repo, false) {
     // Create dispatch queue.
     mQueue = dispatch_queue_create("com.pawmmit.RepositoryWatcher", nullptr);
 
@@ -65,10 +66,10 @@ private:
     MacRepositoryWatcher *watcher =
         static_cast<MacRepositoryWatcher *>(clientCallBackInfo);
 
-    // Filter out ignored directories.
+    // Filter out irrelevant directories.
     const char **paths = static_cast<const char **>(eventPaths);
     for (size_t i = 0; i < numEvents; ++i) {
-      if (!watcher->mRepo.isIgnored(paths[i])) {
+      if (watcher->mFilter.isRelevant(paths[i])) {
         // This runs on the dispatch queue; the timer lives on the main thread.
         QMetaObject::invokeMethod(
             watcher, [watcher] { watcher->scheduleNotification(); },
@@ -78,7 +79,7 @@ private:
     }
   }
 
-  git::Repository mRepo;
+  PathFilter mFilter;
   dispatch_queue_t mQueue;
   FSEventStreamRef mStream;
 };

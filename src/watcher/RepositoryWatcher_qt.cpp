@@ -10,30 +10,31 @@
 // Author: François Revol
 //
 
+#include "PathFilter.h"
 #include "RepositoryWatcher.h"
 #include <QFileSystemWatcher>
 
 namespace {
 
-// `.git` is excluded by isIgnored().
 const QDir::Filters kFilters =
     (QDir::Dirs | QDir::Hidden | QDir::NoDotAndDotDot);
 
 } // namespace
 
-// Only directories are watched, so edits to existing files go unnoticed.
+// Only directories are watched, so edits to existing files go unnoticed, and
+// `.git` is left out because its changes can't be told apart.
 class QtRepositoryWatcher : public RepositoryWatcher {
 public:
   QtRepositoryWatcher(const git::Repository &repo, QObject *parent)
-      : RepositoryWatcher(repo, parent), mRepo(repo) {
+      : RepositoryWatcher(repo, parent), mFilter(repo, false) {
     connect(&mFSWatcher, &QFileSystemWatcher::directoryChanged, this,
             &QtRepositoryWatcher::directoryChanged);
-    watch(mRepo.workdir());
+    watch(repo.workdir());
   }
 
 private:
   void directoryChanged(const QString &path) {
-    if (mRepo.isIgnored(path))
+    if (!mFilter.isRelevant(path))
       return;
 
     // Start watching new directories.
@@ -49,12 +50,12 @@ private:
     // Watch subdirs.
     for (const QString &name : dir.entryList(kFilters)) {
       QString path = dir.filePath(name);
-      if (!mRepo.isIgnored(path))
+      if (mFilter.isRelevant(path))
         watch(path);
     }
   }
 
-  git::Repository mRepo;
+  PathFilter mFilter;
   QFileSystemWatcher mFSWatcher;
 };
 

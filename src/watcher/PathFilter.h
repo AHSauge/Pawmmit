@@ -13,13 +13,25 @@
 // so it can be used from a watcher thread, but by one thread at a time.
 class PathFilter {
 public:
-  explicit PathFilter(const git::Repository &repo);
+  enum class Kind {
+    Irrelevant,
+    Index, // The git index, which the app's own staging writes as well.
+    Other,
+  };
+
+  // Backends that can't tell files apart pass false to leave out `.git`.
+  explicit PathFilter(const git::Repository &repo, bool includeGitDir = true);
 
   // Accepts absolute or workdir-relative paths.
-  bool isRelevant(const QString &path);
+  Kind classify(const QString &path);
+  bool isRelevant(const QString &path) {
+    return classify(path) != Kind::Irrelevant;
+  }
 
 private:
   QDir mWorkdir;
+  QDir mGitDir;
+  bool mIncludeGitDir;
   git::Repository mRepo;
   git::Index mIndex;
 };

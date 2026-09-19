@@ -24,6 +24,9 @@ private slots:
   void initTestCase();
   void isRelevant_data();
   void isRelevant();
+  void classify_data();
+  void classify();
+  void withoutGitDir();
   void noticesLaterTracking();
 
 private:
@@ -59,7 +62,27 @@ void TestPathFilter::isRelevant_data() {
   QTest::newRow("ignored, tracked, in subdirectory")
       << "sub/dir/tracked.ign" << true;
   QTest::newRow("ignored, missing") << "gone.ign" << false;
-  QTest::newRow("git directory") << ".git" << false;
+  QTest::newRow("workdir, relative") << "." << true;
+  QTest::newRow("workdir, absolute") << mWorkdir.path() << true;
+  QTest::newRow("subdirectory") << "sub" << true;
+  QTest::newRow("git directory") << ".git" << true;
+  QTest::newRow("git index") << ".git/index" << true;
+  QTest::newRow("git HEAD") << ".git/HEAD" << true;
+  QTest::newRow("git packed refs") << ".git/packed-refs" << true;
+  QTest::newRow("git merge head") << ".git/MERGE_HEAD" << true;
+  QTest::newRow("git refs directory") << ".git/refs/heads" << true;
+  QTest::newRow("git branch") << ".git/refs/heads/feature/x" << true;
+  QTest::newRow("git tag") << ".git/refs/tags/v1" << true;
+  QTest::newRow("git index lock") << ".git/index.lock" << false;
+  QTest::newRow("git branch lock") << ".git/refs/heads/main.lock" << false;
+  QTest::newRow("git objects") << ".git/objects" << false;
+  QTest::newRow("git object") << ".git/objects/ab/cdef" << false;
+  QTest::newRow("git commit message") << ".git/COMMIT_EDITMSG" << false;
+  QTest::newRow("git hooks") << ".git/hooks/pre-commit" << false;
+  QTest::newRow("absolute, git index")
+      << mWorkdir.filePath(".git/index") << true;
+  QTest::newRow("absolute, git object")
+      << mWorkdir.filePath(".git/objects/ab/cdef") << false;
   QTest::newRow("absolute, not ignored")
       << mWorkdir.filePath("plain.txt") << true;
   QTest::newRow("absolute, ignored, untracked")
@@ -73,6 +96,42 @@ void TestPathFilter::isRelevant() {
   QFETCH(bool, relevant);
 
   QCOMPARE(mFilter->isRelevant(path), relevant);
+}
+
+void TestPathFilter::classify_data() {
+  QTest::addColumn<QString>("path");
+  QTest::addColumn<int>("kind");
+
+  using Kind = PathFilter::Kind;
+  QTest::newRow("git index") << ".git/index" << int(Kind::Index);
+  QTest::newRow("absolute, git index")
+      << mWorkdir.filePath(".git/index") << int(Kind::Index);
+  QTest::newRow("git HEAD") << ".git/HEAD" << int(Kind::Other);
+  QTest::newRow("git branch") << ".git/refs/heads/x" << int(Kind::Other);
+  QTest::newRow("git index lock") << ".git/index.lock" << int(Kind::Irrelevant);
+  QTest::newRow("file") << "plain.txt" << int(Kind::Other);
+  QTest::newRow("ignored, tracked") << "tracked.ign" << int(Kind::Other);
+  QTest::newRow("ignored, untracked")
+      << "untracked.ign" << int(Kind::Irrelevant);
+}
+
+void TestPathFilter::classify() {
+  QFETCH(QString, path);
+  QFETCH(int, kind);
+
+  QCOMPARE(int(mFilter->classify(path)), kind);
+}
+
+void TestPathFilter::withoutGitDir() {
+  PathFilter filter(mRepo, false);
+  using Kind = PathFilter::Kind;
+
+  QCOMPARE(filter.classify(".git"), Kind::Irrelevant);
+  QCOMPARE(filter.classify(".git/index"), Kind::Irrelevant);
+  QCOMPARE(filter.classify(".git/refs/heads/x"), Kind::Irrelevant);
+  QCOMPARE(filter.classify("plain.txt"), Kind::Other);
+  QCOMPARE(filter.classify("tracked.ign"), Kind::Other);
+  QCOMPARE(filter.classify("untracked.ign"), Kind::Irrelevant);
 }
 
 void TestPathFilter::noticesLaterTracking() {
