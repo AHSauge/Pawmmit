@@ -20,7 +20,8 @@
 namespace {
 
 // FIXME: Include hidden and filter .git explicitly?
-const QDir::Filters kFilters = (QDir::Dirs | QDir::NoDotAndDotDot);
+const QDir::Filters kFilters =
+    (QDir::Dirs | QDir::Hidden | QDir::NoDotAndDotDot);
 
 } // namespace
 

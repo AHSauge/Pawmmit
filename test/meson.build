@@ -55,6 +55,9 @@ tests = [
 if host_machine.system() != 'windows'
     tests += 'Filter'
 endif
+if host_machine.system() == 'linux'
+    tests += 'RepositoryWatcher'
+endif
 if get_option('ci_tests')
     tests += 'config'
 endif
