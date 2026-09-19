@@ -10,6 +10,7 @@
 // Author: Jason Haslam
 //
 
+#include "PathFilter.h"
 #include "RepositoryWatcher.h"
 #include <QMap>
 #include <QThread>
@@ -35,7 +36,8 @@ class InotifyThread : public QThread {
   Q_OBJECT
 
 public:
-  explicit InotifyThread(const git::Repository &repo) : mRepo(repo) {
+  explicit InotifyThread(const git::Repository &repo)
+      : mRepo(repo), mFilter(repo) {
     mFd = inotify_init1(IN_NONBLOCK);
     if (mFd < 0) {
       reportError(tr("Failed to initialize file watching: %1.")
@@ -98,7 +100,7 @@ public:
           event = reinterpret_cast<inotify_event *>(ptr);
           if (event->len) {
             QString path = mWds.value(event->wd).filePath(event->name);
-            if (!mRepo.isIgnored(path)) {
+            if (mFilter.isRelevant(path)) {
               ignored = false;
 
               // Start watching new directories.
@@ -132,7 +134,7 @@ public:
     // Watch subdirs.
     for (const QString &name : dir.entryList(kFilters)) {
       QString path = dir.filePath(name);
-      if (!mRepo.isIgnored(path))
+      if (mFilter.isRelevant(path))
         watch(path);
     }
   }
@@ -161,6 +163,7 @@ private:
   }
 
   git::Repository mRepo;
+  PathFilter mFilter;
   int mFd = -1;
   int mPipe[2] = {-1, -1};
   QMap<int, QDir> mWds;

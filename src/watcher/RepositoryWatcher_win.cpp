@@ -10,6 +10,7 @@
 // Author: Jason Haslam
 //
 
+#include "PathFilter.h"
 #include "RepositoryWatcher.h"
 #include <QThread>
 #include <QVector>
@@ -30,7 +31,7 @@ class DirectoryChangesThread : public QThread {
 
 public:
   explicit DirectoryChangesThread(const git::Repository &repo)
-      : mRepo(repo), mBuffer(16 * 1024) {
+      : mFilter(repo), mBuffer(16 * 1024) {
     // Pass this to callback.
     ZeroMemory(&mOverlapped, sizeof(OVERLAPPED));
     mOverlapped.hEvent = this;
@@ -52,7 +53,7 @@ public:
     CloseHandle(mStop);
   }
 
-  git::Repository repo() const { return mRepo; }
+  PathFilter &filter() { return mFilter; }
   QVector<BYTE> buffer() const { return mBuffer; }
 
   void run() override {
@@ -97,7 +98,6 @@ public:
     watcher->watch();
 
     // Iterate over notifications.
-    git::Repository repo = watcher->repo();
     const BYTE *ptr = buffer.constData();
     forever {
       const FILE_NOTIFY_INFORMATION *info =
@@ -106,7 +106,7 @@ public:
       int size = info->FileNameLength / sizeof(wchar_t);
       QString native = QString::fromWCharArray(info->FileName, size);
       QString path = QDir::fromNativeSeparators(native);
-      if (!path.isEmpty() && !repo.isIgnored(path)) {
+      if (!path.isEmpty() && watcher->filter().isRelevant(path)) {
         emit watcher->notificationReceived();
         return;
       }
@@ -122,7 +122,7 @@ signals:
   void notificationReceived();
 
 private:
-  git::Repository mRepo;
+  PathFilter mFilter;
   HANDLE mStop;
   HANDLE mHandle;
   QVector<BYTE> mBuffer;
