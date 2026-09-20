@@ -105,12 +105,8 @@ foreach name : tests
         build_rpath: test_rpath,
         build_by_default: false,
     )
-    # fileContextMenu opens a real context menu, which doesn't work under
-    # offscreen QPA on Windows; CI excludes this suite there.
     suites = []
-    if name == 'fileContextMenu'
-        suites = ['no_win32_offscreen']
-    elif name in tests_needing_network
+    if name in tests_needing_network
         suites = ['needs_network']
     endif
     test(name, exe, env: test_env, suite: suites, timeout: 300)

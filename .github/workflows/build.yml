@@ -246,7 +246,7 @@ jobs:
 
       - name: Test (Windows)
         if: matrix.env.name == 'win64'
-        run: meson test -C build --print-errorlogs --no-suite no_win32_offscreen
+        run: meson test -C build --print-errorlogs
 
       - name: Test (macOS)
         if: matrix.env.name == 'macos'
