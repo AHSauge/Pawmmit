@@ -6,6 +6,7 @@
 #include "ui/IgnoreDialog.h"
 #include "git/Reference.h"
 
+#include <QGuiApplication>
 #include <QMessageBox>
 #include <QPushButton>
 
@@ -23,6 +24,7 @@ class TestFileContextMenu : public QObject {
   Q_OBJECT
 
 private slots:
+  void initTestCase();
   void testDiscardFile();
   void testDiscardSubmodule();
   void testDiscardFolder();
@@ -34,6 +36,13 @@ private slots:
 };
 
 using namespace git;
+
+void TestFileContextMenu::initTestCase() {
+#ifdef Q_OS_WIN
+  if (QGuiApplication::platformName() == "offscreen")
+    QSKIP("Context menus don't work under offscreen QPA on Windows");
+#endif
+}
 
 void TestFileContextMenu::testDiscardFile() {
   INIT_REPO("TestRepository.zip");
