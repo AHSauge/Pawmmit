@@ -805,20 +805,20 @@ void CommitEditor::updateButtons(bool yieldFocus) {
   switch (repo.state()) {
     case GIT_REPOSITORY_STATE_MERGE:
       mCommit->setText(tr("Commit Merge"));
-      mCommit->setEnabled(total && !mMessage->document()->isEmpty());
       break;
     case GIT_REPOSITORY_STATE_REBASE:
     case GIT_REPOSITORY_STATE_REBASE_MERGE:
     case GIT_REPOSITORY_STATE_REBASE_INTERACTIVE:
       mCommit->setText(tr("Commit Rebase"));
-      mCommit->setEnabled(total && conflicted == 0 &&
-                          !mMessage->document()->isEmpty());
       break;
     default:
       mCommit->setText(tr("Commit"));
-      mCommit->setEnabled(total && !mMessage->document()->isEmpty());
       break;
   }
+
+  // The index can't be written to a tree while conflicts remain.
+  mCommit->setEnabled(total && conflicted == 0 &&
+                      !mMessage->document()->isEmpty());
 
   // Update menu actions.
   MenuBar::instance(this)->updateRepository();
