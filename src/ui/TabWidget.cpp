@@ -51,17 +51,16 @@ public:
     heading->setFont(headingFont);
 
     QPushButton *clone =
-        addButton(QIcon(":/clone.png"), tr("Clone repository"));
+        addButton(QIcon(":/clone.png"), tr("Clone Repository"));
     connect(clone, &QPushButton::clicked,
             [this] { MainWindow::promptToClone(this); });
 
-    QPushButton *open =
-        addButton(QIcon(":/open.png"), tr("Open existing repository"));
+    QPushButton *open = addButton(QIcon(":/open.png"), tr("Open Repository"));
     connect(open, &QPushButton::clicked,
             [this] { MainWindow::promptToOpen(this); });
 
     QPushButton *init =
-        addButton(QIcon(":/new.png"), tr("Initialize new repository"));
+        addButton(QIcon(":/new.png"), tr("Initialize New Repository"));
     connect(init, &QPushButton::clicked,
             [this] { MainWindow::promptToInit(this); });
 
@@ -75,7 +74,7 @@ public:
 
     for (int i = 0; i < Account::NUM_KINDS; ++i) {
       Account::Kind kind = static_cast<Account::Kind>(i);
-      QString text = tr("Add %1 account").arg(Account::name(kind));
+      QString text = tr("Add %1 Account").arg(Account::name(kind));
       QPushButton *account =
           addButton(Account::icon(kind), text, QSize(20, 20), 1);
       connect(account, &QPushButton::clicked, [this, kind] {

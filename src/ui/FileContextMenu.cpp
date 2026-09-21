@@ -418,11 +418,11 @@ void FileContextMenu::handleCommits(const QList<git::Commit> &commits,
 
   // Checkout to ...
   QAction *checkoutTo =
-      addAction(tr("Save Selected Version as ..."), [this, view, files] {
+      addAction(tr("Save Selected Version As..."), [this, view, files] {
         QFileDialog d(this); // TODO: this might not live anymore??
         d.setFileMode(QFileDialog::FileMode::Directory);
         d.setOption(QFileDialog::ShowDirsOnly);
-        d.setWindowTitle(tr("Select new file directory"));
+        d.setWindowTitle(tr("Select Directory"));
         if (d.exec()) {
           const auto folder = d.selectedFiles().first();
           const auto save =
@@ -440,7 +440,7 @@ void FileContextMenu::handleCommits(const QList<git::Commit> &commits,
         return true;
       });
 
-  QAction *open = addAction(tr("Open this version"), [this, view, files] {
+  QAction *open = addAction(tr("Open This Version"), [this, view, files] {
     QString folder = QDir::tempPath();
     const auto &file = files.first();
     auto filename = file.split("/").last();

@@ -1104,7 +1104,7 @@
     <name>DefaultWidget</name>
     <message>
         <location filename="../src/ui/TabWidget.cpp" line="42"/>
-        <source>Clone repository</source>
+        <source>Clone Repository</source>
         <translation>克隆仓库</translation>
     </message>
     <message>
@@ -1119,12 +1119,12 @@
     </message>
     <message>
         <location filename="../src/ui/TabWidget.cpp" line="68"/>
-        <source>Initialize new repository</source>
+        <source>Initialize New Repository</source>
         <translation>初始化新的仓库</translation>
     </message>
     <message>
         <location filename="../src/ui/TabWidget.cpp" line="88"/>
-        <source>Add %1 account</source>
+        <source>Add %1 Account</source>
         <translation>添加%1个帐户</translation>
     </message>
     <message>
@@ -1342,7 +1342,7 @@ These settings will not be saved permanently</source>
     <name>DiffView</name>
     <message>
         <location filename="../src/ui/DiffView/DiffView.cpp" line="145"/>
-        <source>Add new file</source>
+        <source>Add New File</source>
         <translation>追加新文件</translation>
     </message>
     <message>
@@ -1685,7 +1685,7 @@ These settings will not be saved permanently</source>
     </message>
     <message>
         <location filename="../src/ui/FileContextMenu.cpp" line="393"/>
-        <source>Save Selected Version as ...</source>
+        <source>Save Selected Version As...</source>
         <translation>将所选版本另存为...</translation>
     </message>
     <message>
@@ -1715,7 +1715,7 @@ These settings will not be saved permanently</source>
     </message>
     <message>
         <location filename="../src/ui/FileContextMenu.cpp" line="415"/>
-        <source>Open this version</source>
+        <source>Open This Version</source>
         <translation>打开此版本</translation>
     </message>
     <message>
@@ -2784,7 +2784,7 @@ Examples
     </message>
     <message>
         <location filename="../src/ui/MenuBar.cpp" line="567"/>
-        <source>Remove all locks</source>
+        <source>Remove All Locks</source>
         <translation>移除所有锁定</translation>
     </message>
     <message>
@@ -3838,8 +3838,8 @@ Would you like to fix the merge conflict and continue?</source>
     </message>
     <message>
         <location filename="../src/dialogs/StartDialog.cpp" line="97"/>
-        <source>Open Existing Repository</source>
-        <translation>打开现有仓库</translation>
+        <source>Open Repository</source>
+        <translation>打开仓库</translation>
     </message>
     <message>
         <location filename="../src/dialogs/StartDialog.cpp" line="99"/>
@@ -5067,13 +5067,13 @@ This reverts commit %2.</source>
     </message>
     <message>
         <location filename="../src/ui/SideBar.cpp" line="709"/>
-        <source>Clone Repository</source>
-        <translation>克隆仓库</translation>
+        <source>Clone Repository...</source>
+        <translation>克隆仓库...</translation>
     </message>
     <message>
         <location filename="../src/ui/SideBar.cpp" line="720"/>
-        <source>Open Existing Repository</source>
-        <translation>打开现有仓库</translation>
+        <source>Open Repository...</source>
+        <translation>打开仓库...</translation>
     </message>
     <message>
         <location filename="../src/ui/SideBar.cpp" line="724"/>
@@ -5082,8 +5082,8 @@ This reverts commit %2.</source>
     </message>
     <message>
         <location filename="../src/ui/SideBar.cpp" line="733"/>
-        <source>Initialize New Repository</source>
-        <translation>初始化新仓库</translation>
+        <source>Initialize New Repository...</source>
+        <translation>初始化新仓库...</translation>
     </message>
     <message>
         <location filename="../src/ui/SideBar.cpp" line="748"/>
@@ -5150,13 +5150,13 @@ This reverts commit %2.</source>
     </message>
     <message>
         <location filename="../src/dialogs/StartDialog.cpp" line="434"/>
-        <source>Clone Repository</source>
-        <translation>克隆仓库</translation>
+        <source>Clone Repository...</source>
+        <translation>克隆仓库...</translation>
     </message>
     <message>
         <location filename="../src/dialogs/StartDialog.cpp" line="445"/>
-        <source>Open Existing Repository</source>
-        <translation>打开现有仓库</translation>
+        <source>Open Repository...</source>
+        <translation>打开仓库...</translation>
     </message>
     <message>
         <location filename="../src/dialogs/StartDialog.cpp" line="449"/>
@@ -5165,8 +5165,8 @@ This reverts commit %2.</source>
     </message>
     <message>
         <location filename="../src/dialogs/StartDialog.cpp" line="457"/>
-        <source>Initialize New Repository</source>
-        <translation>初始化新仓库</translation>
+        <source>Initialize New Repository...</source>
+        <translation>初始化新仓库...</translation>
     </message>
     <message>
         <location filename="../src/dialogs/StartDialog.cpp" line="471"/>
@@ -5456,7 +5456,7 @@ x (number) determines the number of maximum files shown</source>
     </message>
     <message>
         <location filename="../src/ui/CommitEditor.cpp" line="156"/>
-        <source>Do not Ignore</source>
+        <source>Do Not Ignore</source>
         <translation>不忽略</translation>
     </message>
 </context>
@@ -5511,12 +5511,12 @@ x (number) determines the number of maximum files shown</source>
     </message>
     <message>
         <location filename="../src/ui/ToolBar.cpp" line="750"/>
-        <source>Previous</source>
+        <source>Back</source>
         <translation>退回</translation>
     </message>
     <message>
         <location filename="../src/ui/ToolBar.cpp" line="762"/>
-        <source>Next</source>
+        <source>Forward</source>
         <translation>前进</translation>
     </message>
     <message>
@@ -5566,7 +5566,7 @@ x (number) determines the number of maximum files shown</source>
     </message>
     <message>
         <location filename="../src/ui/ToolBar.cpp" line="860"/>
-        <source>Open file manager</source>
+        <source>Open File Manager</source>
         <translation>打开文件管理器</translation>
     </message>
     <message>

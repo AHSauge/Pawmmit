@@ -737,7 +737,7 @@ ToolBar::ToolBar(MainWindow *parent) : QToolBar(parent) {
   addWidget(new Spacer(4, this));
 
   SidebarButton *sidebarButton = new SidebarButton(SidebarButton::Left, this);
-  sidebarButton->setToolTip(tr("Show repository sidebar"));
+  sidebarButton->setToolTip(tr("Toggle Repository Sidebar"));
   addWidget(sidebarButton);
   connect(sidebarButton, &QAbstractButton::clicked,
           [parent] { parent->setSideBarVisible(!parent->isSideBarVisible()); });
@@ -751,7 +751,7 @@ ToolBar::ToolBar(MainWindow *parent) : QToolBar(parent) {
 
   mPrevButton = new HistoryButton(HistoryButton::Prev, historyButton);
   mPrevButton->setEnabled(false);
-  historyButton->addButton(mPrevButton, tr("Previous"));
+  historyButton->addButton(mPrevButton, tr("Back"));
   connect(mPrevButton, &QAbstractButton::clicked,
           [this] { currentView()->history()->prev(); });
 
@@ -763,7 +763,7 @@ ToolBar::ToolBar(MainWindow *parent) : QToolBar(parent) {
 
   mNextButton = new HistoryButton(HistoryButton::Next, historyButton);
   mNextButton->setEnabled(false);
-  historyButton->addButton(mNextButton, tr("Next"));
+  historyButton->addButton(mNextButton, tr("Forward"));
   connect(mNextButton, &QAbstractButton::clicked,
           [this] { currentView()->history()->next(); });
 
@@ -861,7 +861,7 @@ ToolBar::ToolBar(MainWindow *parent) : QToolBar(parent) {
   addWidget(new Spacer(4, this));
 
   mFileManagerButton = new FileManagerButton(this);
-  mFileManagerButton->setToolTip(tr("Open file manager"));
+  mFileManagerButton->setToolTip(tr("Open File Manager"));
   addWidget(mFileManagerButton);
   connect(mFileManagerButton, &Button::clicked,
           [this] { currentView()->openFileManager(); });
@@ -873,7 +873,7 @@ ToolBar::ToolBar(MainWindow *parent) : QToolBar(parent) {
   addWidget(new Spacer(4, this));
 
   SettingsButton *configButton = new SettingsButton(this);
-  configButton->setToolTip(tr("Configure Settings"));
+  configButton->setToolTip(tr("Settings"));
   addWidget(configButton);
 
   configButton->setPopupMode(
@@ -881,11 +881,12 @@ ToolBar::ToolBar(MainWindow *parent) : QToolBar(parent) {
   QMenu *configMenu = new QMenu(configButton);
   configButton->setMenu(configMenu);
 
-  mRepoConfigAction = configMenu->addAction(tr("Repository settings"));
+  mRepoConfigAction = configMenu->addAction(tr("Repository Settings..."));
   connect(mRepoConfigAction, &QAction::triggered,
           [this] { currentView()->configureSettings(); });
 
-  QAction *appConfigAction = configMenu->addAction(tr("Application settings"));
+  QAction *appConfigAction =
+      configMenu->addAction(tr("Application Settings..."));
   connect(appConfigAction, &QAction::triggered,
           [] { SettingsDialog::openSharedInstance(); });
 
@@ -928,7 +929,7 @@ ToolBar::ToolBar(MainWindow *parent) : QToolBar(parent) {
   addWidget(new Spacer(4, this));
 
   mStarButton = new StarButton(this);
-  mStarButton->setToolTip(tr("Show Starred Commits"));
+  mStarButton->setToolTip(tr("Show Only Starred Commits"));
   addWidget(mStarButton);
 
   addWidget(new Spacer(4, this));

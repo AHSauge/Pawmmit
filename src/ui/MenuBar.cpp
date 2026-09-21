@@ -125,7 +125,7 @@ static Hotkey toggleMenuBarHotkey = HotkeyManager::registerHotkey(
     "Ctrl+B", "view/toggleMenuBar", "View/Toggle Menu Bar");
 
 static Hotkey configureRepositoryHotkey = HotkeyManager::registerHotkey(
-    nullptr, "repository/configure", "Repository/Configure Repository");
+    nullptr, "repository/configure", "Repository/Settings");
 
 static Hotkey stageAllHotkey = HotkeyManager::registerHotkey(
     "Ctrl++", "repository/stageAll", "Repository/Stage All");
@@ -227,7 +227,7 @@ static Hotkey chooserHotkey = HotkeyManager::registerHotkey(
     "Ctrl+Shift+O", "window/chooser", "Window/Show Repository Chooser");
 
 static Hotkey preferencesHotkey = HotkeyManager::registerHotkey(
-    nullptr, "tools/preferences", "Tools/Options");
+    nullptr, "tools/preferences", "Tools/Application Settings");
 
 static Hotkey squashHotkey = HotkeyManager::registerHotkey(
     "Ctrl+Shift+Q", "branch/squash", "Branch/Squash");
@@ -509,7 +509,8 @@ MenuBar::MenuBar(QWidget *parent) : QMenuBar(parent) {
   // Repository
   QMenu *repository = addMenu(tr("Repository"));
 
-  mConfigureRepository = repository->addAction(tr("Configure Repository..."));
+  mConfigureRepository = repository->addAction(tr("Repository Settings..."));
+  mConfigureRepository->setMenuRole(QAction::NoRole);
   configureRepositoryHotkey.use(mConfigureRepository);
   connect(mConfigureRepository, &QAction::triggered,
           [this] { view()->configureSettings(); });
@@ -543,7 +544,7 @@ MenuBar::MenuBar(QWidget *parent) : QMenuBar(parent) {
   repository->addSeparator();
 
   QMenu *lfs = repository->addMenu(tr("Git LFS"));
-  mLfsUnlock = lfs->addAction(tr("Remove all locks"));
+  mLfsUnlock = lfs->addAction(tr("Remove All Locks"));
   lfsUnlockHotkey.use(mLfsUnlock);
   connect(mLfsUnlock, &QAction::triggered, [this] {
     view()->lfsSetLocked(view()->repo().lfsLocks().values(), false);
@@ -622,7 +623,7 @@ MenuBar::MenuBar(QWidget *parent) : QMenuBar(parent) {
   connect(mNewBranch, &QAction::triggered,
           [this] { view()->promptToCreateBranch(); });
 
-  mRenameBranch = branch->addAction(tr("Rename Branch"));
+  mRenameBranch = branch->addAction(tr("Rename Branch..."));
   renameBranchHotkey.use(mRenameBranch);
   connect(mRenameBranch, &QAction::triggered, [this] {
     this->view()->promptToRenameBranch(this->view()->reference());
@@ -813,7 +814,8 @@ MenuBar::MenuBar(QWidget *parent) : QMenuBar(parent) {
 
   // Tools
   QMenu *tools = addMenu(tr("Tools"));
-  QAction *preferences = tools->addAction(tr("Options..."));
+  QAction *preferences = tools->addAction(tr("Application Settings..."));
+  preferences->setMenuRole(QAction::PreferencesRole);
   preferencesHotkey.use(preferences);
   connect(preferences, &QAction::triggered,
           [] { SettingsDialog::openSharedInstance(); });

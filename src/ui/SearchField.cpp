@@ -92,7 +92,7 @@ protected:
 } // namespace
 
 SearchField::SearchField(QWidget *parent) : QLineEdit(parent) {
-  setPlaceholderText(tr("Search"));
+  setPlaceholderText(tr("Search commits"));
   setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
   mClearButton = new ClearButton(this);

@@ -1034,7 +1034,7 @@
         <name>DefaultWidget</name>
         <message>
             <location filename="../src/ui/TabWidget.cpp" line="42" />
-            <source>Clone repository</source>
+            <source>Clone Repository</source>
             <translation>Klona arkiv</translation>
         </message>
         <message>
@@ -1049,12 +1049,12 @@
         </message>
         <message>
             <location filename="../src/ui/TabWidget.cpp" line="68" />
-            <source>Initialize new repository</source>
+            <source>Initialize New Repository</source>
             <translation>Initiera nytt arkiv</translation>
         </message>
         <message>
             <location filename="../src/ui/TabWidget.cpp" line="88" />
-            <source>Add %1 account</source>
+            <source>Add %1 Account</source>
             <translation>Lägg till %1-konto</translation>
         </message>
         <message>
@@ -1268,7 +1268,7 @@ De här inställningarna sparas inte permanent</translation>
         <name>DiffView</name>
         <message>
             <location filename="../src/ui/DiffView/DiffView.cpp" line="145" />
-            <source>Add new file</source>
+            <source>Add New File</source>
             <translation>Lägg till ny fil</translation>
         </message>
         <message>
@@ -1611,7 +1611,7 @@ De här inställningarna sparas inte permanent</translation>
         </message>
         <message>
             <location filename="../src/ui/FileContextMenu.cpp" line="393" />
-            <source>Save Selected Version as ...</source>
+            <source>Save Selected Version As...</source>
             <translation>Spara vald version som …</translation>
         </message>
         <message>
@@ -1641,7 +1641,7 @@ De här inställningarna sparas inte permanent</translation>
         </message>
         <message>
             <location filename="../src/ui/FileContextMenu.cpp" line="415" />
-            <source>Open this version</source>
+            <source>Open This Version</source>
             <translation>Öppna den här versionen</translation>
         </message>
         <message>
@@ -2577,7 +2577,7 @@ Exempel
         </message>
         <message>
             <location filename="../src/ui/MenuBar.cpp" line="567" />
-            <source>Remove all locks</source>
+            <source>Remove All Locks</source>
             <translation>Ta bort alla lås</translation>
         </message>
         <message>
@@ -3565,8 +3565,8 @@ Vill du åtgärda sammanfogningskonflikten och fortsätta?</translation>
         </message>
         <message>
             <location filename="../src/dialogs/StartDialog.cpp" line="97" />
-            <source>Open Existing Repository</source>
-            <translation>Öppna befintligt arkiv</translation>
+            <source>Open Repository</source>
+            <translation>Öppna arkiv</translation>
         </message>
         <message>
             <location filename="../src/dialogs/StartDialog.cpp" line="99" />
@@ -4762,13 +4762,13 @@ Detta återställer incheckningen %2.</translation>
         </message>
         <message>
             <location filename="../src/ui/SideBar.cpp" line="709" />
-            <source>Clone Repository</source>
-            <translation>Klona arkiv</translation>
+            <source>Clone Repository...</source>
+            <translation>Klona arkiv…</translation>
         </message>
         <message>
             <location filename="../src/ui/SideBar.cpp" line="720" />
-            <source>Open Existing Repository</source>
-            <translation>Öppna befintligt arkiv</translation>
+            <source>Open Repository...</source>
+            <translation>Öppna arkiv…</translation>
         </message>
         <message>
             <location filename="../src/ui/SideBar.cpp" line="724" />
@@ -4777,8 +4777,8 @@ Detta återställer incheckningen %2.</translation>
         </message>
         <message>
             <location filename="../src/ui/SideBar.cpp" line="733" />
-            <source>Initialize New Repository</source>
-            <translation>Initiera nytt arkiv</translation>
+            <source>Initialize New Repository...</source>
+            <translation>Initiera nytt arkiv…</translation>
         </message>
         <message>
             <location filename="../src/ui/SideBar.cpp" line="748" />
@@ -4845,13 +4845,13 @@ Detta återställer incheckningen %2.</translation>
         </message>
         <message>
             <location filename="../src/dialogs/StartDialog.cpp" line="434" />
-            <source>Clone Repository</source>
-            <translation>Klona arkiv</translation>
+            <source>Clone Repository...</source>
+            <translation>Klona arkiv…</translation>
         </message>
         <message>
             <location filename="../src/dialogs/StartDialog.cpp" line="445" />
-            <source>Open Existing Repository</source>
-            <translation>Öppna befintligt arkiv</translation>
+            <source>Open Repository...</source>
+            <translation>Öppna arkiv…</translation>
         </message>
         <message>
             <location filename="../src/dialogs/StartDialog.cpp" line="449" />
@@ -4860,8 +4860,8 @@ Detta återställer incheckningen %2.</translation>
         </message>
         <message>
             <location filename="../src/dialogs/StartDialog.cpp" line="457" />
-            <source>Initialize New Repository</source>
-            <translation>Initiera nytt arkiv</translation>
+            <source>Initialize New Repository...</source>
+            <translation>Initiera nytt arkiv…</translation>
         </message>
         <message>
             <location filename="../src/dialogs/StartDialog.cpp" line="471" />
@@ -5152,7 +5152,7 @@ x (tal) anger det högsta antal filer som visas</translation>
         </message>
         <message>
             <location filename="../src/ui/CommitEditor.cpp" line="156" />
-            <source>Do not Ignore</source>
+            <source>Do Not Ignore</source>
             <translation>Ignorera inte</translation>
         </message>
     </context>
@@ -5203,13 +5203,13 @@ x (tal) anger det högsta antal filer som visas</translation>
         </message>
         <message>
             <location filename="../src/ui/ToolBar.cpp" line="750" />
-            <source>Previous</source>
-            <translation>Föregående</translation>
+            <source>Back</source>
+            <translation>Bakåt</translation>
         </message>
         <message>
             <location filename="../src/ui/ToolBar.cpp" line="762" />
-            <source>Next</source>
-            <translation>Nästa</translation>
+            <source>Forward</source>
+            <translation>Framåt</translation>
         </message>
         <message>
             <location filename="../src/ui/ToolBar.cpp" line="778" />
@@ -5258,7 +5258,7 @@ x (tal) anger det högsta antal filer som visas</translation>
         </message>
         <message>
             <location filename="../src/ui/ToolBar.cpp" line="860" />
-            <source>Open file manager</source>
+            <source>Open File Manager</source>
             <translation>Öppna filhanterare</translation>
         </message>
         <message>

@@ -153,7 +153,7 @@ private:
         // Replace standard context menu.
         menu->clear();
 
-        QAction *spellIgnore = menu->addAction(tr("Do not Ignore"));
+        QAction *spellIgnore = menu->addAction(tr("Do Not Ignore"));
         connect(spellIgnore, &QAction::triggered, [this, event] {
           QTextCursor cursor = cursorForPosition(event->pos());
           cursor.select(QTextCursor::WordUnderCursor);
@@ -489,12 +489,12 @@ CommitEditor::CommitEditor(const git::Repository &repo, QWidget *parent)
   mCommit->setDefault(true);
   connect(mCommit, &QPushButton::clicked, this, &CommitEditor::commit);
 
-  mRebaseAbort = new QPushButton(tr("Abort rebasing"), this);
+  mRebaseAbort = new QPushButton(tr("Abort Rebase"), this);
   mRebaseAbort->setObjectName("AbortRebase");
   connect(mRebaseAbort, &QPushButton::clicked, this,
           &CommitEditor::abortRebase);
 
-  mRebaseContinue = new QPushButton(tr("Continue rebasing"), this);
+  mRebaseContinue = new QPushButton(tr("Continue Rebase"), this);
   mRebaseContinue->setObjectName("ContinueRebase");
   connect(mRebaseContinue, &QPushButton::clicked, this,
           &CommitEditor::continueRebase);

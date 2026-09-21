@@ -195,7 +195,7 @@ RepoView::RepoView(const git::Repository &repo, MainWindow *parent)
           [this, searchField](int code, QProcess::ExitStatus status) {
             Q_UNUSED(code)
 
-            searchField->setPlaceholderText(tr("Search"));
+            searchField->setPlaceholderText(tr("Search commits"));
             if (status == QProcess::CrashExit) {
               QString text =
                   tr("The indexer worker process crashed. If this problem "

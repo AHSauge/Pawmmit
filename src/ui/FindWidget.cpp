@@ -102,7 +102,7 @@ FindWidget::FindWidget(EditorProvider *provider, QWidget *parent)
   mField = new QLineEdit(this);
   mField->setStyleSheet(kFieldStyle);
   mField->setClearButtonEnabled(true);
-  mField->setPlaceholderText(tr("Search"));
+  mField->setPlaceholderText(tr("Find"));
   mField->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
   layout->addWidget(mField);
 

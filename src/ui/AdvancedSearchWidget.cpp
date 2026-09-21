@@ -98,14 +98,17 @@ AdvancedSearchWidget::AdvancedSearchWidget(QWidget *parent)
   // file, path, scope
   addField(Index::File, tr("File:"), tr("File name"));
   addField(Index::Path, tr("Path:"), tr("File path"));
-  addField(Index::Scope, tr("Scope:"), tr("Hunk header text"));
+  addField(
+      Index::Scope, tr("Scope:"),
+      tr("Text in the hunk header, usually the enclosing function or class"));
 
   addLine(layout);
 
   // context, addition, deletion
-  addField(Index::Context, tr("Context:"), tr("Diff context (white)"));
-  addField(Index::Addition, tr("Addition:"), tr("Diff addition (green)"));
-  addField(Index::Deletion, tr("Deletion:"), tr("Diff deletion (red)"));
+  addField(Index::Context, tr("Context:"),
+           tr("Text in the unchanged lines around a change"));
+  addField(Index::Addition, tr("Addition:"), tr("Text in added lines"));
+  addField(Index::Deletion, tr("Deletion:"), tr("Text in removed lines"));
 
   addLine(layout);
 

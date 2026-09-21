@@ -733,15 +733,15 @@ SideBar::SideBar(TabWidget *tabs, MainWindow *mainWindow, QWidget *parent)
   QMenu *plusMenu = new QMenu(this);
   footer->setPlusMenu(plusMenu);
 
-  QAction *clone = plusMenu->addAction(tr("Clone Repository"));
+  QAction *clone = plusMenu->addAction(tr("Clone Repository..."));
   connect(clone, &QAction::triggered,
           [this] { MainWindow::promptToClone(this); });
 
-  QAction *open = plusMenu->addAction(tr("Open Existing Repository"));
+  QAction *open = plusMenu->addAction(tr("Open Repository..."));
   connect(open, &QAction::triggered,
           [this] { MainWindow::promptToOpen(this); });
 
-  QAction *init = plusMenu->addAction(tr("Initialize New Repository"));
+  QAction *init = plusMenu->addAction(tr("Initialize New Repository..."));
   connect(init, &QAction::triggered,
           [this] { MainWindow::promptToInit(this); });
 
@@ -749,7 +749,7 @@ SideBar::SideBar(TabWidget *tabs, MainWindow *mainWindow, QWidget *parent)
 
   for (int i = 0; i < Account::NUM_KINDS; ++i) {
     Account::Kind kind = static_cast<Account::Kind>(i);
-    QString text = tr("Add %1 Account").arg(Account::name(kind));
+    QString text = tr("Add %1 Account...").arg(Account::name(kind));
     QAction *add = plusMenu->addAction(text);
     connect(add, &QAction::triggered, [this, kind] {
       AccountDialog *dialog = new AccountDialog(nullptr, this);
