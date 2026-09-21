@@ -480,14 +480,8 @@ StartDialog::StartDialog(QWidget *parent)
 
   mOpen = repoPlusMenu->addAction(tr("Open Existing Repository"));
   connect(mOpen, &QAction::triggered, this, [this] {
-    // FIXME: Filter out non-git dirs.
-    QFileDialog *dialog =
-        new QFileDialog(this, tr("Open Repository"), QDir::homePath());
-    dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->setFileMode(QFileDialog::Directory);
-    dialog->setOption(QFileDialog::ShowDirsOnly);
-    connect(dialog, &QFileDialog::fileSelected, this, &StartDialog::openWindow);
-    dialog->open();
+    MainWindow::promptToOpen(this,
+                             [this](const QString &path) { openWindow(path); });
   });
 
   mInit = repoPlusMenu->addAction(tr("Initialize New Repository"));

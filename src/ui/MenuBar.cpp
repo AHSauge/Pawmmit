@@ -290,15 +290,7 @@ MenuBar::MenuBar(QWidget *parent) : QMenuBar(parent) {
 
   QAction *open = file->addAction(tr("Open Repository..."));
   openHotkey.use(open);
-  connect(open, &QAction::triggered, [] {
-    // FIXME: Filter out non-git dirs.
-    Settings *settings = Settings::instance();
-    QString title = tr("Open Repository");
-    QString path = QFileDialog::getExistingDirectory(
-        nullptr, title, settings->lastPath(), QFileDialog::ShowDirsOnly);
-    MainWindow::open(path);
-    settings->setLastPath(path);
-  });
+  connect(open, &QAction::triggered, [] { MainWindow::promptToOpen(); });
 
   QMenu *openRecent = file->addMenu(tr("Open Recent"));
   connect(openRecent, &QMenu::aboutToShow, [openRecent] {

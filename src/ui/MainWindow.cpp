@@ -30,6 +30,8 @@
 #include <QGuiApplication>
 #include <QScreen>
 #include <QCryptographicHash>
+#include <QDir>
+#include <QFileDialog>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QSettings>
@@ -406,6 +408,30 @@ MainWindow *MainWindow::open(const git::Repository &repo) {
   }
 
   return window;
+}
+
+void MainWindow::promptToOpen(QWidget *parent,
+                              std::function<void(const QString &)> onSelected) {
+  Settings *settings = Settings::instance();
+  QString start = settings->lastPath();
+  if (start.isEmpty())
+    start = QDir::homePath();
+
+  QFileDialog *dialog = new QFileDialog(parent, tr("Open Repository"), start);
+  dialog->setAttribute(Qt::WA_DeleteOnClose);
+  dialog->setFileMode(QFileDialog::Directory);
+  dialog->setOption(QFileDialog::ShowDirsOnly);
+  connect(dialog, &QFileDialog::fileSelected, dialog,
+          [settings, onSelected](const QString &path) {
+            settings->setLastPath(path);
+            if (onSelected) {
+              onSelected(path);
+            } else {
+              MainWindow::open(path);
+            }
+          });
+
+  dialog->open();
 }
 
 void MainWindow::setSaveWindowSettings(bool enabled) {

@@ -65,17 +65,8 @@ public:
 
     QPushButton *open =
         addButton(QIcon(":/open.png"), tr("Open existing repository"));
-    connect(open, &QPushButton::clicked, [this] {
-      // FIXME: Filter out non-git dirs.
-      QFileDialog *dialog =
-          new QFileDialog(this, tr("Open Repository"), QDir::homePath());
-      dialog->setAttribute(Qt::WA_DeleteOnClose);
-      dialog->setFileMode(QFileDialog::Directory);
-      dialog->setOption(QFileDialog::ShowDirsOnly);
-      connect(dialog, &QFileDialog::fileSelected,
-              [](const QString &path) { MainWindow::open(path); });
-      dialog->open();
-    });
+    connect(open, &QPushButton::clicked,
+            [this] { MainWindow::promptToOpen(this); });
 
     QPushButton *init =
         addButton(QIcon(":/new.png"), tr("Initialize new repository"));

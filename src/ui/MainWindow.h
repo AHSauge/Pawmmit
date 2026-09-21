@@ -15,6 +15,7 @@
 
 #include "git/Repository.h"
 #include <QMainWindow>
+#include <functional>
 
 class RepoView;
 class TabWidget;
@@ -56,6 +57,11 @@ public:
   // Open a new window.
   static MainWindow *open(const QString &path, bool warnOnInvalid = true);
   static MainWindow *open(const git::Repository &repo = git::Repository());
+
+  // Ask for a repository directory and open it, or pass it to onSelected.
+  static void
+  promptToOpen(QWidget *parent = nullptr,
+               std::function<void(const QString &)> onSelected = nullptr);
 
   // Save window settings on close.
   static void setSaveWindowSettings(bool enabled);
