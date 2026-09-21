@@ -17,6 +17,7 @@
 #include "ui/DiffView/DiffView.h"
 
 #include "ui/MainWindow.h"
+#include "ui/MenuBar.h"
 #include "ui/DetailView.h"
 #include "ui/DiffView/FileWidget.h"
 #include "ui/DiffView/HunkWidget.h"
@@ -238,6 +239,17 @@ void TestRebase::conflictingRebase() {
   // Check that buttons are visible
   QTRY_COMPARE(continueRebaseButton->isVisible(), true);
   QTRY_COMPARE(abortRebaseButton->isVisible(), true);
+
+  // The Branch menu can abort the rebase too.
+  MenuBar *menuBar = MenuBar::instance(&window);
+  menuBar->update();
+  QAction *abortAction = nullptr;
+  for (QAction *action : menuBar->findChildren<QAction *>()) {
+    if (action->text() == "Abort Rebase")
+      abortAction = action;
+  }
+  QVERIFY(abortAction);
+  QVERIFY(abortAction->isEnabled());
 
   // Resolve conflicts
   diff = mRepo.status(mRepo.index(), nullptr, false);

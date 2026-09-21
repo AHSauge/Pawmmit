@@ -715,7 +715,20 @@ MenuBar::MenuBar(QWidget *parent) : QMenuBar(parent) {
 
   mAbort = branch->addAction(tr("Abort Merge"));
   abortHotkey.use(mAbort);
-  connect(mAbort, &QAction::triggered, [this] { view()->mergeAbort(); });
+  connect(mAbort, &QAction::triggered, [this] {
+    RepoView *view = this->view();
+    switch (view->repo().state()) {
+      case GIT_REPOSITORY_STATE_REBASE:
+      case GIT_REPOSITORY_STATE_REBASE_INTERACTIVE:
+      case GIT_REPOSITORY_STATE_REBASE_MERGE:
+        view->abortRebase();
+        break;
+
+      default:
+        view->mergeAbort();
+        break;
+    }
+  });
 
   // Submodule
   QMenu *submodule = addMenu(tr("Submodule"));
@@ -1071,6 +1084,7 @@ void MenuBar::updateBranch() {
   mSquash->setEnabled(head.isValid());
 
   bool merging = false;
+  bool rebasing = false;
   QString text = tr("Merge");
   if (view) {
     switch (view->repo().state()) {
@@ -1093,6 +1107,7 @@ void MenuBar::updateBranch() {
       case GIT_REPOSITORY_STATE_REBASE:
       case GIT_REPOSITORY_STATE_REBASE_INTERACTIVE:
       case GIT_REPOSITORY_STATE_REBASE_MERGE:
+        rebasing = true;
         text = tr("Rebase");
         break;
     }
@@ -1100,7 +1115,8 @@ void MenuBar::updateBranch() {
 
   git::Branch headBranch = head;
   mAbort->setText(tr("Abort %1").arg(text));
-  mAbort->setEnabled(headBranch.isValid() && merging);
+  // HEAD is detached during a rebase, so it can't be required to be a branch.
+  mAbort->setEnabled(rebasing || (headBranch.isValid() && merging));
 }
 
 void MenuBar::updateSubmodules() {
