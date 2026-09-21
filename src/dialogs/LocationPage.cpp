@@ -32,8 +32,10 @@ LocationPage::LocationPage(bool init, QWidget *parent)
   setButtonText(init ? QWizard::FinishButton : QWizard::NextButton,
                 init ? tr("Initialize") : tr("Clone"));
 
-  connect(ui->mName, &QLineEdit::textChanged, this, &LocationPage::updateLabel);
-  connect(ui->mPath, &QLineEdit::textChanged, this, &LocationPage::updateLabel);
+  connect(ui->mName, &QLineEdit::textChanged, this,
+          &LocationPage::updateFullPath);
+  connect(ui->mPath, &QLineEdit::textChanged, this,
+          &LocationPage::updateFullPath);
 
   connect(ui->mBrowse, &QPushButton::clicked, [this]() {
     QString title = tr("Choose Directory");
@@ -71,14 +73,12 @@ void LocationPage::initializePage() {
   ui->mPath->setText(QSettings().value(kPathKey, QDir::homePath()).toString());
 }
 
-void LocationPage::updateLabel() {
-  QString fmt = tr("The new repository will be created at:"
-                   "<p style='text-indent: 12px'><b>%1</b></p>");
-
+void LocationPage::updateFullPath() {
   QString name = ui->mName->text();
   QString path = ui->mPath->text();
-  ui->mLabel->setText(fmt.arg(QDir(path).filePath(name)));
-  ui->mLabel->setVisible(!path.isEmpty() && !name.isEmpty());
+  bool valid = !path.isEmpty() && !name.isEmpty();
+  ui->mFullPath->setText(valid ? QDir(path).filePath(name) : QString());
+  ui->mFullPath->setCursorPosition(0);
 
   emit completeChanged();
 }

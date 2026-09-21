@@ -57,6 +57,7 @@ tests = [
     'Setting',
     'commitMessageTemplate',
     'commitEditor',
+    'clone_dialog',
     'RepositoryWatcher',
     'RepoViewAutoRefresh',
     'PathFilter',

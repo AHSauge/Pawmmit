@@ -469,13 +469,8 @@ StartDialog::StartDialog(QWidget *parent)
 
   mClone = repoPlusMenu->addAction(tr("Clone Repository"));
   connect(mClone, &QAction::triggered, this, [this] {
-    CloneDialog *dialog = new CloneDialog(CloneDialog::Clone, this);
-    connect(dialog, &CloneDialog::accepted, this, [this, dialog] {
-      if (MainWindow *window = openWindow(dialog->path()))
-        window->currentView()->addLogEntry(dialog->message(),
-                                           dialog->messageTitle());
-    });
-    dialog->open();
+    MainWindow::promptToClone(
+        this, [this](const QString &path) { return openWindow(path); });
   });
 
   mOpen = repoPlusMenu->addAction(tr("Open Existing Repository"));
@@ -486,13 +481,8 @@ StartDialog::StartDialog(QWidget *parent)
 
   mInit = repoPlusMenu->addAction(tr("Initialize New Repository"));
   connect(mInit, &QAction::triggered, this, [this] {
-    CloneDialog *dialog = new CloneDialog(CloneDialog::Init, this);
-    connect(dialog, &CloneDialog::accepted, this, [this, dialog] {
-      if (MainWindow *window = openWindow(dialog->path()))
-        window->currentView()->addLogEntry(dialog->message(),
-                                           dialog->messageTitle());
-    });
-    dialog->open();
+    MainWindow::promptToInit(
+        this, [this](const QString &path) { return openWindow(path); });
   });
 
   QMenu *repoContextMenu = new QMenu(this);

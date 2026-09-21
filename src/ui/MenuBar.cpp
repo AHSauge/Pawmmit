@@ -27,7 +27,6 @@
 #include "conf/Settings.h"
 #include "cred/CredentialHelper.h"
 #include "dialogs/AboutDialog.h"
-#include "dialogs/CloneDialog.h"
 #include "dialogs/MergeDialog.h"
 #include "dialogs/RemoteDialog.h"
 #include "dialogs/SettingsDialog.h"
@@ -51,22 +50,6 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QTextEdit>
-
-namespace {
-
-void openCloneDialog(CloneDialog::Kind kind) {
-  CloneDialog *dialog = new CloneDialog(kind);
-  QObject::connect(dialog, &CloneDialog::accepted, [dialog] {
-    if (MainWindow *window = MainWindow::open(dialog->path())) {
-      RepoView *view = window->currentView();
-      view->addLogEntry(dialog->message(), dialog->messageTitle());
-    }
-  });
-
-  dialog->open();
-}
-
-} // namespace
 
 bool MenuBar::sDebugMenuVisible = false;
 
@@ -278,13 +261,11 @@ MenuBar::MenuBar(QWidget *parent) : QMenuBar(parent) {
 
   QAction *clone = file->addAction(tr("Clone Repository..."));
   cloneHotkey.use(clone);
-  connect(clone, &QAction::triggered,
-          [] { openCloneDialog(CloneDialog::Clone); });
+  connect(clone, &QAction::triggered, [] { MainWindow::promptToClone(); });
 
   QAction *init = file->addAction(tr("Initialize New Repository..."));
   initHotkey.use(init);
-  connect(init, &QAction::triggered,
-          [] { openCloneDialog(CloneDialog::Init); });
+  connect(init, &QAction::triggered, [] { MainWindow::promptToInit(); });
 
   file->addSeparator();
 

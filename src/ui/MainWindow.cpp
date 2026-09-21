@@ -21,6 +21,7 @@
 #include "ToolBar.h"
 #include "conf/RecentRepositories.h"
 #include "conf/Settings.h"
+#include "dialogs/CloneDialog.h"
 #include "git/Repository.h"
 #include "git/Config.h"
 #include "git/Submodule.h"
@@ -70,6 +71,23 @@ private:
   QString mPath;
   int mSections = 1;
 };
+
+void promptToCreate(CloneDialog::Kind kind, QWidget *parent,
+                    std::function<MainWindow *(const QString &)> opener) {
+  if (!parent)
+    parent = MainWindow::activeWindow();
+
+  CloneDialog *dialog = new CloneDialog(kind, parent);
+  QObject::connect(dialog, &CloneDialog::accepted, dialog, [dialog, opener] {
+    QString path = dialog->path();
+    MainWindow *window = opener ? opener(path) : MainWindow::open(path);
+    if (window)
+      window->currentView()->addLogEntry(dialog->message(),
+                                         dialog->messageTitle());
+  });
+
+  dialog->open();
+}
 
 } // namespace
 
@@ -435,6 +453,16 @@ void MainWindow::promptToOpen(QWidget *parent,
           });
 
   dialog->open();
+}
+
+void MainWindow::promptToClone(
+    QWidget *parent, std::function<MainWindow *(const QString &)> opener) {
+  promptToCreate(CloneDialog::Clone, parent, std::move(opener));
+}
+
+void MainWindow::promptToInit(
+    QWidget *parent, std::function<MainWindow *(const QString &)> opener) {
+  promptToCreate(CloneDialog::Init, parent, std::move(opener));
 }
 
 void MainWindow::setSaveWindowSettings(bool enabled) {

@@ -67,7 +67,21 @@
        </layout>
       </widget>
      </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="label_3">
+       <property name="text">
+        <string>Full path:</string>
+       </property>
+      </widget>
+     </item>
      <item row="2" column="1">
+      <widget class="QLineEdit" name="mFullPath">
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
       <widget class="QCheckBox" name="mBare">
        <property name="text">
         <string>Create a bare repository</string>
@@ -75,13 +89,6 @@
       </widget>
      </item>
     </layout>
-   </item>
-   <item>
-    <widget class="QLabel" name="mLabel">
-     <property name="visible">
-      <bool>false</bool>
-     </property>
-    </widget>
    </item>
   </layout>
  </widget>

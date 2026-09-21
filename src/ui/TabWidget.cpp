@@ -15,7 +15,6 @@
 #include "TabBar.h"
 #include "app/Application.h"
 #include "dialogs/AccountDialog.h"
-#include "dialogs/CloneDialog.h"
 #include "host/Account.h"
 #include "ui/MainWindow.h"
 #include "ui/RepoView.h"
@@ -53,15 +52,8 @@ public:
 
     QPushButton *clone =
         addButton(QIcon(":/clone.png"), tr("Clone repository"));
-    connect(clone, &QPushButton::clicked, [this] {
-      CloneDialog *dialog = new CloneDialog(CloneDialog::Clone, this);
-      connect(dialog, &CloneDialog::accepted, [dialog] {
-        if (MainWindow *window = MainWindow::open(dialog->path()))
-          window->currentView()->addLogEntry(dialog->message(),
-                                             dialog->messageTitle());
-      });
-      dialog->open();
-    });
+    connect(clone, &QPushButton::clicked,
+            [this] { MainWindow::promptToClone(this); });
 
     QPushButton *open =
         addButton(QIcon(":/open.png"), tr("Open existing repository"));
@@ -70,15 +62,8 @@ public:
 
     QPushButton *init =
         addButton(QIcon(":/new.png"), tr("Initialize new repository"));
-    connect(init, &QPushButton::clicked, [this] {
-      CloneDialog *dialog = new CloneDialog(CloneDialog::Init, this);
-      connect(dialog, &CloneDialog::accepted, [dialog] {
-        if (MainWindow *window = MainWindow::open(dialog->path()))
-          window->currentView()->addLogEntry(dialog->message(),
-                                             dialog->messageTitle());
-      });
-      dialog->open();
-    });
+    connect(init, &QPushButton::clicked,
+            [this] { MainWindow::promptToInit(this); });
 
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->setSpacing(12);

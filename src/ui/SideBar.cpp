@@ -734,30 +734,16 @@ SideBar::SideBar(TabWidget *tabs, MainWindow *mainWindow, QWidget *parent)
   footer->setPlusMenu(plusMenu);
 
   QAction *clone = plusMenu->addAction(tr("Clone Repository"));
-  connect(clone, &QAction::triggered, [this] {
-    CloneDialog *dialog = new CloneDialog(CloneDialog::Clone, this);
-    connect(dialog, &CloneDialog::accepted, [dialog] {
-      if (MainWindow *window = MainWindow::open(dialog->path()))
-        window->currentView()->addLogEntry(dialog->message(),
-                                           dialog->messageTitle());
-    });
-    dialog->open();
-  });
+  connect(clone, &QAction::triggered,
+          [this] { MainWindow::promptToClone(this); });
 
   QAction *open = plusMenu->addAction(tr("Open Existing Repository"));
   connect(open, &QAction::triggered,
           [this] { MainWindow::promptToOpen(this); });
 
   QAction *init = plusMenu->addAction(tr("Initialize New Repository"));
-  connect(init, &QAction::triggered, [this] {
-    CloneDialog *dialog = new CloneDialog(CloneDialog::Init, this);
-    connect(dialog, &CloneDialog::accepted, [dialog] {
-      if (MainWindow *window = MainWindow::open(dialog->path()))
-        window->currentView()->addLogEntry(dialog->message(),
-                                           dialog->messageTitle());
-    });
-    dialog->open();
-  });
+  connect(init, &QAction::triggered,
+          [this] { MainWindow::promptToInit(this); });
 
   plusMenu->addSeparator();
 

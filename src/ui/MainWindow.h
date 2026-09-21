@@ -63,6 +63,15 @@ public:
   promptToOpen(QWidget *parent = nullptr,
                std::function<void(const QString &)> onSelected = nullptr);
 
+  // Show the clone or initialize dialog and open the resulting repository,
+  // using opener instead of MainWindow::open if given.
+  static void
+  promptToClone(QWidget *parent = nullptr,
+                std::function<MainWindow *(const QString &)> opener = nullptr);
+  static void
+  promptToInit(QWidget *parent = nullptr,
+               std::function<MainWindow *(const QString &)> opener = nullptr);
+
   // Save window settings on close.
   static void setSaveWindowSettings(bool enabled);
 
