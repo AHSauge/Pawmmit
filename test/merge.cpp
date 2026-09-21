@@ -204,6 +204,7 @@ void TestMerge::mergeConflict() {
   editor->clear();
   editor->setText("merge commit");
   QVERIFY(!commit->isEnabled());
+  QVERIFY(commit->toolTip().contains("Resolve the remaining conflicts"));
 }
 
 void TestMerge::resolve() {

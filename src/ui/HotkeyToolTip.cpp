@@ -27,12 +27,17 @@ void HotkeyToolTip::setText(const QString &text) {
   update();
 }
 
+void HotkeyToolTip::setDetail(const QString &detail) {
+  mDetail = detail;
+  update();
+}
+
 HotkeyToolTip *HotkeyToolTip::of(QWidget *widget) {
   return widget->findChild<HotkeyToolTip *>(QString(),
                                             Qt::FindDirectChildrenOnly);
 }
 
 void HotkeyToolTip::update() {
-  mWidget->setToolTip(mKeys.isEmpty() ? mText
-                                      : QString("%1 (%2)").arg(mText, mKeys));
+  QString tip = mKeys.isEmpty() ? mText : QString("%1 (%2)").arg(mText, mKeys);
+  mWidget->setToolTip(mDetail.isEmpty() ? tip : tip + "\n" + mDetail);
 }

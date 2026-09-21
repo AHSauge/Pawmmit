@@ -1,10 +1,14 @@
 #include "Test.h"
 #include "ui/MainWindow.h"
+#include "ui/DoubleTreeWidget.h"
 #include "ui/MenuBar.h"
 #include "ui/RepoView.h"
 #include "ui/SearchField.h"
 #include "ui/ToolBar.h"
+#include "ui/TreeView.h"
 #include <QAbstractButton>
+#include <QFile>
+#include <QTextEdit>
 #include <QSettings>
 #include <QTemporaryDir>
 
@@ -22,6 +26,7 @@ private slots:
   void logTipFollowsVisibility();
   void everyIconOnlyButtonHasAName();
   void commitEditorTipsShowHotkeys();
+  void commitTipExplainsWhatIsMissing();
   void cleanupTestCase();
 
 private:
@@ -159,10 +164,53 @@ void TestButtonTips::commitEditorTipsShowHotkeys() {
 
   QAbstractButton *commit = anyButton("Commit");
   QVERIFY(commit);
-  QCOMPARE(commit->toolTip(), QString("Commit (%1)").arg(keys("Ctrl+Shift+C")));
+  QVERIFY(commit->toolTip().startsWith(
+      QString("Commit (%1)").arg(keys("Ctrl+Shift+C"))));
 
   QAbstractButton *copy = anyButton("Copy Commit ID");
   QVERIFY(copy);
+}
+
+void TestButtonTips::commitTipExplainsWhatIsMissing() {
+  RepoView *view = mWindow->currentView();
+  QVERIFY(view);
+
+  QFile file(mRepo->workdir().filePath("test"));
+  QVERIFY(file.open(QFile::WriteOnly));
+  file.write("This will be a test.\n");
+  file.close();
+  refresh(view);
+
+  auto doubleTree = view->findChild<DoubleTreeWidget *>();
+  QVERIFY(doubleTree);
+  auto files = doubleTree->findChild<TreeView *>("Unstaged");
+  QVERIFY(files);
+  QTRY_COMPARE_WITH_TIMEOUT(files->model()->rowCount(), 1, 10000);
+
+  QAbstractButton *commit = anyButton("Commit");
+  QVERIFY(commit);
+  QString base = QString("Commit (%1)").arg(keys("Ctrl+Shift+C"));
+
+  QTRY_COMPARE(commit->toolTip(), base + "\nStage the files you want to commit"
+                                         "\nEnter a commit message");
+  QVERIFY(!commit->isEnabled());
+
+  // Staging a file suggests a message, so there is nothing left to say.
+  QModelIndex index = files->model()->index(0, 0);
+  mouseClick(files->viewport(), Qt::LeftButton, Qt::KeyboardModifiers(),
+             files->checkRect(index).center());
+  QTRY_COMPARE(commit->toolTip(), base);
+  QVERIFY(commit->isEnabled());
+
+  QTextEdit *editor = view->findChild<QTextEdit *>("MessageEditor");
+  QVERIFY(editor);
+  editor->clear();
+  QTRY_COMPARE(commit->toolTip(), base + "\nEnter a commit message");
+  QVERIFY(!commit->isEnabled());
+
+  editor->setText("base commit");
+  QTRY_COMPARE(commit->toolTip(), base);
+  QVERIFY(commit->isEnabled());
 }
 
 void TestButtonTips::cleanupTestCase() { mWindow->close(); }

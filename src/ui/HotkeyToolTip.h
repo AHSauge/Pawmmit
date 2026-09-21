@@ -20,6 +20,9 @@ public:
 
   void setText(const QString &text);
 
+  // Extra lines below the text, e.g. why the widget is disabled.
+  void setDetail(const QString &detail);
+
   // The tool tip of widget, if it was given one.
   static HotkeyToolTip *of(QWidget *widget);
 
@@ -29,6 +32,7 @@ private:
   QWidget *mWidget;
   QString mText;
   QString mKeys;
+  QString mDetail;
 };
 
 #endif

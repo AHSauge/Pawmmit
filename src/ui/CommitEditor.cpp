@@ -774,7 +774,8 @@ void CommitEditor::updateButtons(bool yieldFocus) {
     (void)blocker;
 
     setMessage(files);
-    if (yieldFocus && !mMessage->toPlainText().isEmpty())
+    mEditorEmpty = mMessage->toPlainText().isEmpty(); // The signal is blocked.
+    if (yieldFocus && !mEditorEmpty)
       mMessage->setFocus();
   }
 
@@ -828,8 +829,18 @@ void CommitEditor::updateButtons(bool yieldFocus) {
   HotkeyToolTip::of(mCommit)->setText(mCommit->text());
 
   // The index can't be written to a tree while conflicts remain.
-  mCommit->setEnabled(total && conflicted == 0 &&
-                      !mMessage->document()->isEmpty());
+  bool empty = mMessage->document()->isEmpty();
+  mCommit->setEnabled(total && conflicted == 0 && !empty);
+
+  // Say what is missing, as a disabled button doesn't.
+  QStringList missing;
+  if (conflicted)
+    missing.append(tr("Resolve the remaining conflicts"));
+  if (!total)
+    missing.append(tr("Stage the files you want to commit"));
+  if (empty)
+    missing.append(tr("Enter a commit message"));
+  HotkeyToolTip::of(mCommit)->setDetail(missing.join('\n'));
 
   // Update menu actions.
   MenuBar::instance(this)->updateRepository();
