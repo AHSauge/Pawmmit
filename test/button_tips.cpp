@@ -7,6 +7,7 @@
 #include "ui/ToolBar.h"
 #include "ui/TreeView.h"
 #include <QAbstractButton>
+#include <QCalendarWidget>
 #include <QFile>
 #include <QTextEdit>
 #include <QSettings>
@@ -25,6 +26,7 @@ private slots:
   void tipsFollowARebinding();
   void logTipFollowsVisibility();
   void everyIconOnlyButtonHasAName();
+  void qtsOwnButtonsAreLeftAlone();
   void commitEditorTipsShowHotkeys();
   void commitTipExplainsWhatIsMissing();
   void cleanupTestCase();
@@ -128,29 +130,55 @@ void TestButtonTips::logTipFollowsVisibility() {
   QVERIFY(hide->toolTip().startsWith("Hide Log"));
 }
 
+// Qt's own buttons, such as the line edit icons and the calendar popup's
+// corner, aren't ours to name. Which of them exist, and what they are called,
+// depends on the Qt version, so go by what they are rather than by name.
+static bool isQtInternal(QAbstractButton *button) {
+  QString type = button->metaObject()->className();
+  if (type == "QLineEditIconButton" || type == "QTableCornerButton" ||
+      button->objectName().startsWith("qt_")) {
+    return true;
+  }
+
+  for (QWidget *widget = button->parentWidget(); widget;
+       widget = widget->parentWidget()) {
+    QString parent = widget->metaObject()->className();
+    if (parent.startsWith("QtPrivate::") || parent == "QCalendarWidget")
+      return true;
+  }
+
+  return false;
+}
+
 void TestButtonTips::everyIconOnlyButtonHasAName() {
   int checked = 0;
   for (QAbstractButton *button : mWindow->findChildren<QAbstractButton *>()) {
-    // Qt's own line edit icons and tab scroll arrows aren't ours to name.
-    QString type = button->metaObject()->className();
-    if (type == "QLineEditIconButton" || button->objectName().startsWith("qt_"))
-      continue;
-
-    if (!button->text().isEmpty())
+    if (isQtInternal(button) || !button->text().isEmpty())
       continue;
 
     ++checked;
-    QVERIFY2(
-        !button->accessibleName().isEmpty(),
-        qPrintable(
-            QString("%1 in %2 has no accessible name")
-                .arg(type,
-                     button->parentWidget()
+    QString parent = button->parentWidget()
                          ? button->parentWidget()->metaObject()->className()
-                         : "?")));
+                         : "?";
+    QVERIFY2(!button->accessibleName().isEmpty(),
+             qPrintable(QString("%1 in %2 has no accessible name")
+                            .arg(button->metaObject()->className(), parent)));
   }
 
   QVERIFY(checked > 15);
+}
+
+void TestButtonTips::qtsOwnButtonsAreLeftAlone() {
+  // Older Qt versions, such as CI's, don't give the calendar's buttons object
+  // names, so strip them to look like that.
+  QCalendarWidget *calendar = new QCalendarWidget(mWindow);
+  calendar->show();
+  QVERIFY(qWaitForWindowExposed(mWindow));
+  for (QAbstractButton *button : calendar->findChildren<QAbstractButton *>())
+    button->setObjectName(QString());
+
+  everyIconOnlyButtonHasAName();
+  delete calendar;
 }
 
 void TestButtonTips::commitEditorTipsShowHotkeys() {
