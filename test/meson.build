@@ -58,6 +58,8 @@ tests = [
     'commitMessageTemplate',
     'commitEditor',
     'clone_dialog',
+    'language_combo_box',
+    'theme_dialog',
     'RepositoryWatcher',
     'RepoViewAutoRefresh',
     'PathFilter',

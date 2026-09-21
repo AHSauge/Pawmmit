@@ -15,11 +15,22 @@
 
 #include <QDialog>
 
+class QComboBox;
+
 class ThemeDialog : public QDialog {
   Q_OBJECT
 
 public:
   ThemeDialog(QWidget *parent = nullptr);
+
+protected:
+  void changeEvent(QEvent *event) override;
+
+private:
+  void retranslate();
+
+  QWidget *mGlobe = nullptr;
+  QComboBox *mLanguage = nullptr;
 };
 
 #endif

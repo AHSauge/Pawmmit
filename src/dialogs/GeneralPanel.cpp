@@ -15,7 +15,7 @@
 #include "conf/Settings.h"
 #include "cred/CredentialHelper.h"
 #include "git/Config.h"
-#include "languages.h"
+#include "LanguageComboBox.h"
 #include "ui/MainWindow.h"
 #include "ui/RepoView.h"
 #include "ui_GeneralPanel.h"
@@ -33,11 +33,7 @@ GeneralPanel::GeneralPanel(QWidget *parent)
   connect(ui->mFetch, &QCheckBox::toggled, ui->mFetchMinutes,
           &QSpinBox::setEnabled);
 
-  QMapIterator<const char *, const char *> i(Languages::languages);
-  while (i.hasNext()) {
-    i.next();
-    ui->mLanguages->addItem(tr(i.key()), QVariant(i.value()));
-  }
+  setupLanguageComboBox(ui->mLanguages);
 
   connect(ui->mPrivacy, &QLabel::linkActivated,
           [] { AboutDialog::openSharedInstance(AboutDialog::Privacy); });
@@ -86,16 +82,6 @@ GeneralPanel::GeneralPanel(QWidget *parent)
     Settings::instance()->setValue(Setting::Id::PruneAfterFetch, checked);
   });
 
-  connect(ui->mNoTranslation, &QCheckBox::toggled, [](bool checked) {
-    Settings::instance()->setValue(Setting::Id::DontTranslate, checked);
-  });
-
-  connect(ui->mLanguages, QOverload<int>::of(&QComboBox::currentIndexChanged),
-          [this]() {
-            const auto &language = ui->mLanguages->currentData().toString();
-            Settings::instance()->setValue(Setting::Id::Language, language);
-          });
-
   connect(ui->mAvailableStores,
           QOverload<int>::of(&QComboBox::currentIndexChanged),
           [this](int index) {
@@ -136,17 +122,6 @@ void GeneralPanel::init() {
       settings->value(Setting::Id::UpdateSubmodulesAfterPullAndClone).toBool());
   ui->mAutoPrune->setChecked(
       settings->value(Setting::Id::PruneAfterFetch).toBool());
-
-  ui->mNoTranslation->setChecked(
-      settings->value(Setting::Id::DontTranslate).toBool());
-
-  const auto &l = settings->value(Setting::Id::Language).toString();
-  for (int i = 0; i < ui->mLanguages->count(); i++) {
-    if (ui->mLanguages->itemData(i).toString() == l) {
-      ui->mLanguages->setCurrentIndex(i);
-      break;
-    }
-  }
 
   auto currentHelper = config.value<QString>("credential.helper");
 

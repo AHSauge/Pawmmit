@@ -28,7 +28,6 @@ void Setting::initialize(QMap<Id, QString> &keys) {
   keys[Id::TerminalCommand] = "terminal/command";
   keys[Id::TerminalName] = "terminal/name";
   keys[Id::TerminalPath] = "terminal/path";
-  keys[Id::DontTranslate] = "translation/disable";
   keys[Id::Language] = "translation/language";
   keys[Id::AllowSingleInstanceOnly] = "singleInstance";
   keys[Id::CheckForUpdatesAutomatically] = "update/check";

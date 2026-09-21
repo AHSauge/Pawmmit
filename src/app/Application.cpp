@@ -173,6 +173,8 @@ Application::Application(int &argc, char **argv, bool haltOnParseError)
   QApplication::setPalette(QApplication::style()->standardPalette());
 #endif
 
+  mTranslationDisabled = parser.isSet("no-translation");
+
   // Initialize theme.
   mTheme.reset(Theme::create(parser.value("theme")));
   setStyle(mTheme->style());
@@ -198,41 +200,8 @@ Application::Application(int &argc, char **argv, bool haltOnParseError)
   QApplication::setFont(font);
 #endif
 
-  // Read translation settings.
-  QSettings settings;
-  if ((!settings.value(Setting::key(Setting::Id::DontTranslate), false)
-            .toBool()) &&
-      (!parser.isSet("no-translation"))) {
-    // Load translation files.
-
-    const auto &language =
-        Settings::instance()->value(Setting::Id::Language).toString();
-    if (language != Languages::system)
-      QLocale::setDefault(QLocale(language));
-
-    QLocale locale;
-    QDir l10n = Settings::l10nDir();
-    QString name = QString(PAWMMIT_NAME).toLower();
-    QTranslator *translator = new QTranslator(this);
-    if (translator->load(locale, name, "_", l10n.absolutePath())) {
-      installTranslator(translator);
-    } else {
-      delete translator;
-    }
-
-    // Load Qt translation file.
-    QTranslator *qt = new QTranslator(this);
-    if (qt->load(locale, "qtbase", "_", l10n.absolutePath())) {
-      installTranslator(qt);
-    } else {
-      QDir dir(QT_TRANSLATIONS_DIR);
-      if (dir.exists() && qt->load(locale, "qtbase", "_", dir.absolutePath())) {
-        installTranslator(qt);
-      } else {
-        delete qt;
-      }
-    }
-  }
+  loadTranslations(
+      Settings::instance()->value(Setting::Id::Language).toString());
 
   // Enable system proxy auto-detection.
   QNetworkProxyFactory::setUseSystemConfiguration(true);
@@ -514,6 +483,58 @@ void Application::setInTest() { mIsInTest = true; }
 
 Theme *Application::theme() {
   return static_cast<Application *>(instance())->mTheme.get();
+}
+
+void Application::setLanguage(const QString &language) {
+  static_cast<Application *>(instance())->loadTranslations(language);
+}
+
+void Application::loadTranslations(const QString &language) {
+  if (mTranslationDisabled)
+    return;
+
+  for (QTranslator *translator : {mTranslator, mQtTranslator}) {
+    if (translator) {
+      removeTranslator(translator);
+      delete translator;
+    }
+  }
+
+  mTranslator = mQtTranslator = nullptr;
+
+  QLocale::setDefault(language == Languages::system ? QLocale::system()
+                                                    : QLocale(language));
+
+  QLocale locale;
+  QDir l10n = Settings::l10nDir();
+  QString name = QString(PAWMMIT_NAME).toLower();
+  mTranslator = new QTranslator(this);
+  if (mTranslator->load(locale, name, "_", l10n.absolutePath())) {
+    installTranslator(mTranslator);
+  } else {
+    delete mTranslator;
+    mTranslator = nullptr;
+  }
+
+  // Load Qt translation file.
+  mQtTranslator = new QTranslator(this);
+  if (mQtTranslator->load(locale, "qtbase", "_", l10n.absolutePath())) {
+    installTranslator(mQtTranslator);
+  } else {
+    QDir dir(QT_TRANSLATIONS_DIR);
+    if (dir.exists() &&
+        mQtTranslator->load(locale, "qtbase", "_", dir.absolutePath())) {
+      installTranslator(mQtTranslator);
+    } else {
+      delete mQtTranslator;
+      mQtTranslator = nullptr;
+    }
+  }
+
+  // Qt only notifies the application object, not the widgets.
+  QEvent event(QEvent::LanguageChange);
+  for (QWidget *widget : topLevelWidgets())
+    sendEvent(widget, &event);
 }
 
 bool Application::event(QEvent *event) {

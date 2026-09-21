@@ -113,9 +113,12 @@
       <widget class="QComboBox" name="mLanguages"/>
      </item>
      <item row="7" column="1">
-      <widget class="QCheckBox" name="mNoTranslation">
+      <widget class="QLabel" name="mLanguageHint">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
        <property name="text">
-        <string>No translation</string>
+        <string>Takes effect after restarting.</string>
        </property>
       </widget>
      </item>

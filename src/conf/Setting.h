@@ -52,7 +52,6 @@ public:
     TerminalCommand,
     TerminalName,
     TerminalPath,
-    DontTranslate,
     AllowSingleInstanceOnly,
     CheckForUpdatesAutomatically,
     InstallUpdatesAutomatically,
