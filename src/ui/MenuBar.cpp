@@ -208,16 +208,16 @@ static Hotkey rebaseHotkey = HotkeyManager::registerHotkey(
     "Ctrl+Shift+R", "branch/rebase", "Branch/Rebase");
 
 static Hotkey abortHotkey = HotkeyManager::registerHotkey(
-    "Ctrl+Shift+A", "branch/abort", "Branch/Abort Merge");
+    nullptr, "branch/abort", "Branch/Abort Merge");
 
 static Hotkey configureSubmodulesHotkey = HotkeyManager::registerHotkey(
-    nullptr, "branch/configure", "Branch/Configure");
+    nullptr, "submodule/configure", "Submodule/Configure");
 
 static Hotkey updateSubmodulesHotkey = HotkeyManager::registerHotkey(
-    "Ctrl+Shift+Alt+U", "branch/update", "Branch/Update All");
+    "Ctrl+Shift+Alt+U", "branch/update", "Submodule/Update All");
 
 static Hotkey initSubmodulesHotkey = HotkeyManager::registerHotkey(
-    "Ctrl+Shift+U", "branch/init", "Branch/Update");
+    "Ctrl+Shift+U", "branch/init", "Submodule/Update");
 
 static Hotkey showStashesHotkey =
     HotkeyManager::registerHotkey(nullptr, "stash/show", "Stash/Show Stashes");
@@ -247,7 +247,7 @@ static Hotkey preferencesHotkey = HotkeyManager::registerHotkey(
     nullptr, "tools/preferences", "Tools/Options");
 
 static Hotkey squashHotkey = HotkeyManager::registerHotkey(
-    "Ctrl+Shift+Q", "tools/preferences", "Tools/Options");
+    "Ctrl+Shift+Q", "branch/squash", "Branch/Squash");
 
 MenuBar::MenuBar(QWidget *parent) : QMenuBar(parent) {
 
