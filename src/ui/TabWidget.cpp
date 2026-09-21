@@ -25,6 +25,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QResizeEvent>
+#include <QStyle>
 #include <QVBoxLayout>
 
 namespace {
@@ -156,6 +157,14 @@ void TabWidget::resizeEvent(QResizeEvent *event) {
 
 void TabWidget::tabInserted(int index) {
   QTabWidget::tabInserted(index);
+
+  // Qt's close button has a tool tip but no accessible name.
+  auto side = static_cast<QTabBar::ButtonPosition>(style()->styleHint(
+      QStyle::SH_TabBar_CloseButtonPosition, nullptr, tabBar()));
+  if (QWidget *close = tabBar()->tabButton(index, side))
+    close->setAccessibleName(
+        QCoreApplication::translate("QTabBar", "Close Tab"));
+
   MenuBar::instance(this)->updateWindow();
   emit tabInserted();
 

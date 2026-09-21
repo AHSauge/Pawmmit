@@ -12,6 +12,7 @@
 
 #include "ReferenceWidget.h"
 #include "ExpandButton.h"
+#include "HotkeyToolTip.h"
 #include "ConfigKeys.h"
 #include "git/Config.h"
 #include "git/Reference.h"
@@ -125,6 +126,7 @@ ReferenceWidget::ReferenceWidget(const git::Repository &repo,
                 "}");
 
   ExpandButton *button = new ExpandButton(this);
+  new HotkeyToolTip(button, tr("Choose Branch or Tag"));
   mLabel = new Label(button, this);
   connect(mLabel, &QLabel::linkActivated,
           [this] { emit referenceSelected(currentReference()); });

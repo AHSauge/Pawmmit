@@ -12,6 +12,7 @@
 
 #include "PathspecWidget.h"
 #include "ExpandButton.h"
+#include "HotkeyToolTip.h"
 #include "FileContextMenu.h"
 #include "RepoView.h"
 #include "TreeModel.h"
@@ -108,6 +109,7 @@ PathspecWidget::PathspecWidget(const git::Repository &repo, QWidget *parent)
   mField->setPlaceholderText(tr("Filter by Path"));
 
   ExpandButton *button = new ExpandButton(this);
+  new HotkeyToolTip(button, tr("Browse Files"));
 
   QHBoxLayout *header = new QHBoxLayout;
   header->addWidget(mField);

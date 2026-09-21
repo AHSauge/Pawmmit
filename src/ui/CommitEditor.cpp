@@ -4,6 +4,7 @@
 #include "conf/Settings.h"
 #include "SpellChecker.h"
 #include "ContextMenuButton.h"
+#include "HotkeyToolTip.h"
 #include "MenuBar.h"
 #include "RepoView.h"
 
@@ -257,6 +258,7 @@ CommitEditor::CommitEditor(const git::Repository &repo, QWidget *parent)
     : QFrame(parent), mRepo(repo) {
   mTemplate = new TemplateButton(this);
   mTemplate->setText(tr("T"));
+  new HotkeyToolTip(mTemplate, tr("Commit Message Templates"));
   connect(mTemplate, &TemplateButton::templateChanged, this,
           [this](const QString &t) {
             QStringList files;
@@ -411,6 +413,7 @@ CommitEditor::CommitEditor(const git::Repository &repo, QWidget *parent)
 
   // Context button.
   ContextMenuButton *button = new ContextMenuButton(this);
+  new HotkeyToolTip(button, tr("Spell Check Options"));
   QMenu *menu = new QMenu(this);
   button->setMenu(menu);
 
@@ -480,17 +483,21 @@ CommitEditor::CommitEditor(const git::Repository &repo, QWidget *parent)
 
   mStage = new QPushButton(tr("Stage All"), this);
   mStage->setObjectName("StageAll");
+  new HotkeyToolTip(mStage, mStage->text(), Hotkeys::stageAll);
   connect(mStage, &QPushButton::clicked, this, &CommitEditor::stage);
 
   mUnstage = new QPushButton(tr("Unstage All"), this);
+  new HotkeyToolTip(mUnstage, mUnstage->text(), Hotkeys::unstageAll);
   connect(mUnstage, &QPushButton::clicked, this, &CommitEditor::unstage);
 
   mCommit = new QPushButton(tr("Commit"), this);
   mCommit->setDefault(true);
+  new HotkeyToolTip(mCommit, mCommit->text(), Hotkeys::commit);
   connect(mCommit, &QPushButton::clicked, this, &CommitEditor::commit);
 
   mRebaseAbort = new QPushButton(tr("Abort Rebase"), this);
   mRebaseAbort->setObjectName("AbortRebase");
+  new HotkeyToolTip(mRebaseAbort, mRebaseAbort->text(), Hotkeys::abort);
   connect(mRebaseAbort, &QPushButton::clicked, this,
           &CommitEditor::abortRebase);
 
@@ -500,6 +507,7 @@ CommitEditor::CommitEditor(const git::Repository &repo, QWidget *parent)
           &CommitEditor::continueRebase);
 
   mMergeAbort = new QPushButton(tr("Abort Merge"), this);
+  new HotkeyToolTip(mMergeAbort, mMergeAbort->text(), Hotkeys::abort);
   connect(mMergeAbort, &QPushButton::clicked, [this] {
     RepoView *view = RepoView::parentView(this);
     view->mergeAbort();
@@ -719,6 +727,7 @@ void CommitEditor::updateButtons(bool yieldFocus) {
   git::Branch headBranch = head;
 
   mMergeAbort->setText(tr("Abort %1").arg(text));
+  HotkeyToolTip::of(mMergeAbort)->setText(mMergeAbort->text());
   mMergeAbort->setVisible(headBranch.isValid() && merging);
 
   if (!mDiff.isValid()) {
@@ -815,6 +824,8 @@ void CommitEditor::updateButtons(bool yieldFocus) {
       mCommit->setText(tr("Commit"));
       break;
   }
+
+  HotkeyToolTip::of(mCommit)->setText(mCommit->text());
 
   // The index can't be written to a tree while conflicts remain.
   mCommit->setEnabled(total && conflicted == 0 &&

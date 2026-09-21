@@ -13,11 +13,18 @@
 #ifndef MENUBAR
 #define MENUBAR
 
+#include "ui/HotkeyManager.h"
 #include <QMenuBar>
 
 class History;
 class RepoView;
 class StateAction;
+
+// Hotkeys that tool tips elsewhere also show.
+namespace Hotkeys {
+extern Hotkey refresh, toggleLog, fetch, pull, push, checkout, stash, stashPop,
+    back, forward, stageAll, unstageAll, commit, abort, findNext, findPrevious;
+} // namespace Hotkeys
 
 class MenuBar : public QMenuBar {
   Q_OBJECT

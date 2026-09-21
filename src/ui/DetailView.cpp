@@ -13,6 +13,7 @@
 
 #include "DetailView.h"
 #include "Badge.h"
+#include "HotkeyToolTip.h"
 #include "MenuBar.h"
 #include "TreeWidget.h"
 #include "DoubleTreeWidget.h"
@@ -236,6 +237,7 @@ public:
 
     QToolButton *copy = new QToolButton(this);
     copy->setText(tr("Copy"));
+    new HotkeyToolTip(copy, tr("Copy Commit ID"));
     connect(copy, &QToolButton::clicked,
             [this] { QApplication::clipboard()->setText(mId); });
 

@@ -12,6 +12,7 @@
 
 #include "ContextMenuButton.h"
 #include "DoubleTreeWidget.h"
+#include "HotkeyToolTip.h"
 #include "BlameEditor.h"
 #include "DiffTreeModel.h"
 #include "FileContextMenu.h"
@@ -97,6 +98,7 @@ DoubleTreeWidget::DoubleTreeWidget(const git::Repository &repo, QWidget *parent)
 
   // Context button.
   ContextMenuButton *contextButton = new ContextMenuButton(this);
+  new HotkeyToolTip(contextButton, tr("View Options"));
   QMenu *contextMenu = new QMenu(this);
   contextButton->setMenu(contextMenu);
 

@@ -12,7 +12,9 @@
 
 #include "ToolBar.h"
 #include "History.h"
+#include "HotkeyToolTip.h"
 #include "MainWindow.h"
+#include "MenuBar.h"
 #include "qtsupport.h"
 #include "RepoView.h"
 #include "SearchField.h"
@@ -361,7 +363,6 @@ class RefreshButton : public Button {
 public:
   RefreshButton(QWidget *parent = nullptr) : Button(parent) {
     setObjectName("RefreshButton");
-    setToolTip(tr("Refresh"));
   }
 
   void paintEvent(QPaintEvent *event) override {
@@ -414,7 +415,6 @@ class PullRequestButton : public Button {
 public:
   PullRequestButton(QWidget *parent = nullptr) : Button(parent) {
     setObjectName("PullRequestButton");
-    setToolTip(tr("Create Pull Request"));
   }
 
   void paintEvent(QPaintEvent *event) override {
@@ -635,8 +635,8 @@ public:
   }
 
   void addButton(QAbstractButton *button, const QString &text = QString(),
-                 bool checkable = false) {
-    button->setToolTip(text);
+                 bool checkable = false, const Hotkey &hotkey = Hotkey()) {
+    new HotkeyToolTip(button, text, hotkey);
     button->setCheckable(checkable);
 
     mLayout->addWidget(button);
@@ -737,7 +737,7 @@ ToolBar::ToolBar(MainWindow *parent) : QToolBar(parent) {
   addWidget(new Spacer(4, this));
 
   SidebarButton *sidebarButton = new SidebarButton(SidebarButton::Left, this);
-  sidebarButton->setToolTip(tr("Toggle Repository Sidebar"));
+  new HotkeyToolTip(sidebarButton, tr("Toggle Repository Sidebar"));
   addWidget(sidebarButton);
   connect(sidebarButton, &QAbstractButton::clicked,
           [parent] { parent->setSideBarVisible(!parent->isSideBarVisible()); });
@@ -751,7 +751,7 @@ ToolBar::ToolBar(MainWindow *parent) : QToolBar(parent) {
 
   mPrevButton = new HistoryButton(HistoryButton::Prev, historyButton);
   mPrevButton->setEnabled(false);
-  historyButton->addButton(mPrevButton, tr("Back"));
+  historyButton->addButton(mPrevButton, tr("Back"), false, Hotkeys::back);
   connect(mPrevButton, &QAbstractButton::clicked,
           [this] { currentView()->history()->prev(); });
 
@@ -763,7 +763,7 @@ ToolBar::ToolBar(MainWindow *parent) : QToolBar(parent) {
 
   mNextButton = new HistoryButton(HistoryButton::Next, historyButton);
   mNextButton->setEnabled(false);
-  historyButton->addButton(mNextButton, tr("Forward"));
+  historyButton->addButton(mNextButton, tr("Forward"), false, Hotkeys::forward);
   connect(mNextButton, &QAbstractButton::clicked,
           [this] { currentView()->history()->next(); });
 
@@ -779,12 +779,12 @@ ToolBar::ToolBar(MainWindow *parent) : QToolBar(parent) {
   addWidget(remote);
 
   mFetchButton = new RemoteButton(RemoteButton::Fetch, remote);
-  remote->addButton(mFetchButton, tr("Fetch"));
+  remote->addButton(mFetchButton, tr("Fetch"), false, Hotkeys::fetch);
   connect(mFetchButton, &Button::clicked, [this] { currentView()->fetch(); });
 
   mPullButton = new RemoteButton(RemoteButton::Pull, remote);
   mPullButton->setPopupMode(QToolButton::MenuButtonPopup);
-  remote->addButton(mPullButton, tr("Pull"));
+  remote->addButton(mPullButton, tr("Pull"), false, Hotkeys::pull);
 
   // Add pull button menu.
   QMenu *pullMenu = new QMenu(mPullButton);
@@ -801,13 +801,13 @@ ToolBar::ToolBar(MainWindow *parent) : QToolBar(parent) {
   connect(mPullButton, &Button::clicked, [this] { currentView()->pull(); });
 
   mPushButton = new RemoteButton(RemoteButton::Push, remote);
-  remote->addButton(mPushButton, tr("Push"));
+  remote->addButton(mPushButton, tr("Push"), false, Hotkeys::push);
   connect(mPushButton, &Button::clicked, [this] { currentView()->push(); });
 
   addWidget(new Spacer(4, this));
 
   mCheckoutButton = new CheckButton(this);
-  mCheckoutButton->setToolTip(tr("Checkout"));
+  new HotkeyToolTip(mCheckoutButton, tr("Checkout"), Hotkeys::checkout);
   addWidget(mCheckoutButton);
   connect(mCheckoutButton, &Button::clicked,
           [this] { currentView()->promptToCheckout(); });
@@ -819,18 +819,20 @@ ToolBar::ToolBar(MainWindow *parent) : QToolBar(parent) {
 
   mStashButton = new StashButton(StashButton::Stash, stashButtons);
   mStashButton->setEnabled(false);
-  stashButtons->addButton(mStashButton, tr("Stash"));
+  stashButtons->addButton(mStashButton, tr("Stash"), false, Hotkeys::stash);
   connect(mStashButton, &Button::clicked,
           [this] { currentView()->promptToStash(); });
 
   mStashPopButton = new StashButton(StashButton::Pop, stashButtons);
-  stashButtons->addButton(mStashPopButton, tr("Pop Stash"));
+  stashButtons->addButton(mStashPopButton, tr("Pop Stash"), false,
+                          Hotkeys::stashPop);
   connect(mStashPopButton, &Button::clicked,
           [this] { currentView()->popStash(); });
 
   addWidget(new Spacer(4, this));
 
   mRefreshButton = new RefreshButton(this);
+  new HotkeyToolTip(mRefreshButton, tr("Refresh"), Hotkeys::refresh);
   addWidget(mRefreshButton);
   connect(mRefreshButton, &Button::clicked,
           [this] { currentView()->refresh(); });
@@ -839,6 +841,7 @@ ToolBar::ToolBar(MainWindow *parent) : QToolBar(parent) {
     addWidget(new Spacer(4, this));
 
     mPullRequestButton = new PullRequestButton(this);
+    new HotkeyToolTip(mPullRequestButton, tr("Create Pull Request"));
     addWidget(mPullRequestButton);
     connect(mPullRequestButton, &Button::clicked, [this] {
       PullRequestDialog *dialog = new PullRequestDialog(currentView());
@@ -849,7 +852,7 @@ ToolBar::ToolBar(MainWindow *parent) : QToolBar(parent) {
   addWidget(new Spacer(-1, this));
 
   mTerminalButton = new TerminalButton(this);
-  mTerminalButton->setToolTip(tr("Open Terminal"));
+  new HotkeyToolTip(mTerminalButton, tr("Open Terminal"), terminalHotkey);
   addWidget(mTerminalButton);
   connect(mTerminalButton, &Button::clicked,
           [this] { currentView()->openTerminal(); });
@@ -861,7 +864,8 @@ ToolBar::ToolBar(MainWindow *parent) : QToolBar(parent) {
   addWidget(new Spacer(4, this));
 
   mFileManagerButton = new FileManagerButton(this);
-  mFileManagerButton->setToolTip(tr("Open File Manager"));
+  new HotkeyToolTip(mFileManagerButton, tr("Open File Manager"),
+                    fileManagerHotkey);
   addWidget(mFileManagerButton);
   connect(mFileManagerButton, &Button::clicked,
           [this] { currentView()->openFileManager(); });
@@ -873,7 +877,7 @@ ToolBar::ToolBar(MainWindow *parent) : QToolBar(parent) {
   addWidget(new Spacer(4, this));
 
   SettingsButton *configButton = new SettingsButton(this);
-  configButton->setToolTip(tr("Settings"));
+  new HotkeyToolTip(configButton, tr("Settings"));
   addWidget(configButton);
 
   configButton->setPopupMode(
@@ -893,7 +897,7 @@ ToolBar::ToolBar(MainWindow *parent) : QToolBar(parent) {
   addWidget(new Spacer(4, this));
 
   mLogButton = new LogButton(this);
-  mLogButton->setToolTip(tr("Show Log"));
+  new HotkeyToolTip(mLogButton, tr("Show Log"), Hotkeys::toggleLog);
   addWidget(mLogButton);
   connect(mLogButton, &Button::clicked, [this] {
     RepoView *view = this->currentView();
@@ -929,7 +933,7 @@ ToolBar::ToolBar(MainWindow *parent) : QToolBar(parent) {
   addWidget(new Spacer(4, this));
 
   mStarButton = new StarButton(this);
-  mStarButton->setToolTip(tr("Show Only Starred Commits"));
+  new HotkeyToolTip(mStarButton, tr("Show Only Starred Commits"));
   addWidget(mStarButton);
 
   addWidget(new Spacer(4, this));
@@ -1022,7 +1026,8 @@ void ToolBar::updateView() {
 
   if (view) {
     bool visible = view->isLogVisible();
-    mLogButton->setToolTip(visible ? tr("Hide Log") : tr("Show Log"));
+    HotkeyToolTip::of(mLogButton)
+        ->setText(visible ? tr("Hide Log") : tr("Show Log"));
     mModeGroup->button(view->viewMode())->setChecked(true);
   }
 }

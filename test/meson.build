@@ -60,6 +60,7 @@ tests = [
     'clone_dialog',
     'language_combo_box',
     'theme_dialog',
+    'button_tips',
     'RepositoryWatcher',
     'RepoViewAutoRefresh',
     'PathFilter',
