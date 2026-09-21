@@ -15,7 +15,6 @@
 #include "TabBar.h"
 #include "app/Application.h"
 #include "dialogs/AccountDialog.h"
-#include "dialogs/CloneDialog.h"
 #include "host/Account.h"
 #include "ui/MainWindow.h"
 #include "ui/RepoView.h"
@@ -26,6 +25,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QResizeEvent>
+#include <QStyle>
 #include <QVBoxLayout>
 
 namespace {
@@ -52,42 +52,18 @@ public:
     heading->setFont(headingFont);
 
     QPushButton *clone =
-        addButton(QIcon(":/clone.png"), tr("Clone repository"));
-    connect(clone, &QPushButton::clicked, [this] {
-      CloneDialog *dialog = new CloneDialog(CloneDialog::Clone, this);
-      connect(dialog, &CloneDialog::accepted, [dialog] {
-        if (MainWindow *window = MainWindow::open(dialog->path()))
-          window->currentView()->addLogEntry(dialog->message(),
-                                             dialog->messageTitle());
-      });
-      dialog->open();
-    });
+        addButton(QIcon(":/clone.png"), tr("Clone Repository"));
+    connect(clone, &QPushButton::clicked,
+            [this] { MainWindow::promptToClone(this); });
 
-    QPushButton *open =
-        addButton(QIcon(":/open.png"), tr("Open existing repository"));
-    connect(open, &QPushButton::clicked, [this] {
-      // FIXME: Filter out non-git dirs.
-      QFileDialog *dialog =
-          new QFileDialog(this, tr("Open Repository"), QDir::homePath());
-      dialog->setAttribute(Qt::WA_DeleteOnClose);
-      dialog->setFileMode(QFileDialog::Directory);
-      dialog->setOption(QFileDialog::ShowDirsOnly);
-      connect(dialog, &QFileDialog::fileSelected,
-              [](const QString &path) { MainWindow::open(path); });
-      dialog->open();
-    });
+    QPushButton *open = addButton(QIcon(":/open.png"), tr("Open Repository"));
+    connect(open, &QPushButton::clicked,
+            [this] { MainWindow::promptToOpen(this); });
 
     QPushButton *init =
-        addButton(QIcon(":/new.png"), tr("Initialize new repository"));
-    connect(init, &QPushButton::clicked, [this] {
-      CloneDialog *dialog = new CloneDialog(CloneDialog::Init, this);
-      connect(dialog, &CloneDialog::accepted, [dialog] {
-        if (MainWindow *window = MainWindow::open(dialog->path()))
-          window->currentView()->addLogEntry(dialog->message(),
-                                             dialog->messageTitle());
-      });
-      dialog->open();
-    });
+        addButton(QIcon(":/new.png"), tr("Initialize New Repository"));
+    connect(init, &QPushButton::clicked,
+            [this] { MainWindow::promptToInit(this); });
 
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->setSpacing(12);
@@ -99,7 +75,7 @@ public:
 
     for (int i = 0; i < Account::NUM_KINDS; ++i) {
       Account::Kind kind = static_cast<Account::Kind>(i);
-      QString text = tr("Add %1 account").arg(Account::name(kind));
+      QString text = tr("Add %1 Account").arg(Account::name(kind));
       QPushButton *account =
           addButton(Account::icon(kind), text, QSize(20, 20), 1);
       connect(account, &QPushButton::clicked, [this, kind] {
@@ -181,6 +157,14 @@ void TabWidget::resizeEvent(QResizeEvent *event) {
 
 void TabWidget::tabInserted(int index) {
   QTabWidget::tabInserted(index);
+
+  // Qt's close button has a tool tip but no accessible name.
+  auto side = static_cast<QTabBar::ButtonPosition>(style()->styleHint(
+      QStyle::SH_TabBar_CloseButtonPosition, nullptr, tabBar()));
+  if (QWidget *close = tabBar()->tabButton(index, side))
+    close->setAccessibleName(
+        QCoreApplication::translate("QTabBar", "Close Tab"));
+
   MenuBar::instance(this)->updateWindow();
   emit tabInserted();
 

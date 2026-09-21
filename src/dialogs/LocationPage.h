@@ -32,7 +32,7 @@ public:
   void initializePage() override;
 
 private:
-  void updateLabel();
+  void updateFullPath();
 
   bool mInit;
   QScopedPointer<Ui::LocationPage> ui;

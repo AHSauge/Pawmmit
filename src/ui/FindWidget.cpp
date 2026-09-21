@@ -11,6 +11,7 @@
 //
 
 #include "FindWidget.h"
+#include "HotkeyToolTip.h"
 #include "MenuBar.h"
 #include "editor/TextEditor.h"
 #include <QHBoxLayout>
@@ -96,13 +97,16 @@ FindWidget::FindWidget(EditorProvider *provider, QWidget *parent)
   layout->addWidget(mHits);
 
   mButtons = new SegmentedButton(this);
+  new HotkeyToolTip(mButtons->prev(), tr("Previous Match"),
+                    Hotkeys::findPrevious);
+  new HotkeyToolTip(mButtons->next(), tr("Next Match"), Hotkeys::findNext);
   mButtons->setEnabled(false);
   layout->addWidget(mButtons);
 
   mField = new QLineEdit(this);
   mField->setStyleSheet(kFieldStyle);
   mField->setClearButtonEnabled(true);
-  mField->setPlaceholderText(tr("Search"));
+  mField->setPlaceholderText(tr("Find"));
   mField->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
   layout->addWidget(mField);
 

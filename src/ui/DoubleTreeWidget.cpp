@@ -12,6 +12,7 @@
 
 #include "ContextMenuButton.h"
 #include "DoubleTreeWidget.h"
+#include "HotkeyToolTip.h"
 #include "BlameEditor.h"
 #include "DiffTreeModel.h"
 #include "FileContextMenu.h"
@@ -42,7 +43,7 @@ const QString kCollapseAll = QString(QObject::tr("Collapse all"));
 const QString kStagedFiles = QString(QObject::tr("Staged Files"));
 const QString kUnstagedFiles = QString(QObject::tr("Unstaged Files"));
 const QString kCommitedFiles = QString(QObject::tr("Committed Files"));
-const QString kAllFiles = QString(QObject::tr("Workdir Files"));
+const QString kAllFiles = QString(QObject::tr("Working Directory Files"));
 
 class SegmentedButton : public QWidget {
 public:
@@ -97,6 +98,7 @@ DoubleTreeWidget::DoubleTreeWidget(const git::Repository &repo, QWidget *parent)
 
   // Context button.
   ContextMenuButton *contextButton = new ContextMenuButton(this);
+  new HotkeyToolTip(contextButton, tr("View Options"));
   QMenu *contextMenu = new QMenu(this);
   contextButton->setMenu(contextMenu);
 

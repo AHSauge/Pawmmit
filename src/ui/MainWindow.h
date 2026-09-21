@@ -15,6 +15,7 @@
 
 #include "git/Repository.h"
 #include <QMainWindow>
+#include <functional>
 
 class RepoView;
 class TabWidget;
@@ -57,6 +58,20 @@ public:
   static MainWindow *open(const QString &path, bool warnOnInvalid = true);
   static MainWindow *open(const git::Repository &repo = git::Repository());
 
+  // Ask for a repository directory and open it, or pass it to onSelected.
+  static void
+  promptToOpen(QWidget *parent = nullptr,
+               std::function<void(const QString &)> onSelected = nullptr);
+
+  // Show the clone or initialize dialog and open the resulting repository,
+  // using opener instead of MainWindow::open if given.
+  static void
+  promptToClone(QWidget *parent = nullptr,
+                std::function<MainWindow *(const QString &)> opener = nullptr);
+  static void
+  promptToInit(QWidget *parent = nullptr,
+               std::function<MainWindow *(const QString &)> opener = nullptr);
+
   // Save window settings on close.
   static void setSaveWindowSettings(bool enabled);
 
@@ -71,7 +86,8 @@ private:
   void updateInterface();
   void updateWindowTitle(int ahead = -1, int behind = -1);
 
-  static void warnInvalidRepo(const QString &path);
+  // Returns true if the user chose to initialize a repository at path.
+  static bool warnInvalidRepo(const QString &path);
 
   QStringList paths() const;
   QString windowGroup() const;

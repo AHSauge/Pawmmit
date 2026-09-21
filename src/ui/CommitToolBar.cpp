@@ -13,6 +13,7 @@
 #include "CommitToolBar.h"
 #include "CommitList.h"
 #include "ContextMenuButton.h"
+#include "HotkeyToolTip.h"
 #include "RepoView.h"
 #include "ConfigKeys.h"
 #include "conf/Settings.h"
@@ -45,9 +46,11 @@ template <typename T> using SettingsMap = QMap<QString, SettingsEntry<T>>;
 
 template <typename T> class ToolButton : public QToolButton {
 public:
-  ToolButton(const SettingsMap<T> &map, CommitToolBar *parent, T defaultValue)
+  ToolButton(const SettingsMap<T> &map, CommitToolBar *parent, T defaultValue,
+             const QString &toolTip)
       : QToolButton(parent) {
     setPopupMode(QToolButton::InstantPopup);
+    setToolTip(toolTip);
 
     QMenu *menu = new QMenu(this);
     QActionGroup *actions = new QActionGroup(menu);
@@ -129,13 +132,14 @@ CommitToolBar::CommitToolBar(QWidget *parent) : QToolBar(parent) {
   refsMap.insert(tr("Show Selected Branch, First Parent Only"),
                  {ConfigKeys::kRefsKey,
                   (int)CommitList::RefsFilter::SelectedRefIgnoreMerge});
-  addWidget(
-      new ToolButton<int>(refsMap, this, (int)CommitList::RefsFilter::AllRefs));
+  addWidget(new ToolButton<int>(refsMap, this,
+                                (int)CommitList::RefsFilter::AllRefs,
+                                tr("Commits to Show")));
 
   SettingsMap<bool> sortMap;
   sortMap.insert(tr("Sort by Date"), {ConfigKeys::kSortKey, true});
   sortMap.insert(tr("Sort Topologically"), {ConfigKeys::kSortKey, false});
-  addWidget(new ToolButton(sortMap, this, true));
+  addWidget(new ToolButton(sortMap, this, true, tr("Sort Order")));
 
   QWidget *spacer = new QWidget(this);
   spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
@@ -146,6 +150,7 @@ CommitToolBar::CommitToolBar(QWidget *parent) : QToolBar(parent) {
   git::Config config = view->repo().appConfig();
 
   ContextMenuButton *button = new ContextMenuButton(this);
+  new HotkeyToolTip(button, tr("View Options"));
   addWidget(button);
 
   QMenu *menu = new QMenu(button);

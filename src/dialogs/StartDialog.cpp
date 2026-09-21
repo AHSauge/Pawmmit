@@ -96,7 +96,7 @@ public:
             case Clone:
               return tr("Clone Repository");
             case Open:
-              return tr("Open Existing Repository");
+              return tr("Open Repository");
             case Init:
               return tr("Initialize New Repository");
           }
@@ -467,38 +467,22 @@ StartDialog::StartDialog(QWidget *parent)
   QMenu *repoPlusMenu = new QMenu(this);
   ui->mRepoFooter->setPlusMenu(repoPlusMenu);
 
-  mClone = repoPlusMenu->addAction(tr("Clone Repository"));
+  mClone = repoPlusMenu->addAction(tr("Clone Repository..."));
   connect(mClone, &QAction::triggered, this, [this] {
-    CloneDialog *dialog = new CloneDialog(CloneDialog::Clone, this);
-    connect(dialog, &CloneDialog::accepted, this, [this, dialog] {
-      if (MainWindow *window = openWindow(dialog->path()))
-        window->currentView()->addLogEntry(dialog->message(),
-                                           dialog->messageTitle());
-    });
-    dialog->open();
+    MainWindow::promptToClone(
+        this, [this](const QString &path) { return openWindow(path); });
   });
 
-  mOpen = repoPlusMenu->addAction(tr("Open Existing Repository"));
+  mOpen = repoPlusMenu->addAction(tr("Open Repository..."));
   connect(mOpen, &QAction::triggered, this, [this] {
-    // FIXME: Filter out non-git dirs.
-    QFileDialog *dialog =
-        new QFileDialog(this, tr("Open Repository"), QDir::homePath());
-    dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->setFileMode(QFileDialog::Directory);
-    dialog->setOption(QFileDialog::ShowDirsOnly);
-    connect(dialog, &QFileDialog::fileSelected, this, &StartDialog::openWindow);
-    dialog->open();
+    MainWindow::promptToOpen(this,
+                             [this](const QString &path) { openWindow(path); });
   });
 
-  mInit = repoPlusMenu->addAction(tr("Initialize New Repository"));
+  mInit = repoPlusMenu->addAction(tr("Initialize New Repository..."));
   connect(mInit, &QAction::triggered, this, [this] {
-    CloneDialog *dialog = new CloneDialog(CloneDialog::Init, this);
-    connect(dialog, &CloneDialog::accepted, this, [this, dialog] {
-      if (MainWindow *window = openWindow(dialog->path()))
-        window->currentView()->addLogEntry(dialog->message(),
-                                           dialog->messageTitle());
-    });
-    dialog->open();
+    MainWindow::promptToInit(
+        this, [this](const QString &path) { return openWindow(path); });
   });
 
   QMenu *repoContextMenu = new QMenu(this);

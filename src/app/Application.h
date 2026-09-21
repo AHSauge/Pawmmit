@@ -20,6 +20,7 @@
 class QNetworkAccessManager;
 class QNetworkReply;
 class QSslError;
+class QTranslator;
 class QUrlQuery;
 
 class Application : public QApplication {
@@ -37,17 +38,24 @@ public:
 
   static Theme *theme();
 
+  // Load the translations for language, replacing any loaded before.
+  static void setLanguage(const QString &language);
+
 protected:
   bool event(QEvent *event) override;
 
 private:
   void registerService();
+  void loadTranslations(const QString &language);
   void handleSslErrors(QNetworkReply *reply, const QList<QSslError> &errors);
 
   QString mPathspec = QString();
   std::unique_ptr<Theme> mTheme;
   std::unique_ptr<QTemporaryDir> mTempSettingsDir;
   QStringList mPositionalArguments;
+  QTranslator *mTranslator = nullptr;
+  QTranslator *mQtTranslator = nullptr;
+  bool mTranslationDisabled = false;
 
   static bool mIsInTest;
 };

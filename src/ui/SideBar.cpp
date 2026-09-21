@@ -733,46 +733,23 @@ SideBar::SideBar(TabWidget *tabs, MainWindow *mainWindow, QWidget *parent)
   QMenu *plusMenu = new QMenu(this);
   footer->setPlusMenu(plusMenu);
 
-  QAction *clone = plusMenu->addAction(tr("Clone Repository"));
-  connect(clone, &QAction::triggered, [this] {
-    CloneDialog *dialog = new CloneDialog(CloneDialog::Clone, this);
-    connect(dialog, &CloneDialog::accepted, [dialog] {
-      if (MainWindow *window = MainWindow::open(dialog->path()))
-        window->currentView()->addLogEntry(dialog->message(),
-                                           dialog->messageTitle());
-    });
-    dialog->open();
-  });
+  QAction *clone = plusMenu->addAction(tr("Clone Repository..."));
+  connect(clone, &QAction::triggered,
+          [this] { MainWindow::promptToClone(this); });
 
-  QAction *open = plusMenu->addAction(tr("Open Existing Repository"));
-  connect(open, &QAction::triggered, [this] {
-    // FIXME: Filter out non-git dirs.
-    QFileDialog *dialog =
-        new QFileDialog(this, tr("Open Repository"), QDir::homePath());
-    dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->setFileMode(QFileDialog::Directory);
-    dialog->setOption(QFileDialog::ShowDirsOnly);
-    connect(dialog, &QFileDialog::fileSelected,
-            [](const QString &path) { MainWindow::open(path); });
-    dialog->open();
-  });
+  QAction *open = plusMenu->addAction(tr("Open Repository..."));
+  connect(open, &QAction::triggered,
+          [this] { MainWindow::promptToOpen(this); });
 
-  QAction *init = plusMenu->addAction(tr("Initialize New Repository"));
-  connect(init, &QAction::triggered, [this] {
-    CloneDialog *dialog = new CloneDialog(CloneDialog::Init, this);
-    connect(dialog, &CloneDialog::accepted, [dialog] {
-      if (MainWindow *window = MainWindow::open(dialog->path()))
-        window->currentView()->addLogEntry(dialog->message(),
-                                           dialog->messageTitle());
-    });
-    dialog->open();
-  });
+  QAction *init = plusMenu->addAction(tr("Initialize New Repository..."));
+  connect(init, &QAction::triggered,
+          [this] { MainWindow::promptToInit(this); });
 
   plusMenu->addSeparator();
 
   for (int i = 0; i < Account::NUM_KINDS; ++i) {
     Account::Kind kind = static_cast<Account::Kind>(i);
-    QString text = tr("Add %1 Account").arg(Account::name(kind));
+    QString text = tr("Add %1 Account...").arg(Account::name(kind));
     QAction *add = plusMenu->addAction(text);
     connect(add, &QAction::triggered, [this, kind] {
       AccountDialog *dialog = new AccountDialog(nullptr, this);

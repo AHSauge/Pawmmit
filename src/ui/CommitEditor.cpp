@@ -4,6 +4,7 @@
 #include "conf/Settings.h"
 #include "SpellChecker.h"
 #include "ContextMenuButton.h"
+#include "HotkeyToolTip.h"
 #include "MenuBar.h"
 #include "RepoView.h"
 
@@ -153,7 +154,7 @@ private:
         // Replace standard context menu.
         menu->clear();
 
-        QAction *spellIgnore = menu->addAction(tr("Do not Ignore"));
+        QAction *spellIgnore = menu->addAction(tr("Do Not Ignore"));
         connect(spellIgnore, &QAction::triggered, [this, event] {
           QTextCursor cursor = cursorForPosition(event->pos());
           cursor.select(QTextCursor::WordUnderCursor);
@@ -257,6 +258,7 @@ CommitEditor::CommitEditor(const git::Repository &repo, QWidget *parent)
     : QFrame(parent), mRepo(repo) {
   mTemplate = new TemplateButton(this);
   mTemplate->setText(tr("T"));
+  new HotkeyToolTip(mTemplate, tr("Commit Message Templates"));
   connect(mTemplate, &TemplateButton::templateChanged, this,
           [this](const QString &t) {
             QStringList files;
@@ -411,6 +413,7 @@ CommitEditor::CommitEditor(const git::Repository &repo, QWidget *parent)
 
   // Context button.
   ContextMenuButton *button = new ContextMenuButton(this);
+  new HotkeyToolTip(button, tr("Spell Check Options"));
   QMenu *menu = new QMenu(this);
   button->setMenu(menu);
 
@@ -480,26 +483,31 @@ CommitEditor::CommitEditor(const git::Repository &repo, QWidget *parent)
 
   mStage = new QPushButton(tr("Stage All"), this);
   mStage->setObjectName("StageAll");
+  new HotkeyToolTip(mStage, mStage->text(), Hotkeys::stageAll);
   connect(mStage, &QPushButton::clicked, this, &CommitEditor::stage);
 
   mUnstage = new QPushButton(tr("Unstage All"), this);
+  new HotkeyToolTip(mUnstage, mUnstage->text(), Hotkeys::unstageAll);
   connect(mUnstage, &QPushButton::clicked, this, &CommitEditor::unstage);
 
   mCommit = new QPushButton(tr("Commit"), this);
   mCommit->setDefault(true);
+  new HotkeyToolTip(mCommit, mCommit->text(), Hotkeys::commit);
   connect(mCommit, &QPushButton::clicked, this, &CommitEditor::commit);
 
-  mRebaseAbort = new QPushButton(tr("Abort rebasing"), this);
+  mRebaseAbort = new QPushButton(tr("Abort Rebase"), this);
   mRebaseAbort->setObjectName("AbortRebase");
+  new HotkeyToolTip(mRebaseAbort, mRebaseAbort->text(), Hotkeys::abort);
   connect(mRebaseAbort, &QPushButton::clicked, this,
           &CommitEditor::abortRebase);
 
-  mRebaseContinue = new QPushButton(tr("Continue rebasing"), this);
+  mRebaseContinue = new QPushButton(tr("Continue Rebase"), this);
   mRebaseContinue->setObjectName("ContinueRebase");
   connect(mRebaseContinue, &QPushButton::clicked, this,
           &CommitEditor::continueRebase);
 
   mMergeAbort = new QPushButton(tr("Abort Merge"), this);
+  new HotkeyToolTip(mMergeAbort, mMergeAbort->text(), Hotkeys::abort);
   connect(mMergeAbort, &QPushButton::clicked, [this] {
     RepoView *view = RepoView::parentView(this);
     view->mergeAbort();
@@ -719,6 +727,7 @@ void CommitEditor::updateButtons(bool yieldFocus) {
   git::Branch headBranch = head;
 
   mMergeAbort->setText(tr("Abort %1").arg(text));
+  HotkeyToolTip::of(mMergeAbort)->setText(mMergeAbort->text());
   mMergeAbort->setVisible(headBranch.isValid() && merging);
 
   if (!mDiff.isValid()) {
@@ -765,7 +774,8 @@ void CommitEditor::updateButtons(bool yieldFocus) {
     (void)blocker;
 
     setMessage(files);
-    if (yieldFocus && !mMessage->toPlainText().isEmpty())
+    mEditorEmpty = mMessage->toPlainText().isEmpty(); // The signal is blocked.
+    if (yieldFocus && !mEditorEmpty)
       mMessage->setFocus();
   }
 
@@ -805,20 +815,32 @@ void CommitEditor::updateButtons(bool yieldFocus) {
   switch (repo.state()) {
     case GIT_REPOSITORY_STATE_MERGE:
       mCommit->setText(tr("Commit Merge"));
-      mCommit->setEnabled(total && !mMessage->document()->isEmpty());
       break;
     case GIT_REPOSITORY_STATE_REBASE:
     case GIT_REPOSITORY_STATE_REBASE_MERGE:
     case GIT_REPOSITORY_STATE_REBASE_INTERACTIVE:
       mCommit->setText(tr("Commit Rebase"));
-      mCommit->setEnabled(total && conflicted == 0 &&
-                          !mMessage->document()->isEmpty());
       break;
     default:
       mCommit->setText(tr("Commit"));
-      mCommit->setEnabled(total && !mMessage->document()->isEmpty());
       break;
   }
+
+  HotkeyToolTip::of(mCommit)->setText(mCommit->text());
+
+  // The index can't be written to a tree while conflicts remain.
+  bool empty = mMessage->document()->isEmpty();
+  mCommit->setEnabled(total && conflicted == 0 && !empty);
+
+  // Say what is missing, as a disabled button doesn't.
+  QStringList missing;
+  if (conflicted)
+    missing.append(tr("Resolve the remaining conflicts"));
+  if (!total)
+    missing.append(tr("Stage the files you want to commit"));
+  if (empty)
+    missing.append(tr("Enter a commit message"));
+  HotkeyToolTip::of(mCommit)->setDetail(missing.join('\n'));
 
   // Update menu actions.
   MenuBar::instance(this)->updateRepository();

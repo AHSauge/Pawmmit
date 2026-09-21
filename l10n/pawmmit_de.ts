@@ -1111,7 +1111,7 @@
     <name>DefaultWidget</name>
     <message>
         <location filename="../src/ui/TabWidget.cpp" line="42"/>
-        <source>Clone repository</source>
+        <source>Clone Repository</source>
         <translation>Repository klonen</translation>
     </message>
     <message>
@@ -1126,12 +1126,12 @@
     </message>
     <message>
         <location filename="../src/ui/TabWidget.cpp" line="68"/>
-        <source>Initialize new repository</source>
+        <source>Initialize New Repository</source>
         <translation>Neues Repository initialisieren</translation>
     </message>
     <message>
         <location filename="../src/ui/TabWidget.cpp" line="88"/>
-        <source>Add %1 account</source>
+        <source>Add %1 Account</source>
         <translation>%1-Account hinzufügen</translation>
     </message>
     <message>
@@ -1356,7 +1356,7 @@ These settings will not be saved permanently</source>
     <name>DiffView</name>
     <message>
         <location filename="../src/ui/DiffView/DiffView.cpp" line="145"/>
-        <source>Add new file</source>
+        <source>Add New File</source>
         <translation>Neue Datei hinzufügen</translation>
     </message>
     <message>
@@ -1699,7 +1699,7 @@ These settings will not be saved permanently</source>
     </message>
     <message>
         <location filename="../src/ui/FileContextMenu.cpp" line="393"/>
-        <source>Save Selected Version as ...</source>
+        <source>Save Selected Version As...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1729,7 +1729,7 @@ These settings will not be saved permanently</source>
     </message>
     <message>
         <location filename="../src/ui/FileContextMenu.cpp" line="415"/>
-        <source>Open this version</source>
+        <source>Open This Version</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2800,7 +2800,7 @@ Beispiele
     </message>
     <message>
         <location filename="../src/ui/MenuBar.cpp" line="567"/>
-        <source>Remove all locks</source>
+        <source>Remove All Locks</source>
         <translation>Alle Sperren entfernen</translation>
     </message>
     <message>
@@ -3793,8 +3793,8 @@ Konflikt zu beheben</translation>
     </message>
     <message>
         <location filename="../src/dialogs/StartDialog.cpp" line="97"/>
-        <source>Open Existing Repository</source>
-        <translation>Bestehendes Repository öffnen</translation>
+        <source>Open Repository</source>
+        <translation>Repository öffnen</translation>
     </message>
     <message>
         <location filename="../src/dialogs/StartDialog.cpp" line="99"/>
@@ -5046,13 +5046,13 @@ Dies reverted den Commit %2.</translation>
     </message>
     <message>
         <location filename="../src/ui/SideBar.cpp" line="709"/>
-        <source>Clone Repository</source>
-        <translation>Repository klonen</translation>
+        <source>Clone Repository...</source>
+        <translation>Repository klonen...</translation>
     </message>
     <message>
         <location filename="../src/ui/SideBar.cpp" line="720"/>
-        <source>Open Existing Repository</source>
-        <translation>Bestehendes Repository öffnen</translation>
+        <source>Open Repository...</source>
+        <translation>Repository öffnen...</translation>
     </message>
     <message>
         <location filename="../src/ui/SideBar.cpp" line="724"/>
@@ -5061,8 +5061,8 @@ Dies reverted den Commit %2.</translation>
     </message>
     <message>
         <location filename="../src/ui/SideBar.cpp" line="733"/>
-        <source>Initialize New Repository</source>
-        <translation>Neues Repository initialisieren</translation>
+        <source>Initialize New Repository...</source>
+        <translation>Neues Repository initialisieren...</translation>
     </message>
     <message>
         <location filename="../src/ui/SideBar.cpp" line="748"/>
@@ -5129,13 +5129,13 @@ Dies reverted den Commit %2.</translation>
     </message>
     <message>
         <location filename="../src/dialogs/StartDialog.cpp" line="434"/>
-        <source>Clone Repository</source>
-        <translation>Repository klonen</translation>
+        <source>Clone Repository...</source>
+        <translation>Repository klonen...</translation>
     </message>
     <message>
         <location filename="../src/dialogs/StartDialog.cpp" line="445"/>
-        <source>Open Existing Repository</source>
-        <translation>Bestehendes Repository öffnen</translation>
+        <source>Open Repository...</source>
+        <translation>Repository öffnen...</translation>
     </message>
     <message>
         <location filename="../src/dialogs/StartDialog.cpp" line="449"/>
@@ -5144,8 +5144,8 @@ Dies reverted den Commit %2.</translation>
     </message>
     <message>
         <location filename="../src/dialogs/StartDialog.cpp" line="457"/>
-        <source>Initialize New Repository</source>
-        <translation>Neues Repository initialisieren</translation>
+        <source>Initialize New Repository...</source>
+        <translation>Neues Repository initialisieren...</translation>
     </message>
     <message>
         <location filename="../src/dialogs/StartDialog.cpp" line="471"/>
@@ -5435,7 +5435,7 @@ x (number) determines the number of maximum files shown</source>
     </message>
     <message>
         <location filename="../src/ui/CommitEditor.cpp" line="156"/>
-        <source>Do not Ignore</source>
+        <source>Do Not Ignore</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -5490,13 +5490,13 @@ x (number) determines the number of maximum files shown</source>
     </message>
     <message>
         <location filename="../src/ui/ToolBar.cpp" line="750"/>
-        <source>Previous</source>
-        <translation>Vorheriges</translation>
+        <source>Back</source>
+        <translation>Zurück</translation>
     </message>
     <message>
         <location filename="../src/ui/ToolBar.cpp" line="762"/>
-        <source>Next</source>
-        <translation>Nächstes</translation>
+        <source>Forward</source>
+        <translation>Vorwärts</translation>
     </message>
     <message>
         <location filename="../src/ui/ToolBar.cpp" line="778"/>
@@ -5545,7 +5545,7 @@ x (number) determines the number of maximum files shown</source>
     </message>
     <message>
         <location filename="../src/ui/ToolBar.cpp" line="860"/>
-        <source>Open file manager</source>
+        <source>Open File Manager</source>
         <translation>Dateimanager öffnen</translation>
     </message>
     <message>

@@ -44,6 +44,7 @@ class AdvancedButton : public Button {
 public:
   AdvancedButton(QWidget *parent = nullptr) : Button(parent) {
     setToolTip(tr("Advanced Search"));
+    setAccessibleName(tr("Advanced Search"));
   }
 
 protected:
@@ -69,6 +70,7 @@ class ClearButton : public Button {
 public:
   ClearButton(QWidget *parent = nullptr) : Button(parent) {
     setToolTip(tr("Clear"));
+    setAccessibleName(tr("Clear"));
   }
 
 protected:
@@ -92,7 +94,8 @@ protected:
 } // namespace
 
 SearchField::SearchField(QWidget *parent) : QLineEdit(parent) {
-  setPlaceholderText(tr("Search"));
+  setPlaceholderText(tr("Search commits"));
+  setAccessibleName(tr("Search commits"));
   setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
   mClearButton = new ClearButton(this);

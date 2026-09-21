@@ -180,7 +180,7 @@ void DiffView::setDiff(const git::Diff &diff) {
   if (!diff.isValid()) {
     if (repo.isHeadUnborn()) {
       QPushButton *button =
-          new QPushButton(QIcon(":/file.png"), tr("Add new file"));
+          new QPushButton(QIcon(":/file.png"), tr("Add New File"));
       button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
       button->setStyleSheet("color: #484848");
       button->setIconSize(QSize(32, 32));

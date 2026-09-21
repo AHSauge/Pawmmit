@@ -11,6 +11,7 @@
 //
 
 #include "Footer.h"
+#include "HotkeyToolTip.h"
 #include <QHBoxLayout>
 #include <QMenu>
 #include <QPainter>
@@ -89,13 +90,16 @@ private:
 
 Footer::Footer(QWidget *parent) : QWidget(parent) {
   mPlus = new FooterButton(FooterButton::Plus, this);
+  new HotkeyToolTip(mPlus, tr("Add"));
   connect(mPlus, &FooterButton::clicked, this, &Footer::plusClicked);
 
   mMinus = new FooterButton(FooterButton::Minus, this);
+  new HotkeyToolTip(mMinus, tr("Remove"));
   mMinus->setEnabled(false);
   connect(mMinus, &FooterButton::clicked, this, &Footer::minusClicked);
 
   mGear = new FooterButton(FooterButton::Gear, this);
+  new HotkeyToolTip(mGear, tr("Options"));
   mGear->setPopupMode(QToolButton::InstantPopup);
   mGear->setVisible(false);
 

@@ -119,6 +119,7 @@ dialogs_src = [
     'HotkeysPanel.cpp',
     'IconLabel.cpp',
     'InfoBox.cpp',
+    'LanguageComboBox.cpp',
     'LfsPanel.cpp',
     'LocationPage.cpp',
     'MergeDialog.cpp',

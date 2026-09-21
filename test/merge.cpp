@@ -19,6 +19,7 @@
 #include "ui/RepoView.h"
 #include "ui/TreeView.h"
 #include <QFile>
+#include <QLabel>
 #include <QPushButton>
 #include <QTextEdit>
 #include <QToolButton>
@@ -177,6 +178,33 @@ void TestMerge::mergeConflict() {
   // Diff is in a conflicted state
   git::Diff diff = mRepo->diffIndexToWorkdir();
   QVERIFY(diff.isConflicted());
+
+  // Wait for the commit editor to report the conflict.
+  DetailView *detailView = view->findChild<DetailView *>();
+  QVERIFY(detailView);
+  auto hasConflictStatus = [detailView] {
+    for (QLabel *label : detailView->findChildren<QLabel *>()) {
+      if (label->text().contains("unresolved conflict"))
+        return true;
+    }
+    return false;
+  };
+  QTRY_VERIFY_WITH_TIMEOUT(hasConflictStatus(), 10000);
+
+  // Commit is not available while conflicts remain.
+  QPushButton *commit = nullptr;
+  for (QPushButton *button : detailView->findChildren<QPushButton *>()) {
+    if (button->text() == "Commit Merge")
+      commit = button;
+  }
+  QVERIFY(commit);
+
+  QTextEdit *editor = view->findChild<QTextEdit *>("MessageEditor");
+  QVERIFY(editor);
+  editor->clear();
+  editor->setText("merge commit");
+  QVERIFY(!commit->isEnabled());
+  QVERIFY(commit->toolTip().contains("Resolve the remaining conflicts"));
 }
 
 void TestMerge::resolve() {
