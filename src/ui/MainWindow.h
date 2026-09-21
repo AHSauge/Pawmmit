@@ -77,7 +77,8 @@ private:
   void updateInterface();
   void updateWindowTitle(int ahead = -1, int behind = -1);
 
-  static void warnInvalidRepo(const QString &path);
+  // Returns true if the user chose to initialize a repository at path.
+  static bool warnInvalidRepo(const QString &path);
 
   QStringList paths() const;
   QString windowGroup() const;

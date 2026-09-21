@@ -32,8 +32,10 @@
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QPushButton>
 #include <QSettings>
 #include <QTimeLine>
 #include <QToolButton>
@@ -237,10 +239,11 @@ RepoView *MainWindow::addTab(const QString &path) {
   }
 
   git::Repository repo = git::Repository::open(path, true);
-  if (!repo.isValid()) {
-    warnInvalidRepo(path);
+  if (!repo.isValid() && warnInvalidRepo(path))
+    repo = git::Repository::open(path, true);
+
+  if (!repo.isValid())
     return nullptr;
-  }
 
   return addTab(repo);
 }
@@ -374,11 +377,11 @@ MainWindow *MainWindow::open(const QString &path, bool warnOnInvalid) {
     return nullptr;
 
   git::Repository repo = git::Repository::open(path, true);
-  if (!repo.isValid()) {
-    if (warnOnInvalid)
-      warnInvalidRepo(path);
+  if (!repo.isValid() && warnOnInvalid && warnInvalidRepo(path))
+    repo = git::Repository::open(path, true);
+
+  if (!repo.isValid())
     return nullptr;
-  }
 
   if (Settings::instance()->value(Setting::Id::OpenAllReposInTabs).toBool()) {
     if (MainWindow *win = activeWindow()) {
@@ -506,10 +509,19 @@ void MainWindow::dropEvent(QDropEvent *event) {
     addTab(url.toLocalFile());
 }
 
-void MainWindow::warnInvalidRepo(const QString &path) {
+bool MainWindow::warnInvalidRepo(const QString &path) {
   QString title = tr("Invalid Git Repository");
   QString text = tr("%1 does not contain a valid git repository.");
-  QMessageBox::warning(nullptr, title, text.arg(path));
+  QMessageBox mb(QMessageBox::Warning, title, text.arg(path),
+                 QMessageBox::Cancel);
+
+  QPushButton *init = nullptr;
+  if (QFileInfo(path).isDir())
+    init = mb.addButton(tr("Initialize Repository"), QMessageBox::AcceptRole);
+
+  mb.exec();
+  return init && mb.clickedButton() == init &&
+         git::Repository::init(path).isValid();
 }
 
 void MainWindow::updateTabNames() {
