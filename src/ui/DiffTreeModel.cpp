@@ -400,10 +400,23 @@ bool DiffTreeModel::setData(const QModelIndex &index, const QVariant &value,
         node->childFiles(files);
         git::Index::StagedState state =
             static_cast<git::Index::StagedState>(value.toInt());
-        if (state == git::Index::StagedState::Staged)
-          mDiff.index().setStaged(files, true);
-        else if (state == git::Index::StagedState::Unstaged)
-          mDiff.index().setStaged(files, false);
+        if (state == git::Index::StagedState::Staged) {
+          // Yield focus to the commit message editor only if this leaves
+          // nothing else unstaged, since that's the natural next step.
+          QStringList allFiles;
+          mRoot->childFiles(allFiles);
+          bool nothingElseUnstaged = true;
+          for (const QString &f : allFiles) {
+            if (files.contains(f))
+              continue;
+            if (mDiff.index().isStaged(f) != git::Index::StagedState::Staged) {
+              nothingElseUnstaged = false;
+              break;
+            }
+          }
+          mDiff.index().setStaged(files, true, nothingElseUnstaged);
+        } else if (state == git::Index::StagedState::Unstaged)
+          mDiff.index().setStaged(files, false, false);
         else if (state == git::Index::StagedState::PartiallyStaged)
           // is done directly in the hunkwidget, because it gets to complicated
           // to do line staging here.
