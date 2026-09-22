@@ -58,7 +58,7 @@ public:
   void selectFirstCommit(bool spontaneous = false);
   void selectCommitRelative(int offset);
   bool selectRange(const QString &range, const QString &file = QString(),
-                   bool spontaneous = false);
+                   bool spontaneous = false, bool dispatchDiff = true);
   void suppressResetWalker(bool suppress);
   bool isResetWalkerSuppressed();
 
@@ -102,7 +102,8 @@ private:
 
   QModelIndex findCommit(const git::Commit &commit);
   void selectIndexes(const QItemSelection &selection,
-                     const QString &file = QString(), bool spontaneous = false);
+                     const QString &file = QString(), bool spontaneous = false,
+                     bool dispatchDiff = true);
 
   void notifySelectionChanged();
   void dispatchSelectedDiff(const QString &file, bool spontaneous);
@@ -116,6 +117,10 @@ private:
   QModelIndex mStar;
   QModelIndex mCancel;
   bool mSpontaneous = true;
+
+  // Set while selectIndexes() re-selects a range after a model reset, to
+  // skip the redundant diff recompute for an unchanged commit.
+  bool mSuppressDiffDispatch = false;
 
   Index *mIndex;
   QString mFilter;
