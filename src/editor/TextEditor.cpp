@@ -35,6 +35,7 @@ namespace {
 QPixmap stagedUnstagedIcon(const bool &checked, const QColor &background,
                            const int &fontHeight) {
   // Set background color and checkbox size.
+  int size = fontHeight - 2;
   QString checkBoxStyle = "QCheckBox {"
                           "  background: %1;"
                           "}"
@@ -45,10 +46,13 @@ QPixmap stagedUnstagedIcon(const bool &checked, const QColor &background,
 
   QCheckBox checkBox;
   checkBox.setChecked(checked);
-  checkBox.setStyleSheet(
-      checkBoxStyle.arg(background.name()).arg(fontHeight - 2));
-  return checkBox.grab(
-      QRect(QPoint(0, 0), QSize(fontHeight - 2, fontHeight - 2)));
+  checkBox.setStyleSheet(checkBoxStyle.arg(background.name()).arg(size));
+  checkBox.resize(size, size);
+
+  QPixmap pixmap(size, size);
+  pixmap.fill(Qt::transparent);
+  checkBox.render(&pixmap);
+  return pixmap;
 }
 
 Scintilla::Colour ToScintillaColour(const QColor &color) {
@@ -247,6 +251,22 @@ TextEditor::TextEditor(QWidget *parent) : ScintillaEdit(parent) {
           &TextEditor::updateGeometry);
 }
 
+void TextEditor::updateMarkerIcons() {
+  QColor background = palette().color(QPalette::Base);
+  int fontHeight = textHeight(0);
+  mStagedIcon = stagedUnstagedIcon(true, background, fontHeight);
+  mUnStagedIcon = stagedUnstagedIcon(false, background, fontHeight);
+  if (mStatusDiff)
+    setMarginWidthN(Staged, fontHeight);
+
+  loadMarkerIcon(NoteMarker, mNoteIcon);
+  loadMarkerIcon(WarningMarker, mWarningIcon);
+  loadMarkerIcon(ErrorMarker, mErrorIcon);
+
+  loadMarkerPixmap(StagedMarker, mStagedIcon);
+  loadMarkerPixmap(UnstagedMarker, mUnStagedIcon);
+}
+
 void TextEditor::applySettings() {
   // Set default font and size.
   Settings *settings = Settings::instance();
@@ -266,13 +286,7 @@ void TextEditor::applySettings() {
   }
 
   // Initialize markers.
-  QColor background = palette().color(QPalette::Base);
-  int fontHeight = textHeight(0);
   setStatusDiff(mStatusDiff); // to apply margin width
-  mStagedIcon = stagedUnstagedIcon(true, background, fontHeight);
-  mUnStagedIcon = stagedUnstagedIcon(false, background, fontHeight);
-  if (mStatusDiff)
-    setMarginWidthN(Staged, fontHeight);
 
   // used to colorize the background of the text
   markerDefine(Context, SC_MARK_EMPTY);
@@ -289,13 +303,7 @@ void TextEditor::applySettings() {
   markerSetBack(Addition, ToScintillaColour(mAdditionColor));
   markerSetBack(Deletion, ToScintillaColour(mDeletionColor));
 
-  // Initialize error markers.
-  loadMarkerIcon(NoteMarker, mNoteIcon);
-  loadMarkerIcon(WarningMarker, mWarningIcon);
-  loadMarkerIcon(ErrorMarker, mErrorIcon);
-
-  loadMarkerPixmap(StagedMarker, mStagedIcon);
-  loadMarkerPixmap(UnstagedMarker, mUnStagedIcon);
+  updateMarkerIcons();
 
   // Set LPeg lexer language.
   QByteArray lexer = this->lexer().toUtf8();
@@ -709,18 +717,10 @@ int TextEditor::diagnosticMarker(int line) {
 }
 
 void TextEditor::loadMarkerPixmap(Marker marker, const QPixmap &pixmap) {
-  qreal dpr = 1.0;
-  if (QWidget *window = this->window()) {
-    if (QWindow *handle = window->windowHandle())
-      dpr = handle->devicePixelRatio();
-  }
-
-  qreal height = textHeight(0);
-  qreal scaled = height * dpr;
+  int height = textHeight(0);
   QPixmap scaledPixmap(pixmap);
   if (pixmap.height() > height) {
-    // scale
-    scaledPixmap = pixmap.scaled(scaled, scaled, Qt::KeepAspectRatio,
+    scaledPixmap = pixmap.scaled(height, height, Qt::KeepAspectRatio,
                                  Qt::SmoothTransformation);
   }
 
@@ -728,20 +728,9 @@ void TextEditor::loadMarkerPixmap(Marker marker, const QPixmap &pixmap) {
 }
 
 void TextEditor::loadMarkerIcon(Marker marker, const QIcon &icon) {
-  qreal dpr = 1.0;
-  if (QWidget *window = this->window()) {
-    if (QWindow *handle = window->windowHandle())
-      dpr = handle->devicePixelRatio();
-  }
-
-  qreal height = textHeight(0);
-  qreal scaled = height * dpr;
-
+  int height = textHeight(0);
   QPixmap pixmap = icon.pixmap(height, height);
-  pixmap.setDevicePixelRatio(dpr);
-  QPixmap scaledPixmap = pixmap.scaled(scaled, scaled, Qt::KeepAspectRatio,
-                                       Qt::SmoothTransformation);
-  markerDefineImage(marker, scaledPixmap.toImage());
+  markerDefineImage(marker, pixmap.toImage());
 }
 
 void TextEditor::keyPressEvent(QKeyEvent *ke) {

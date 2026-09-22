@@ -13,9 +13,15 @@
 #include "Application.h"
 #include "dialogs/StartDialog.h"
 #include "git/Config.h"
+#include <QGuiApplication>
 #include <QMessageBox>
 
 int main(int argc, char *argv[]) {
+  // Match the OS scale factor exactly; rounding it mis-sizes the UI at
+  // fractional scaling (125%, 150%, 175%).
+  QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
+      Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+
   Application app(argc, argv, true);
 
   // Check if only one running instance is allowed and already running

@@ -269,7 +269,7 @@ QString CustomTheme::styleSheet() const {
   bool ok;
   double fontNumValue = fontVariantValue.toDouble(&ok);
   if (ok) {
-    font += QString("font-size: %1px;").arg(fontNumValue);
+    font += QString("font-size: %1pt;").arg(fontNumValue);
   } else {
     fontValue = fontVariantValue.toString();
     if (!fontValue.isEmpty())
