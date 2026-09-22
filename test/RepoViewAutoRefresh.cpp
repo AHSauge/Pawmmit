@@ -1,9 +1,12 @@
 #include "Test.h"
 
 #include "ui/CommitList.h"
+#include "ui/DoubleTreeWidget.h"
 #include "ui/MainWindow.h"
 #include "ui/RepoView.h"
+#include "ui/TreeView.h"
 #include "watcher/RepositoryWatcher.h"
+#include "git/Index.h"
 
 #include <memory>
 #include <QSignalSpy>
@@ -56,6 +59,8 @@ private slots:
   void initTestCase();
   void changeSurvivesStatusFinishing();
   void refreshDoesNotRetrigger();
+  void refreshDoesNotStealFocus();
+  void refreshKeepsCommittedFileSelection();
   void cleanupTestCase();
 
 private:
@@ -114,6 +119,58 @@ void TestRepoViewAutoRefresh::refreshDoesNotRetrigger() {
 
   mSpy->clear();
   QVERIFY2(!mSpy->wait(kQuietMs), "a refresh triggered another refresh");
+}
+
+void TestRepoViewAutoRefresh::refreshDoesNotStealFocus() {
+  settle();
+
+  // A refresh must not steal focus from the files tree.
+  auto *doubleTree = mView->findChild<DoubleTreeWidget *>();
+  QVERIFY(doubleTree);
+  auto *unstagedFiles = doubleTree->findChild<TreeView *>("Unstaged");
+  QVERIFY(unstagedFiles);
+
+  unstagedFiles->setFocus();
+  QVERIFY(unstagedFiles->hasFocus());
+
+  refresh(mView);
+
+  QVERIFY2(unstagedFiles->hasFocus(),
+           "refresh moved keyboard focus away from the files tree");
+}
+
+void TestRepoViewAutoRefresh::refreshKeepsCommittedFileSelection() {
+  settle();
+
+  // Commit a file so there's a historical commit to browse.
+  QString name = "committed.txt";
+  QFile file(mRepo->workdir().filePath(name));
+  QVERIFY(file.open(QFile::WriteOnly));
+  file.write("content");
+  file.close();
+  mRepo->index().setStaged({name}, true);
+  QVERIFY(mRepo->commit("add committed file"));
+  settle();
+
+  auto *commits = mView->findChild<CommitList *>();
+  QVERIFY(commits);
+  QTRY_VERIFY_WITH_TIMEOUT(commits->model()->rowCount() >= 1, 10000);
+  commits->selectionModel()->select(commits->model()->index(0, 0),
+                                    QItemSelectionModel::ClearAndSelect);
+  QTRY_VERIFY_WITH_TIMEOUT(mView->diff().isValid(), 10000);
+
+  auto *doubleTree = mView->findChild<DoubleTreeWidget *>();
+  QVERIFY(doubleTree);
+  auto *unstagedFiles = doubleTree->findChild<TreeView *>("Unstaged");
+  QVERIFY(unstagedFiles);
+  QTRY_VERIFY_WITH_TIMEOUT(unstagedFiles->model()->rowCount() >= 1, 10000);
+  unstagedFiles->selectionModel()->select(unstagedFiles->model()->index(0, 0),
+                                          QItemSelectionModel::ClearAndSelect);
+
+  refresh(mView);
+
+  QVERIFY2(!unstagedFiles->selectionModel()->selectedIndexes().isEmpty(),
+           "refresh lost the selection in the committed files list");
 }
 
 void TestRepoViewAutoRefresh::cleanupTestCase() {

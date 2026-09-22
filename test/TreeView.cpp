@@ -46,6 +46,8 @@ private slots:
   void selectionSurvivesPush();
   void dirtySubmoduleAndStagedSubmodule();
   void conflictedAndStagedFile();
+  void stagingKeepsKeyboardFocus();
+  void stagingLastFileMovesFocusToMessageEditor();
 
 private:
 };
@@ -405,6 +407,70 @@ void TestTreeView::conflictedAndStagedFile() {
     QVERIFY(index.isValid());
     QCOMPARE(index.data(), "conflictedFile.txt");
   }
+}
+
+void TestTreeView::stagingKeepsKeyboardFocus() {
+  INIT_REPO("TreeViewCollapseCount.zip");
+
+  auto doubleTree = repoView->findChild<DoubleTreeWidget *>();
+  QVERIFY(doubleTree);
+  auto unstagedTree = doubleTree->findChild<TreeView *>("Unstaged");
+  QVERIFY(unstagedTree);
+
+  QAbstractItemModel *model = unstagedTree->model();
+  QTRY_VERIFY_WITH_TIMEOUT(model->rowCount() >= 1, 10000);
+  auto folder = model->index(0, 0);
+  auto subfolder = model->index(0, 0, folder);
+  auto file_txt = model->index(0, 0, subfolder);
+  QCOMPARE(model->data(file_txt).toString(), QString("file.txt"));
+
+  unstagedTree->setFocus();
+  QVERIFY(unstagedTree->hasFocus());
+
+  // Clicking a file's checkbox to stage it must not steal keyboard focus,
+  // so staging several files with the keyboard stays uninterrupted.
+  mouseClick(unstagedTree->viewport(), Qt::LeftButton, Qt::KeyboardModifiers(),
+             unstagedTree->checkRect(file_txt).center());
+
+  QVERIFY(unstagedTree->hasFocus());
+}
+
+void TestTreeView::stagingLastFileMovesFocusToMessageEditor() {
+  INIT_REPO("TreeViewCollapseCount.zip");
+
+  auto doubleTree = repoView->findChild<DoubleTreeWidget *>();
+  QVERIFY(doubleTree);
+  auto unstagedTree = doubleTree->findChild<TreeView *>("Unstaged");
+  QVERIFY(unstagedTree);
+  QTextEdit *editor = repoView->findChild<QTextEdit *>("MessageEditor");
+  QVERIFY(editor);
+
+  QAbstractItemModel *model = unstagedTree->model();
+  QTRY_VERIFY_WITH_TIMEOUT(model->rowCount() >= 2, 10000);
+  QCOMPARE(model->rowCount(), 2);
+
+  auto folder = model->index(0, 0);
+  auto subfolder = model->index(0, 0, folder);
+  auto file_txt = model->index(0, 0, subfolder);
+  QCOMPARE(model->data(file_txt).toString(), QString("file.txt"));
+
+  unstagedTree->setFocus();
+  QVERIFY(unstagedTree->hasFocus());
+
+  // Staging the first of two unstaged files must not move focus yet.
+  mouseClick(unstagedTree->viewport(), Qt::LeftButton, Qt::KeyboardModifiers(),
+             unstagedTree->checkRect(file_txt).center());
+  QVERIFY(unstagedTree->hasFocus());
+
+  // Staging the last remaining unstaged file should move focus to the
+  // commit message editor, since that's the natural next step.
+  auto unstaged = model->index(0, 0); // "unstaged" folder is now first
+  auto unstagedFile_txt = model->index(0, 0, unstaged);
+  QCOMPARE(model->data(unstagedFile_txt).toString(),
+           QString("unstagedFile.txt"));
+  mouseClick(unstagedTree->viewport(), Qt::LeftButton, Qt::KeyboardModifiers(),
+             unstagedTree->checkRect(unstagedFile_txt).center());
+  QVERIFY(editor->hasFocus());
 }
 
 TEST_MAIN(TestTreeView)

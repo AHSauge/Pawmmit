@@ -1444,10 +1444,19 @@ void CommitList::cancelStatus() {
 }
 
 void CommitList::setReference(const git::Reference &ref) {
-  static_cast<CommitModel *>(mModel)->setReference(ref);
+  auto *model = static_cast<CommitModel *>(mModel);
+  git::Reference previous = model->reference();
+  model->setReference(ref);
   if (!isResetWalkerSuppressed())
     updateModel();
-  setFocus();
+
+  // Only steal focus for a real branch/tag switch, not a passive resync to
+  // the same reference (e.g. on every background refresh).
+  bool changed =
+      previous.isValid() != ref.isValid() ||
+      (ref.isValid() && previous.qualifiedName() != ref.qualifiedName());
+  if (changed)
+    setFocus();
 }
 
 void CommitList::setFilter(const QString &filter) {
@@ -1522,7 +1531,7 @@ void CommitList::selectCommitRelative(int offset) {
 }
 
 bool CommitList::selectRange(const QString &range, const QString &file,
-                             bool spontaneous) {
+                             bool spontaneous, bool dispatchDiff) {
   // Try to select the "status" index.
   QModelIndex index = model()->index(0, 0);
   if (range == "status" && !index.data(CommitRole).isValid()) {
@@ -1563,7 +1572,7 @@ bool CommitList::selectRange(const QString &range, const QString &file,
     selection.select(last, last);
   }
 
-  selectIndexes(selection, file, spontaneous);
+  selectIndexes(selection, file, spontaneous, dispatchDiff);
   return true;
 }
 
@@ -1610,7 +1619,8 @@ void CommitList::setModel(QAbstractItemModel *model) {
         // Assume this selection is deliberate
         mSelectionIsDefault = false;
 
-        notifySelectionChanged();
+        if (!mSuppressDiffDispatch)
+          notifySelectionChanged();
       });
 
   setSelectionModel(selectionModel);
@@ -1953,9 +1963,11 @@ void CommitList::storeSelection() {
 void CommitList::restoreSelection() {
   // Restore selection.
   DebugRefresh(mSelectedRange);
+  // Restoring the same range after a reset doesn't need a fresh diff: the
+  // commit(s) are immutable, so whatever was already displayed still applies.
   if (!mRestoreSelection ||
       (!mSelectedRange.isEmpty() && mSelectedRange != "status" &&
-       !selectRange(mSelectedRange))) {
+       !selectRange(mSelectedRange, QString(), false, false))) {
     DebugRefresh("Failed to restore");
     // Invalidate any in-flight async diff so a stale result for a
     // previously selected commit can't be delivered after this reset.
@@ -2026,10 +2038,13 @@ QModelIndex CommitList::findCommit(const git::Commit &commit) {
 }
 
 void CommitList::selectIndexes(const QItemSelection &selection,
-                               const QString &file, bool spontaneous) {
+                               const QString &file, bool spontaneous,
+                               bool dispatchDiff) {
   mFile = file;
   mSpontaneous = spontaneous;
+  mSuppressDiffDispatch = !dispatchDiff;
   selectionModel()->select(selection, QItemSelectionModel::ClearAndSelect);
+  mSuppressDiffDispatch = false;
   mSpontaneous = true;
   mFile = QString();
 
