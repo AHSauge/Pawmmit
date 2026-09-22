@@ -1,8 +1,10 @@
 #include "Test.h"
 
 #include "ui/CommitList.h"
+#include "ui/DoubleTreeWidget.h"
 #include "ui/MainWindow.h"
 #include "ui/RepoView.h"
+#include "ui/TreeView.h"
 #include "watcher/RepositoryWatcher.h"
 
 #include <memory>
@@ -56,6 +58,7 @@ private slots:
   void initTestCase();
   void changeSurvivesStatusFinishing();
   void refreshDoesNotRetrigger();
+  void refreshDoesNotStealFocus();
   void cleanupTestCase();
 
 private:
@@ -114,6 +117,24 @@ void TestRepoViewAutoRefresh::refreshDoesNotRetrigger() {
 
   mSpy->clear();
   QVERIFY2(!mSpy->wait(kQuietMs), "a refresh triggered another refresh");
+}
+
+void TestRepoViewAutoRefresh::refreshDoesNotStealFocus() {
+  settle();
+
+  // A refresh must not steal focus from the files tree.
+  auto *doubleTree = mView->findChild<DoubleTreeWidget *>();
+  QVERIFY(doubleTree);
+  auto *unstagedFiles = doubleTree->findChild<TreeView *>("Unstaged");
+  QVERIFY(unstagedFiles);
+
+  unstagedFiles->setFocus();
+  QVERIFY(unstagedFiles->hasFocus());
+
+  refresh(mView);
+
+  QVERIFY2(unstagedFiles->hasFocus(),
+           "refresh moved keyboard focus away from the files tree");
 }
 
 void TestRepoViewAutoRefresh::cleanupTestCase() {

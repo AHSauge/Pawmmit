@@ -1444,10 +1444,19 @@ void CommitList::cancelStatus() {
 }
 
 void CommitList::setReference(const git::Reference &ref) {
-  static_cast<CommitModel *>(mModel)->setReference(ref);
+  auto *model = static_cast<CommitModel *>(mModel);
+  git::Reference previous = model->reference();
+  model->setReference(ref);
   if (!isResetWalkerSuppressed())
     updateModel();
-  setFocus();
+
+  // Only steal focus for a real branch/tag switch, not a passive resync to
+  // the same reference (e.g. on every background refresh).
+  bool changed =
+      previous.isValid() != ref.isValid() ||
+      (ref.isValid() && previous.qualifiedName() != ref.qualifiedName());
+  if (changed)
+    setFocus();
 }
 
 void CommitList::setFilter(const QString &filter) {
