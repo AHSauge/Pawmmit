@@ -185,6 +185,7 @@ protected:
 
 private:
   int diagnosticMarker(int line);
+  void updateMarkerIcons();
   void loadMarkerIcon(Marker marker, const QIcon &icon);
   void loadMarkerPixmap(Marker marker, const QPixmap &pixmap);
   void AddToPopUp(const QString &label, MenuAction cmd = None,
