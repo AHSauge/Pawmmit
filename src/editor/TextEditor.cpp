@@ -410,9 +410,12 @@ void TextEditor::setLexer(const QString &path) {
 }
 
 void TextEditor::load(const QString &path, const QString &text) {
+  const auto textStd = text.toStdString();
   setScrollWidth(256);
   setLexer(path);
-  setText(text.toStdString().c_str());
+  clearAll();
+  // Use append instead of setText to ensure NUL bytes are handled
+  appendText(textStd.size(), textStd.c_str());
 
   // Clear undo.
   setSavePoint();

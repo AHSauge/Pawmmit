@@ -762,7 +762,10 @@ void HunkWidget::load(git::Patch &staged, bool force) {
   //    content.chop(1);
 
   // Add text.
-  mEditor->setText(repo.decode(content).toStdString().c_str());
+  const auto contentStr = repo.decode(content).toStdString();
+  mEditor->clearAll();
+  // Use append instead of setText to ensure NUL bytes are handled
+  mEditor->appendText(contentStr.size(), contentStr.c_str());
 
   // Calculate margin width.
   int width = 0;
