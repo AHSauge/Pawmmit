@@ -13,7 +13,6 @@ lexilla_inc = include_directories('lexlib', 'include')
 # Only the lexer framework: Pawmmit lexes through Scintillua, so none of the
 # bundled per-language .cxx lexers are compiled.
 lexilla_sources = files(
-    'src/Lexilla.cxx',
     'lexlib/Accessor.cxx',
     'lexlib/CharacterCategory.cxx',
     'lexlib/CharacterSet.cxx',

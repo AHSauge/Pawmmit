@@ -11,7 +11,6 @@
 //
 
 #include "TextEditor.h"
-#include <LexerModule.h>
 #include <Scintillua.h>
 #include "app/Application.h"
 #include "conf/Settings.h"
