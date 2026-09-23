@@ -117,8 +117,6 @@ pawmmit_link_deps = [
     lpeg_dep,
     hunspell_dep,
     cmark_dep,
-    # scintillua before lexilla: both export CreateLexer() and editor wants
-    # Scintillua's single-lexer one, not Lexilla's whole-catalogue version.
     scintillua_dep,
     scintilla_dep,
     lexilla_dep,
