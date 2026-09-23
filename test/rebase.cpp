@@ -34,6 +34,7 @@
 #include <QStackedWidget>
 #include <QTextEdit>
 #include <QPushButton>
+#include <QToolButton>
 
 #define INIT_REPO(repoPath)                                                    \
   QString path = Test::extractRepository(repoPath);                            \
@@ -288,6 +289,20 @@ void TestRebase::conflictingRebase() {
   // Staging the file
   QTRY_COMPARE(repoView->findChildren<FileWidget *>().length(), 1);
   auto filewidgets = repoView->findChildren<FileWidget *>();
+
+  // During a rebase, git's own "ours"/"theirs" are swapped relative to a
+  // merge: "ours" is main, the branch being rebased onto, not the branch
+  // ("singleCommitConflict") the user actually checked out and is rebasing.
+  // The button labels must say so plainly rather than repeat that swap.
+  QToolButton *ours =
+      filewidgets.at(0)->findChild<QToolButton *>("ConflictFileOurs");
+  QToolButton *theirs =
+      filewidgets.at(0)->findChild<QToolButton *>("ConflictFileTheirs");
+  QVERIFY(ours);
+  QVERIFY(theirs);
+  QCOMPARE(ours->text(), QString("Keep main"));
+  QCOMPARE(theirs->text(), QString("Take singleCommitConflict"));
+
   filewidgets.at(0)->stageStateChanged(filewidgets.at(0)->modelIndex(),
                                        git::Index::StagedState::Staged);
   QTRY_VERIFY(continueRebaseButton->isEnabled());
@@ -382,6 +397,20 @@ void TestRebase::conflictingRebaseCustomMessage() {
   // Staging the file
   QTRY_COMPARE(repoView->findChildren<FileWidget *>().length(), 1);
   auto filewidgets = repoView->findChildren<FileWidget *>();
+
+  // During a rebase, git's own "ours"/"theirs" are swapped relative to a
+  // merge: "ours" is main, the branch being rebased onto, not the branch
+  // ("singleCommitConflict") the user actually checked out and is rebasing.
+  // The button labels must say so plainly rather than repeat that swap.
+  QToolButton *ours =
+      filewidgets.at(0)->findChild<QToolButton *>("ConflictFileOurs");
+  QToolButton *theirs =
+      filewidgets.at(0)->findChild<QToolButton *>("ConflictFileTheirs");
+  QVERIFY(ours);
+  QVERIFY(theirs);
+  QCOMPARE(ours->text(), QString("Keep main"));
+  QCOMPARE(theirs->text(), QString("Take singleCommitConflict"));
+
   filewidgets.at(0)->stageStateChanged(filewidgets.at(0)->modelIndex(),
                                        git::Index::StagedState::Staged);
 

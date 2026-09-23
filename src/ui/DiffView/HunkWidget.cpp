@@ -60,6 +60,7 @@ _HunkWidget::Header::Header(const git::Diff &diff, const git::Patch &patch,
   label_string = label_string.trimmed().toHtmlEscaped();
   HunkLabel *label = new HunkLabel(label_string, submodule, this);
 
+  RepoView *view = RepoView::parentView(this);
   if (patch.isConflicted()) {
     mSave = new QToolButton(this);
     mSave->setObjectName("ConflictSave");
@@ -79,7 +80,7 @@ _HunkWidget::Header::Header(const git::Diff &diff, const git::Patch &patch,
     mOurs->setObjectName("ConflictOurs");
     mOurs->setStyleSheet(
         Application::theme()->diffButtonStyle(Theme::Diff::Ours));
-    mOurs->setText(HunkWidget::tr("Use Ours"));
+    mOurs->setText(HunkWidget::tr("Keep %1").arg(view->conflictOursName()));
     connect(mOurs, &QToolButton::clicked, [this] {
       mSave->setVisible(true);
       mUndo->setVisible(true);
@@ -91,7 +92,7 @@ _HunkWidget::Header::Header(const git::Diff &diff, const git::Patch &patch,
     mTheirs->setObjectName("ConflictTheirs");
     mTheirs->setStyleSheet(
         Application::theme()->diffButtonStyle(Theme::Diff::Theirs));
-    mTheirs->setText(HunkWidget::tr("Use Theirs"));
+    mTheirs->setText(HunkWidget::tr("Take %1").arg(view->conflictTheirsName()));
     connect(mTheirs, &QToolButton::clicked, [this] {
       mSave->setVisible(true);
       mUndo->setVisible(true);

@@ -3253,6 +3253,81 @@ void RepoView::resumeLogTimer(bool suspended) {
     mLogTimer.start(2000);
 }
 
+namespace {
+
+// The commit an in-progress merge, revert or cherry-pick is bringing in, via
+// the special ref git leaves pointing at it while the operation is unresolved.
+git::Commit incomingCommit(const git::Repository &repo) {
+  const char *ref = nullptr;
+  switch (repo.state()) {
+    case GIT_REPOSITORY_STATE_MERGE:
+      ref = "MERGE_HEAD";
+      break;
+    case GIT_REPOSITORY_STATE_REVERT:
+    case GIT_REPOSITORY_STATE_REVERT_SEQUENCE:
+      ref = "REVERT_HEAD";
+      break;
+    case GIT_REPOSITORY_STATE_CHERRYPICK:
+    case GIT_REPOSITORY_STATE_CHERRYPICK_SEQUENCE:
+      ref = "CHERRY_PICK_HEAD";
+      break;
+    default:
+      return git::Commit();
+  }
+
+  return repo.lookupRef(ref).target();
+}
+
+// Git doesn't remember which branch MERGE_HEAD/etc. came from, only the
+// commit. Recover a name by finding a branch that still points at it,
+// preferring a local branch over a remote-tracking one.
+QString branchNameForCommit(git::Repository &repo, const git::Commit &commit) {
+  if (!commit.isValid())
+    return QString();
+
+  QString remoteMatch;
+  for (const git::Branch &branch : repo.branches()) {
+    git::Commit tip = branch.target();
+    if (!tip.isValid() || tip.id() != commit.id())
+      continue;
+
+    if (branch.isLocalBranch())
+      return branch.name();
+    if (remoteMatch.isEmpty())
+      remoteMatch = branch.name();
+  }
+
+  return remoteMatch;
+}
+
+} // namespace
+
+QString RepoView::conflictOursName() {
+  git::Reference head = mRepo.head();
+  if (head.isLocalBranch())
+    return head.name();
+
+  // Detached, so a rebase is in progress: HEAD sits on the branch being
+  // rebased onto, not the branch the user checked out.
+  QString onto = mRepo.rebaseOpen().ontoName();
+  return !onto.isEmpty() ? onto : head.name(false);
+}
+
+QString RepoView::conflictTheirsName() {
+  if (mRepo.rebaseOngoing()) {
+    QString orig = mRepo.rebaseOpen().origHeadName();
+    if (!orig.isEmpty())
+      return orig;
+  }
+
+  if (git::Commit commit = incomingCommit(mRepo)) {
+    QString branch = branchNameForCommit(mRepo, commit);
+    return !branch.isEmpty() ? branch : tr("commit %1").arg(commit.shortId());
+  }
+
+  return tr("theirs");
+}
+
 bool RepoView::checkForConflicts(LogEntry *parent, const QString &action) {
   DebugRefresh("Has conflicts: " << mRepo.index().hasConflicts());
   // Check for conflicts.
@@ -3266,8 +3341,8 @@ bool RepoView::checkForConflicts(LogEntry *parent, const QString &action) {
                     "the %1. See <a href='expand'>details</a>.");
   QString conflicts = tr("Resolve conflicts in each conflicted (!) file in "
                          "one of the following ways:");
-  QString hint1 = tr("1. Click the 'Ours' or 'Theirs' button to choose the "
-                     "correct change. Then click the 'Save' button to apply.");
+  QString hint1 = tr("1. Click the button for the change you want to keep. "
+                     "Then click the 'Save' button to apply.");
   QString hint2 = tr("2. Edit the file in the editor to make a different "
                      "change. Remember to remove conflict markers.");
   QString hint3 = tr("3. Use an external merge tool. Right-click on the "

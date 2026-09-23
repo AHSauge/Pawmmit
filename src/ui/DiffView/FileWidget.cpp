@@ -209,15 +209,18 @@ void _FileWidget::Header::updatePatch(const git::Patch &patch) {
     auto ours = QString();
     auto theirs = QString();
 
-    mOurs->setText(HunkWidget::tr("Use Ours"));
-    mTheirs->setText(HunkWidget::tr("Use Theirs"));
+    RepoView *view = RepoView::parentView(this);
+    QString oursLabel = tr("Keep %1").arg(view->conflictOursName());
+    QString theirsLabel = tr("Take %1").arg(view->conflictTheirsName());
+    mOurs->setText(oursLabel);
+    mTheirs->setText(theirsLabel);
 
     if (conflict.ancestor.isNull()) {
       if (!conflict.ours.isNull()) {
         ours = "A";
 
         if (conflict.theirs.isNull()) {
-          mTheirs->setText(tr("Use Theirs: Delete"));
+          mTheirs->setText(tr("%1: Delete").arg(theirsLabel));
         }
       }
 
@@ -225,7 +228,7 @@ void _FileWidget::Header::updatePatch(const git::Patch &patch) {
         theirs = "A";
 
         if (conflict.ours.isNull()) {
-          mOurs->setText(tr("Use Ours: Delete"));
+          mOurs->setText(tr("%1: Delete").arg(oursLabel));
         }
       }
 
@@ -236,14 +239,14 @@ void _FileWidget::Header::updatePatch(const git::Patch &patch) {
 
       if (conflict.ours.isNull()) {
         ours = "D";
-        mOurs->setText(tr("Use Ours: Delete"));
+        mOurs->setText(tr("%1: Delete").arg(oursLabel));
       } else if (conflict.ours != conflict.ancestor) {
         ours = "M";
       }
 
       if (conflict.theirs.isNull()) {
         theirs = "D";
-        mTheirs->setText(tr("Use Theirs: Delete"));
+        mTheirs->setText(tr("%1: Delete").arg(theirsLabel));
       } else if (conflict.theirs != conflict.ancestor) {
         theirs = "M";
       }
