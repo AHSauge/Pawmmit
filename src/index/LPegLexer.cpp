@@ -108,6 +108,9 @@ bool LPegLexer::lex(const QByteArray &buffer) {
   mBuffer = buffer;
 
   lua_State *L = mL.get();
+  // Drop any leftover results from previous runs.
+  // This prevents out-of-bounds heap access
+  lua_settop(L, 1);
 
   // Lex the buffer.
   lua_getfield(L, -1, "lex");
