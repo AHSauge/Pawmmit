@@ -92,6 +92,13 @@ public:
 
   Repository *remoteRepo();
 
+  // What to call each side of a conflict, e.g. "master" or "the incoming
+  // commit". During a rebase git's own "ours"/"theirs" are swapped relative
+  // to a merge: "ours" is the branch being rebased onto, not the branch the
+  // user started from.
+  QString conflictOursName();
+  QString conflictTheirsName();
+
   // LFS
   void lfsInitialize();
   void lfsDeinitialize();

@@ -228,6 +228,17 @@ void TestMerge::resolve() {
   QToolButton *theirs = nullptr;
   QTRY_VERIFY_WITH_TIMEOUT(
       (theirs = diffView->findChild<QToolButton *>("ConflictTheirs")), 10000);
+
+  QToolButton *ours =
+      diffView->widget()->findChild<QToolButton *>("ConflictOurs");
+  QVERIFY(ours);
+
+  // Named by branch, not by the ambiguous "ours"/"theirs" pronouns. "Ours"
+  // isn't inverted during a plain merge, unlike during a rebase: it's still
+  // the branch merged into (master), not the branch merged in.
+  QCOMPARE(ours->text(), QString("Keep %1").arg(mMainBranch));
+  QCOMPARE(theirs->text(), QString("Take branch2"));
+
   mouseClick(theirs, Qt::LeftButton, Qt::KeyboardModifiers(), QPoint(),
              inputDelay);
 
@@ -237,9 +248,6 @@ void TestMerge::resolve() {
   mouseClick(undo, Qt::LeftButton, Qt::KeyboardModifiers(), QPoint(),
              inputDelay);
 
-  QToolButton *ours =
-      diffView->widget()->findChild<QToolButton *>("ConflictOurs");
-  QVERIFY(ours);
   mouseClick(ours, Qt::LeftButton, Qt::KeyboardModifiers(), QPoint(),
              inputDelay);
 

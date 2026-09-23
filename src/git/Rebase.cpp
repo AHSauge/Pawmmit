@@ -57,6 +57,28 @@ Commit Rebase::commitToRebase() const {
   return Commit(commit);
 }
 
+namespace {
+
+// git_rebase_onto_name()/orig_head_name() return a full ref name when the
+// rebase was started from a branch, or a raw sha otherwise.
+QString shortRefName(const char *name) {
+  QString full = QString::fromUtf8(name);
+  QString prefix = "refs/heads/";
+  return full.startsWith(prefix) ? full.mid(prefix.length()) : full;
+}
+
+} // namespace
+
+QString Rebase::ontoName() const {
+  const char *name = git_rebase_onto_name(d.get());
+  return name ? shortRefName(name) : QString();
+}
+
+QString Rebase::origHeadName() const {
+  const char *name = git_rebase_orig_head_name(d.get());
+  return name ? shortRefName(name) : QString();
+}
+
 Commit Rebase::next() const {
   git_rebase_operation *op = nullptr;
   if (git_rebase_next(&op, d.get()))
