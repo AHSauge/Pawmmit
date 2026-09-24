@@ -746,20 +746,14 @@ void CommitEditor::updateButtons(bool yieldFocus) {
   QString status =
       (merging && !count) ? tr("No file changes") : tr("Nothing staged");
   if (staged || partial || conflicted) {
-    QString fmt = (staged == 1 && count == 1) ? tr("%1 of %2 file staged")
-                                              : tr("%1 of %2 files staged");
-    QStringList fragments(fmt.arg(staged).arg(count));
+    QStringList fragments(
+        tr("%1 of %n file(s) staged", nullptr, count).arg(staged));
 
-    if (partial) {
-      QString partialFmt = (partial == 1) ? tr("%1 file partially staged")
-                                          : tr("%1 files partially staged");
-      fragments.append(partialFmt.arg(partial));
-    }
+    if (partial)
+      fragments.append(tr("%n file(s) partially staged", nullptr, partial));
 
     if (conflicted) {
-      QString conflictedFmt = (conflicted == 1) ? tr("%1 unresolved conflict")
-                                                : tr("%1 unresolved conflicts");
-      fragments.append(conflictedFmt.arg(conflicted));
+      fragments.append(tr("%n unresolved conflict(s)", nullptr, conflicted));
     } else if (mDiff.isConflicted()) {
       fragments.append(tr("all conflicts resolved"));
     }

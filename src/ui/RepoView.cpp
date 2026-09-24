@@ -333,12 +333,15 @@ RepoView::RepoView(const git::Repository &repo, MainWindow *parent)
 
             QString title = tr("Stage Directory?");
             QString text = tr("Are you sure you want to stage '%1'?");
-            QString info = tr("This will result in the addition of %1 files.");
-            QString arg =
-                (count < 0) ? tr("more than 100") : QString::number(count);
+            QString info =
+                (count < 0)
+                    ? tr("This will result in the addition of more than 100 "
+                         "files.")
+                    : tr("This will result in the addition of %n file(s).",
+                         nullptr, count);
             QMessageBox dialog(QMessageBox::Question, title, text.arg(dir),
                                QMessageBox::Cancel, this);
-            dialog.setInformativeText(info.arg(arg));
+            dialog.setInformativeText(info);
             QPushButton *button = dialog.addButton(tr("Stage Directory"),
                                                    QMessageBox::AcceptRole);
 
@@ -542,12 +545,9 @@ RepoView::~RepoView() {
 }
 
 void RepoView::clean(const QStringList &untracked) {
-  QString singular = tr("untracked file");
-  QString plural = tr("untracked files");
-  QString phrase = (untracked.count() == 1) ? singular : plural;
   QMessageBox *mb = new QMessageBox(
       QMessageBox::Warning, tr("Remove Untracked Files"),
-      tr("Remove %1 %2?").arg(QString::number(untracked.count()), phrase),
+      tr("Remove %n untracked file(s)?", nullptr, untracked.count()),
       QMessageBox::Cancel, this);
   mb->setAttribute(Qt::WA_DeleteOnClose);
   mb->setInformativeText(tr("This action cannot be undone."));
@@ -1036,7 +1036,7 @@ void RepoView::fetchAll() {
   }
 
   // Queue up all remotes to fetch them serially.
-  QString text = tr("%1 remotes").arg(remotes.size());
+  QString text = tr("%n remote(s)", nullptr, remotes.size());
   LogEntry *entry = addLogEntry(text, tr("Fetch All"));
   for (const git::Remote &remote : remotes)
     fetch(remote, false, true, entry);
@@ -1390,7 +1390,7 @@ void RepoView::merge(MergeFlags flags, const git::AnnotatedCommit &upstream,
   }
 
   // Check for conflicts.
-  if (checkForConflicts(parent, tr("merge")))
+  if (checkForConflicts(parent, ConflictOperation::Merge))
     return;
 
   if (flags & NoCommit) {
@@ -1889,7 +1889,7 @@ void RepoView::squash(const git::AnnotatedCommit &upstream, LogEntry *parent) {
   mRepo.cleanupState();
 
   // Check for conflicts.
-  checkForConflicts(parent, tr("squash"));
+  checkForConflicts(parent, ConflictOperation::Squash);
 }
 
 void RepoView::revert(const git::Commit &commit) {
@@ -1906,7 +1906,7 @@ void RepoView::revert(const git::Commit &commit) {
   }
 
   // Check for conflicts.
-  if (checkForConflicts(parent, tr("revert")))
+  if (checkForConflicts(parent, ConflictOperation::Revert))
     return;
 
   git::Signature committer = mRepo.defaultSignature(
@@ -1956,7 +1956,7 @@ void RepoView::cherryPick(const git::Commit &commit) {
   }
 
   // Check for conflicts.
-  if (checkForConflicts(parent, tr("cherry-pick")))
+  if (checkForConflicts(parent, ConflictOperation::CherryPick))
     return;
 
   git::Signature committer = mRepo.defaultSignature(
@@ -2285,9 +2285,8 @@ void RepoView::promptToCheckout() {
 }
 
 void RepoView::checkout(const git::Commit &commit, const QStringList &paths) {
-  QString count = QString::number(paths.size());
-  QString name = (paths.size() == 1) ? tr("file") : tr("files");
-  QString text = tr("%1 - %2 %3").arg(commit.link(), count, name);
+  QString text =
+      tr("%1 - %n file(s)", nullptr, paths.size()).arg(commit.link());
   LogEntry *entry = addLogEntry(text, tr("Checkout"));
 
   CheckoutCallbacks callbacks(entry, GIT_CHECKOUT_NOTIFY_ALL);
@@ -2777,8 +2776,8 @@ RepoView::submoduleResetInfoList(const git::Repository &repo,
       modules.append(submodule);
   }
 
-  QString text =
-      tr("%1 of %2 submodules").arg(modules.size()).arg(submodules.size());
+  QString text = tr("%1 of %n submodule(s)", nullptr, submodules.size())
+                     .arg(modules.size());
   LogEntry *entry = addLogEntry(text, tr("Reset"), parent);
 
   if (modules.isEmpty())
@@ -2841,8 +2840,8 @@ QList<RepoView::SubmoduleInfo> RepoView::submoduleUpdateInfoList(
     modules.append(submodule);
   }
 
-  QString text =
-      tr("%1 of %2 submodules").arg(modules.size()).arg(submodules.size());
+  QString text = tr("%1 of %n submodule(s)", nullptr, submodules.size())
+                     .arg(modules.size());
   LogEntry *entry = addLogEntry(text, tr("Update"), parent);
 
   if (modules.isEmpty())
@@ -3346,7 +3345,8 @@ QString RepoView::conflictTheirsLabel() {
                                               : tr("Take incoming version");
 }
 
-bool RepoView::checkForConflicts(LogEntry *parent, const QString &action) {
+bool RepoView::checkForConflicts(LogEntry *parent,
+                                 ConflictOperation operation) {
   DebugRefresh("Has conflicts: " << mRepo.index().hasConflicts());
   // Check for conflicts.
   if (!mRepo.index().hasConflicts())
@@ -3355,14 +3355,27 @@ bool RepoView::checkForConflicts(LogEntry *parent, const QString &action) {
   QString error = tr("There was a merge conflict.");
   LogEntry *entry = parent->addEntry(LogEntry::Error, error);
 
-  // How to resolve it is shown next to each conflicted file itself, not
-  // buried in a collapsed entry here.
-
-  if (action != tr("squash")) {
-    QString abort = tr("You can <a href='action:abort'>abort</a> the %1 "
-                       "to return the repository to its previous state.");
-    entry->addEntry(LogEntry::Hint, abort.arg(action));
+  // How to resolve it is shown next to each conflicted file instead.
+  QString abort;
+  switch (operation) {
+    case ConflictOperation::Merge:
+      abort = tr("You can <a href='action:abort'>abort</a> the merge to "
+                 "return the repository to its previous state.");
+      break;
+    case ConflictOperation::Squash:
+      break;
+    case ConflictOperation::Revert:
+      abort = tr("You can <a href='action:abort'>abort</a> the revert to "
+                 "return the repository to its previous state.");
+      break;
+    case ConflictOperation::CherryPick:
+      abort = tr("You can <a href='action:abort'>abort</a> the cherry-pick "
+                 "to return the repository to its previous state.");
+      break;
   }
+
+  if (!abort.isEmpty())
+    entry->addEntry(LogEntry::Hint, abort);
 
   refresh(false);
   return true;

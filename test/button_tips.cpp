@@ -1,5 +1,6 @@
 #include "Test.h"
 #include "ui/MainWindow.h"
+#include "ui/CommitEditor.h"
 #include "ui/DoubleTreeWidget.h"
 #include "ui/MenuBar.h"
 #include "ui/RepoView.h"
@@ -7,6 +8,7 @@
 #include "ui/ToolBar.h"
 #include "ui/TreeView.h"
 #include <QAbstractButton>
+#include <QCoreApplication>
 #include <QCalendarWidget>
 #include <QFile>
 #include <QTextEdit>
@@ -91,29 +93,32 @@ void TestButtonTips::everyControlHasAName() {
 }
 
 void TestButtonTips::tipsShowTheDefaultHotkey() {
-  QAbstractButton *fetch = button("Fetch");
+  QAbstractButton *fetch = button(ToolBar::tr("Fetch"));
   QVERIFY(fetch);
-  QCOMPARE(fetch->toolTip(),
-           QString("Fetch (%1)").arg(keys("Ctrl+Shift+Alt+F")));
+  QCOMPARE(fetch->toolTip(), QString("%1 (%2)")
+                                 .arg(ToolBar::tr("Fetch"))
+                                 .arg(keys("Ctrl+Shift+Alt+F")));
 
   // Nothing is bound to the terminal by default.
-  QAbstractButton *terminal = button("Open Terminal");
+  QAbstractButton *terminal = button(ToolBar::tr("Open Terminal"));
   QVERIFY(terminal);
-  QCOMPARE(terminal->toolTip(), QString("Open Terminal"));
+  QCOMPARE(terminal->toolTip(), ToolBar::tr("Open Terminal"));
 }
 
 void TestButtonTips::tipsFollowARebinding() {
-  QAbstractButton *fetch = button("Fetch");
+  QAbstractButton *fetch = button(ToolBar::tr("Fetch"));
   QVERIFY(fetch);
 
   Hotkeys::fetch.setKeys(QKeySequence("Ctrl+Alt+Y"));
-  QCOMPARE(fetch->toolTip(), QString("Fetch (%1)").arg(keys("Ctrl+Alt+Y")));
+  QCOMPARE(
+      fetch->toolTip(),
+      QString("%1 (%2)").arg(ToolBar::tr("Fetch")).arg(keys("Ctrl+Alt+Y")));
 
   Hotkeys::fetch.setKeys(QKeySequence());
-  QCOMPARE(fetch->toolTip(), QString("Fetch"));
+  QCOMPARE(fetch->toolTip(), ToolBar::tr("Fetch"));
 
   // The name is what a screen reader announces, so it never carries a hotkey.
-  QCOMPARE(fetch->accessibleName(), QString("Fetch"));
+  QCOMPARE(fetch->accessibleName(), ToolBar::tr("Fetch"));
 }
 
 void TestButtonTips::logTipFollowsVisibility() {
@@ -121,13 +126,13 @@ void TestButtonTips::logTipFollowsVisibility() {
   QVERIFY(view);
 
   view->setLogVisible(false);
-  QAbstractButton *show = button("Show Log");
+  QAbstractButton *show = button(ToolBar::tr("Show Log"));
   QVERIFY(show);
 
   view->setLogVisible(true);
-  QAbstractButton *hide = button("Hide Log");
+  QAbstractButton *hide = button(ToolBar::tr("Hide Log"));
   QVERIFY(hide);
-  QVERIFY(hide->toolTip().startsWith("Hide Log"));
+  QVERIFY(hide->toolTip().startsWith(ToolBar::tr("Hide Log")));
 }
 
 // Qt's own buttons, such as the line edit icons and the calendar popup's
@@ -182,20 +187,26 @@ void TestButtonTips::qtsOwnButtonsAreLeftAlone() {
 }
 
 void TestButtonTips::commitEditorTipsShowHotkeys() {
-  QAbstractButton *stage = anyButton("Stage All");
+  QAbstractButton *stage = anyButton(CommitEditor::tr("Stage All"));
   QVERIFY(stage);
-  QCOMPARE(stage->toolTip(), QString("Stage All (%1)").arg(keys("Ctrl++")));
+  QCOMPARE(stage->toolTip(), QString("%1 (%2)")
+                                 .arg(CommitEditor::tr("Stage All"))
+                                 .arg(keys("Ctrl++")));
 
-  QAbstractButton *unstage = anyButton("Unstage All");
+  QAbstractButton *unstage = anyButton(CommitEditor::tr("Unstage All"));
   QVERIFY(unstage);
-  QCOMPARE(unstage->toolTip(), QString("Unstage All (%1)").arg(keys("Ctrl+-")));
+  QCOMPARE(unstage->toolTip(), QString("%1 (%2)")
+                                   .arg(CommitEditor::tr("Unstage All"))
+                                   .arg(keys("Ctrl+-")));
 
-  QAbstractButton *commit = anyButton("Commit");
+  QAbstractButton *commit = anyButton(CommitEditor::tr("Commit"));
   QVERIFY(commit);
-  QVERIFY(commit->toolTip().startsWith(
-      QString("Commit (%1)").arg(keys("Ctrl+Shift+C"))));
+  QVERIFY(commit->toolTip().startsWith(QString("%1 (%2)")
+                                           .arg(CommitEditor::tr("Commit"))
+                                           .arg(keys("Ctrl+Shift+C"))));
 
-  QAbstractButton *copy = anyButton("Copy Commit ID");
+  QAbstractButton *copy =
+      anyButton(QCoreApplication::translate("CommitDetail", "Copy Commit ID"));
   QVERIFY(copy);
 }
 
@@ -215,12 +226,16 @@ void TestButtonTips::commitTipExplainsWhatIsMissing() {
   QVERIFY(files);
   QTRY_COMPARE_WITH_TIMEOUT(files->model()->rowCount(), 1, 10000);
 
-  QAbstractButton *commit = anyButton("Commit");
+  QAbstractButton *commit = anyButton(CommitEditor::tr("Commit"));
   QVERIFY(commit);
-  QString base = QString("Commit (%1)").arg(keys("Ctrl+Shift+C"));
+  QString base = QString("%1 (%2)")
+                     .arg(CommitEditor::tr("Commit"))
+                     .arg(keys("Ctrl+Shift+C"));
 
-  QTRY_COMPARE(commit->toolTip(), base + "\nStage the files you want to commit"
-                                         "\nEnter a commit message");
+  QTRY_COMPARE(commit->toolTip(),
+               base + "\n" +
+                   CommitEditor::tr("Stage the files you want to commit") +
+                   "\n" + CommitEditor::tr("Enter a commit message"));
   QVERIFY(!commit->isEnabled());
 
   // Staging a file suggests a message, so there is nothing left to say.
@@ -233,7 +248,8 @@ void TestButtonTips::commitTipExplainsWhatIsMissing() {
   QTextEdit *editor = view->findChild<QTextEdit *>("MessageEditor");
   QVERIFY(editor);
   editor->clear();
-  QTRY_COMPARE(commit->toolTip(), base + "\nEnter a commit message");
+  QTRY_COMPARE(commit->toolTip(),
+               base + "\n" + CommitEditor::tr("Enter a commit message"));
   QVERIFY(!commit->isEnabled());
 
   editor->setText("base commit");

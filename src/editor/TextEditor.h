@@ -20,8 +20,6 @@
 #include <vector>
 #include <QMenu>
 #include <ILexer.h>
-#include <LexerModule.h>
-#include <CatalogueModules.h>
 #include <SciLexer.h>
 #include <ScintillaEdit.h>
 #include <ScintillaQt.h>
