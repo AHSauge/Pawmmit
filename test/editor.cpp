@@ -75,7 +75,7 @@ void TestEditor::find() {
 
   keyClicks(field, "test");
   QLabel *label = find->findChild<QLabel *>();
-  QCOMPARE(label->text(), QString("2 matches"));
+  QCOMPARE(label->text(), FindWidget::tr("%n match(es)", nullptr, 2));
 }
 
 void TestEditor::cleanupTestCase() {
