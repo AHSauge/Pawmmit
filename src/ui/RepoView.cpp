@@ -1519,8 +1519,30 @@ QString operationName(int state) {
   }
 }
 
-// Git doesn't remember which branch MERGE_HEAD came from, only the commit.
-// Recover a name from a branch still pointing at it, preferring a local one.
+// The commit an in-progress merge, revert or cherry-pick is bringing in.
+git::Commit incomingCommit(const git::Repository &repo) {
+  const char *ref = nullptr;
+  switch (repo.state()) {
+    case GIT_REPOSITORY_STATE_MERGE:
+      ref = "MERGE_HEAD";
+      break;
+    case GIT_REPOSITORY_STATE_REVERT:
+    case GIT_REPOSITORY_STATE_REVERT_SEQUENCE:
+      ref = "REVERT_HEAD";
+      break;
+    case GIT_REPOSITORY_STATE_CHERRYPICK:
+    case GIT_REPOSITORY_STATE_CHERRYPICK_SEQUENCE:
+      ref = "CHERRY_PICK_HEAD";
+      break;
+    default:
+      return git::Commit();
+  }
+
+  return repo.lookupRef(ref).target();
+}
+
+// Git only remembers the incoming commit, so name it after a branch still
+// pointing at it, preferring a local one.
 QString branchNameForCommit(const git::Repository &repo,
                             const git::Commit &commit) {
   QString remoteMatch;
@@ -1538,9 +1560,9 @@ QString branchNameForCommit(const git::Repository &repo,
   return remoteMatch;
 }
 
-// The branch or commit being merged in, e.g. "fix/foobar" or "commit a3c9dc".
-QString mergeSourceName(const git::Repository &repo) {
-  git::Commit commit = repo.lookupRef("MERGE_HEAD").target();
+// The incoming branch or commit, e.g. "fix/foobar" or "commit a3c9dc".
+QString incomingName(const git::Repository &repo) {
+  git::Commit commit = incomingCommit(repo);
   if (!commit.isValid())
     return QString();
 
@@ -1606,7 +1628,7 @@ void RepoView::updateStateBanner() {
     actions.append(show);
     actions.append(abort(tr("Abort Rebase")));
   } else if (state == GIT_REPOSITORY_STATE_MERGE) {
-    QString source = mergeSourceName(mRepo);
+    QString source = incomingName(mRepo);
     headline = source.isEmpty() ? tr("Merging into %1.").arg(branch)
                                 : tr("Merging %1 into %2.").arg(source, branch);
     detail = conflicts
@@ -1618,7 +1640,7 @@ void RepoView::updateStateBanner() {
     actions.append(abort(tr("Abort Merge")));
   } else if (state == GIT_REPOSITORY_STATE_REVERT ||
              state == GIT_REPOSITORY_STATE_REVERT_SEQUENCE) {
-    git::Commit commit = mRepo.lookupRef("REVERT_HEAD").target();
+    git::Commit commit = incomingCommit(mRepo);
     headline = commit.isValid()
                    ? tr("Reverting \"%1\" on %2.").arg(commit.summary(), branch)
                    : tr("Reverting a commit on %1.").arg(branch);
@@ -1630,7 +1652,7 @@ void RepoView::updateStateBanner() {
     actions.append(abort(tr("Abort Revert")));
   } else if (state == GIT_REPOSITORY_STATE_CHERRYPICK ||
              state == GIT_REPOSITORY_STATE_CHERRYPICK_SEQUENCE) {
-    git::Commit commit = mRepo.lookupRef("CHERRY_PICK_HEAD").target();
+    git::Commit commit = incomingCommit(mRepo);
     headline =
         commit.isValid()
             ? tr("Cherry-picking \"%1\" onto %2.").arg(commit.summary(), branch)
@@ -3271,55 +3293,6 @@ void RepoView::resumeLogTimer(bool suspended) {
     mLogTimer.start(2000);
 }
 
-namespace {
-
-// The commit an in-progress merge, revert or cherry-pick is bringing in, via
-// the special ref git leaves pointing at it while the operation is unresolved.
-git::Commit incomingCommit(const git::Repository &repo) {
-  const char *ref = nullptr;
-  switch (repo.state()) {
-    case GIT_REPOSITORY_STATE_MERGE:
-      ref = "MERGE_HEAD";
-      break;
-    case GIT_REPOSITORY_STATE_REVERT:
-    case GIT_REPOSITORY_STATE_REVERT_SEQUENCE:
-      ref = "REVERT_HEAD";
-      break;
-    case GIT_REPOSITORY_STATE_CHERRYPICK:
-    case GIT_REPOSITORY_STATE_CHERRYPICK_SEQUENCE:
-      ref = "CHERRY_PICK_HEAD";
-      break;
-    default:
-      return git::Commit();
-  }
-
-  return repo.lookupRef(ref).target();
-}
-
-// Git doesn't remember which branch MERGE_HEAD/etc. came from, only the
-// commit. Recover a name by finding a branch that still points at it,
-// preferring a local branch over a remote-tracking one.
-QString branchNameForCommit(git::Repository &repo, const git::Commit &commit) {
-  if (!commit.isValid())
-    return QString();
-
-  QString remoteMatch;
-  for (const git::Branch &branch : repo.branches()) {
-    git::Commit tip = branch.target();
-    if (!tip.isValid() || tip.id() != commit.id())
-      continue;
-
-    if (branch.isLocalBranch())
-      return branch.name();
-    if (remoteMatch.isEmpty())
-      remoteMatch = branch.name();
-  }
-
-  return remoteMatch;
-}
-
-} // namespace
-
 QString RepoView::conflictOursName() {
   git::Reference head = mRepo.head();
   if (head.isLocalBranch())
@@ -3338,12 +3311,8 @@ QString RepoView::conflictTheirsName() {
       return orig;
   }
 
-  if (git::Commit commit = incomingCommit(mRepo)) {
-    QString branch = branchNameForCommit(mRepo, commit);
-    return !branch.isEmpty() ? branch : tr("commit %1").arg(commit.shortId());
-  }
-
-  return tr("theirs");
+  QString incoming = incomingName(mRepo);
+  return !incoming.isEmpty() ? incoming : tr("theirs");
 }
 
 QString RepoView::conflictOursLabel() {
@@ -3355,7 +3324,7 @@ QString RepoView::conflictTheirsLabel() {
   int state = mRepo.state();
   if (state == GIT_REPOSITORY_STATE_REVERT ||
       state == GIT_REPOSITORY_STATE_REVERT_SEQUENCE) {
-    git::Commit commit = mRepo.lookupRef("REVERT_HEAD").target();
+    git::Commit commit = incomingCommit(mRepo);
     if (commit.isValid())
       return tr("Undo commit %1").arg(commit.shortId());
   }
