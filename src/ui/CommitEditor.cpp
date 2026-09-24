@@ -30,6 +30,17 @@ const QString kAltFmt = "<span style='color: %1'>%2</span>";
 QString brightText(const QString &text) {
   return kAltFmt.arg(QPalette().color(QPalette::BrightText).name(), text);
 }
+
+// Drop git's comment lines, such as the conflict list in a merge message.
+QString withoutComments(const QString &message) {
+  QStringList lines;
+  for (const QString &line : message.split('\n')) {
+    if (!line.startsWith('#'))
+      lines.append(line);
+  }
+
+  return lines.join('\n').trimmed();
+}
 } // namespace
 
 class TextEdit : public QTextEdit {
@@ -610,7 +621,7 @@ void CommitEditor::setDiff(const git::Diff &diff) {
   updateButtons(false);
 
   // Pre-populate commit editor with the merge message.
-  QString msg = RepoView::parentView(this)->repo().message();
+  QString msg = withoutComments(RepoView::parentView(this)->repo().message());
   if (!msg.isEmpty())
     mMessage->setPlainText(msg);
 }

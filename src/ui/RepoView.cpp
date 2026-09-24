@@ -282,6 +282,8 @@ RepoView::RepoView(const git::Repository &repo, MainWindow *parent)
   connect(mRefs, &ReferenceWidget::referenceSelected, mCommits,
           &CommitList::selectReference);
   connect(mCommits, &CommitList::statusChanged, this, &RepoView::statusChanged);
+  connect(mCommits, &CommitList::statusChanged, this,
+          &RepoView::updateStateBanner);
   connect(mCommits, &CommitList::loadingChanged, this,
           &RepoView::loadingChanged);
 
@@ -1631,11 +1633,17 @@ void RepoView::updateStateBanner() {
     QString source = incomingName(mRepo);
     headline = source.isEmpty() ? tr("Merging into %1.").arg(branch)
                                 : tr("Merging %1 into %2.").arg(source, branch);
-    detail = conflicts
-                 ? conflictText + " " +
-                       tr("Finally, click Commit Merge to finish the merge.")
-                 : tr("No conflicts left. Check the changes, then click Commit "
-                      "Merge to finish the merge.");
+    git::Diff status = mCommits->status();
+    if (conflicts) {
+      detail = conflictText + " " +
+               tr("Finally, click Commit Merge to finish the merge.");
+    } else if (status.isValid() && !status.count()) {
+      detail = tr("No conflicts left and no file changes. Click Commit Merge "
+                  "to record the merge.");
+    } else {
+      detail = tr("No conflicts left. Check the changes, then click Commit "
+                  "Merge to finish the merge.");
+    }
     actions.append(show);
     actions.append(abort(tr("Abort Merge")));
   } else if (state == GIT_REPOSITORY_STATE_REVERT ||

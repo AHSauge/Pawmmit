@@ -213,6 +213,9 @@ void TestMerge::mergeConflict() {
 
   QTextEdit *editor = view->findChild<QTextEdit *>("MessageEditor");
   QVERIFY(editor);
+
+  // Git's commented conflict list isn't offered as part of the message.
+  QTRY_COMPARE(editor->toPlainText(), QString("Merge branch 'branch2'"));
   editor->clear();
   editor->setText("merge commit");
   QVERIFY(!commit->isEnabled());
@@ -410,8 +413,8 @@ void TestMerge::resolve() {
   // With the conflicts gone, the banner points to the commit message.
   StateBanner *banner = view->findChild<StateBanner *>();
   QTRY_COMPARE(banner->message(),
-               QString("Merging branch2 into %1. No conflicts left. Check the "
-                       "changes, then click Commit Merge to finish the merge.")
+               QString("Merging branch2 into %1. No conflicts left and no "
+                       "file changes. Click Commit Merge to record the merge.")
                    .arg(mMainBranch));
 
   // Buttons added to a visible banner are shown on the next event loop turn.
