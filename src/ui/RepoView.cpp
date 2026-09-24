@@ -3298,25 +3298,25 @@ QString RepoView::conflictOursName() {
   if (head.isLocalBranch())
     return head.name();
 
-  // Detached, so a rebase is in progress: HEAD sits on the branch being
-  // rebased onto, not the branch the user checked out.
-  QString onto = mRepo.rebaseOpen().ontoName();
-  return !onto.isEmpty() ? onto : head.name(false);
+  // During a rebase HEAD sits on the branch being rebased onto.
+  git::Rebase rebase = mRepo.rebaseOpen();
+  return rebase.isValid() ? rebase.ontoName() : QString();
 }
 
 QString RepoView::conflictTheirsName() {
-  if (mRepo.rebaseOngoing()) {
-    QString orig = mRepo.rebaseOpen().origHeadName();
+  git::Rebase rebase = mRepo.rebaseOpen();
+  if (rebase.isValid()) {
+    QString orig = rebase.origHeadName();
     if (!orig.isEmpty())
       return orig;
   }
 
-  QString incoming = incomingName(mRepo);
-  return !incoming.isEmpty() ? incoming : tr("theirs");
+  return incomingName(mRepo);
 }
 
 QString RepoView::conflictOursLabel() {
-  return tr("Keep %1").arg(conflictOursName());
+  QString name = conflictOursName();
+  return !name.isEmpty() ? tr("Keep %1").arg(name) : tr("Keep current version");
 }
 
 QString RepoView::conflictTheirsLabel() {
@@ -3329,7 +3329,13 @@ QString RepoView::conflictTheirsLabel() {
       return tr("Undo commit %1").arg(commit.shortId());
   }
 
-  return tr("Take %1").arg(conflictTheirsName());
+  QString name = conflictTheirsName();
+  if (!name.isEmpty())
+    return tr("Take %1").arg(name);
+
+  // Applying a stash is what leaves conflicts without an operation running.
+  return (state == GIT_REPOSITORY_STATE_NONE) ? tr("Take stashed version")
+                                              : tr("Take incoming version");
 }
 
 bool RepoView::checkForConflicts(LogEntry *parent, const QString &action) {

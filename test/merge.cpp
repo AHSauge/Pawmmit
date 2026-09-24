@@ -45,6 +45,8 @@ private slots:
   void mergeConflict();
   void resolve();
   void revertConflict();
+  void detachedMergeLabels();
+  void stashConflictLabels();
   void cleanupTestCase();
 
 private:
@@ -52,6 +54,8 @@ private:
   int closeDelay = 0;
 
   ScratchRepository mRepo;
+  ScratchRepository mDetachedRepo;
+  ScratchRepository mStashRepo;
   MainWindow *mWindow = nullptr;
   QString mMainBranch;
 };
@@ -471,6 +475,80 @@ void TestMerge::revertConflict() {
   QTRY_VERIFY_WITH_TIMEOUT(
       (theirs = diffView->findChild<QToolButton *>("ConflictTheirs")), 10000);
   QCOMPARE(theirs->text(), undo);
+}
+
+namespace {
+
+void writeFile(git::Repository &repo, const char *text) {
+  QFile file(repo.workdir().filePath("f"));
+  QVERIFY(file.open(QFile::WriteOnly));
+  file.write(text);
+}
+
+void commitFile(git::Repository &repo, const char *message) {
+  repo.index().setStaged({"f"}, true);
+  QVERIFY(repo.commit(message, git::AnnotatedCommit()).isValid());
+}
+
+RepoView *openWindow(git::Repository &repo) {
+  MainWindow *window = new MainWindow(repo);
+  window->show();
+  if (!qWaitForWindowExposed(window))
+    return nullptr;
+  RepoView *view = window->currentView();
+  refresh(view, false);
+  return view;
+}
+
+} // namespace
+
+void TestMerge::detachedMergeLabels() {
+  git::Repository repo = mDetachedRepo;
+  QString main = repo.unbornHeadName();
+  writeFile(repo, "base\n");
+  commitFile(repo, "base");
+  RepoView *view = openWindow(repo);
+  QVERIFY(view);
+
+  view->checkout(repo.createBranch("other", repo.head().target()));
+  refresh(view, false);
+  writeFile(repo, "theirs\n");
+  commitFile(repo, "theirs");
+  view->checkout(repo.lookupRef(QString("refs/heads/%1").arg(main)));
+  refresh(view, false);
+  writeFile(repo, "ours\n");
+  commitFile(repo, "ours");
+
+  // Without a branch there's no name for this side, so describe it instead.
+  QVERIFY(repo.setHeadDetached(repo.head().target()));
+  view->merge(RepoView::Merge, repo.lookupRef("refs/heads/other"));
+  QVERIFY(repo.index().hasConflicts());
+  QCOMPARE(view->conflictOursLabel(), QString("Keep current version"));
+  QCOMPARE(view->conflictTheirsLabel(), QString("Take other"));
+  view->window()->close();
+}
+
+void TestMerge::stashConflictLabels() {
+  git::Repository repo = mStashRepo;
+  writeFile(repo, "base\n");
+  commitFile(repo, "base");
+  RepoView *view = openWindow(repo);
+  QVERIFY(view);
+
+  writeFile(repo, "stashed\n");
+  QVERIFY(repo.stash("stashed").isValid());
+  refresh(view, false);
+  writeFile(repo, "other\n");
+  commitFile(repo, "other");
+
+  // Applying the stash conflicts without any operation in progress.
+  QVERIFY(repo.applyStash());
+  QVERIFY(repo.index().hasConflicts());
+  QCOMPARE(repo.state(), GIT_REPOSITORY_STATE_NONE);
+  QCOMPARE(view->conflictOursLabel(),
+           QString("Keep %1").arg(repo.head().name()));
+  QCOMPARE(view->conflictTheirsLabel(), QString("Take stashed version"));
+  view->window()->close();
 }
 
 void TestMerge::cleanupTestCase() {
