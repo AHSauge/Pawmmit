@@ -4,6 +4,7 @@ languages = [
     'en',
     'es',
     'ja',
+    'nb',
     'pt',
     'pt_BR',
     'sv',
