@@ -413,7 +413,8 @@ private:
   void resetSubmodulesAsync(const QList<SubmoduleInfo> &submodules,
                             bool recursive, git_reset_t type);
 
-  bool checkForConflicts(LogEntry *parent, const QString &action);
+  enum class ConflictOperation { Merge, Squash, Revert, CherryPick };
+  bool checkForConflicts(LogEntry *parent, ConflictOperation operation);
 
   git::Signature getSignature(const ContributorInfo &info);
 

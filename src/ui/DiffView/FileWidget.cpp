@@ -649,12 +649,13 @@ QWidget *FileWidget::addLargeDiffNotice(qint64 size, qint64 changedLines,
       style()->standardIcon(QStyle::SP_MessageBoxWarning).pixmap(20, 20));
   layout->addWidget(icon);
 
-  QString reason =
-      tooBig
-          ? tr("This file is large (%1)").arg(locale().formattedDataSize(size))
-          : tr("This diff has %L1 changed lines").arg(changedLines);
-  QLabel *label =
-      new QLabel(tr("%1 and isn't loaded automatically.").arg(reason), notice);
+  QString text =
+      tooBig ? tr("This file is large (%1) and isn't loaded automatically.")
+                   .arg(locale().formattedDataSize(size))
+             : tr("This diff has %Ln changed line(s) and isn't loaded "
+                  "automatically.",
+                  nullptr, static_cast<int>(changedLines));
+  QLabel *label = new QLabel(text, notice);
   label->setStyleSheet(
       QString("font-weight: bold; color: %1;").arg(foreground.name()));
   layout->addWidget(label, 1);

@@ -163,12 +163,8 @@ void FindWidget::highlightAll() {
       text = tr("Not found");
       break;
 
-    case 1:
-      text = tr("%1 match").arg(matches);
-      break;
-
     default:
-      text = tr("%1 matches").arg(matches);
+      text = tr("%n match(es)", nullptr, matches);
       break;
   }
 
