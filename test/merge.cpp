@@ -249,22 +249,28 @@ void TestMerge::mergeConflict() {
   QCOMPARE(dispatched.count(), 1);
   QCOMPARE(dispatched.first().at(1).toString(), QString("test"));
 
-  // Staging a file that still has conflict markers asks first.
-  QTimer::singleShot(0, [] {
+  // Staging a file that still has conflict markers asks first. Cancel before
+  // checking, as a failed check would leave the modal dialog open.
+  QString prompt;
+  QTimer::singleShot(0, [&prompt] {
     auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
-    QVERIFY(box);
-    QCOMPARE(box->windowTitle(), QString("Stage File With Conflict Markers?"));
+    if (!box)
+      return;
+    prompt = box->text();
     box->button(QMessageBox::Cancel)->click();
   });
   mRepo->index().setStaged({"test"}, true);
+  QCOMPARE(prompt, QString("'test' still contains conflict markers (<<<<<<<, "
+                           "=======, >>>>>>>)."));
   QVERIFY(mRepo->index().hasConflicts());
 
   // Aborting asks first, and cancelling leaves the merge alone.
   view->promptToAbort();
   QMessageBox *confirm = nullptr;
   QTRY_VERIFY((confirm = view->findChild<QMessageBox *>()));
-  QCOMPARE(confirm->windowTitle(), QString("Abort Merge?"));
+  QString question = confirm->text();
   confirm->button(QMessageBox::Cancel)->click();
+  QCOMPARE(question, QString("Are you sure you want to abort the merge?"));
   QCOMPARE(mRepo->state(), GIT_REPOSITORY_STATE_MERGE);
 }
 
