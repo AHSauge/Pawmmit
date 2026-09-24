@@ -247,11 +247,14 @@ void TestMerge::mergeConflict() {
   QTRY_VERIFY(!editor->isVisible());
 
   QPushButton *show = nullptr;
-  for (QPushButton *button : banner->findChildren<QPushButton *>()) {
-    if (button->isVisibleTo(banner) && button->text() == "Show Conflicts")
-      show = button;
-  }
-  QVERIFY(show);
+  auto findShow = [&] {
+    for (QPushButton *button : banner->findChildren<QPushButton *>()) {
+      if (button->isVisibleTo(banner) && button->text() == tr("Show Conflicts"))
+        show = button;
+    }
+    return show != nullptr;
+  };
+  QTRY_VERIFY(findShow());
   show->click();
   QTRY_VERIFY(editor->isVisible());
   QTRY_COMPARE(files->currentIndex().data(Qt::DisplayRole).toString(),
