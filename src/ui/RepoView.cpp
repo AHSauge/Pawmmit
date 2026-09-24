@@ -3328,6 +3328,23 @@ QString RepoView::conflictTheirsName() {
   return tr("theirs");
 }
 
+QString RepoView::conflictOursLabel() {
+  return tr("Keep %1").arg(conflictOursName());
+}
+
+QString RepoView::conflictTheirsLabel() {
+  // A revert's incoming side is the file without the reverted commit's change.
+  int state = mRepo.state();
+  if (state == GIT_REPOSITORY_STATE_REVERT ||
+      state == GIT_REPOSITORY_STATE_REVERT_SEQUENCE) {
+    git::Commit commit = mRepo.lookupRef("REVERT_HEAD").target();
+    if (commit.isValid())
+      return tr("Undo commit %1").arg(commit.shortId());
+  }
+
+  return tr("Take %1").arg(conflictTheirsName());
+}
+
 bool RepoView::checkForConflicts(LogEntry *parent, const QString &action) {
   DebugRefresh("Has conflicts: " << mRepo.index().hasConflicts());
   // Check for conflicts.
@@ -3337,28 +3354,8 @@ bool RepoView::checkForConflicts(LogEntry *parent, const QString &action) {
   QString error = tr("There was a merge conflict.");
   LogEntry *entry = parent->addEntry(LogEntry::Error, error);
 
-  QString help = tr("Resolve conflicts, then commit to conclude "
-                    "the %1. See <a href='expand'>details</a>.");
-  QString conflicts = tr("Resolve conflicts in each conflicted (!) file in "
-                         "one of the following ways:");
-  QString hint1 = tr("1. Click the button for the change you want to keep. "
-                     "Then click the 'Save' button to apply.");
-  QString hint2 = tr("2. Edit the file in the editor to make a different "
-                     "change. Remember to remove conflict markers.");
-  QString hint3 = tr("3. Use an external merge tool. Right-click on the "
-                     "files in the list and choose 'External Merge'.");
-  QString mark = tr("After all conflicts in the file are resolved, "
-                    "click the check box to mark it as resolved.");
-  QString commit = tr("After all conflicted files are staged, "
-                      "commit to conclude the %1.");
-  LogEntry *details = entry->addEntry(LogEntry::Hint, help.arg(action));
-  LogEntry *resolve = details->addEntry(LogEntry::Entry, conflicts);
-  resolve->addEntry(LogEntry::Entry, hint1);
-  resolve->addEntry(LogEntry::Entry, hint2);
-  resolve->addEntry(LogEntry::Entry, hint3);
-  details->addEntry(LogEntry::Entry, mark);
-  details->addEntry(LogEntry::Entry, commit.arg(action));
-  mLogView->setEntryExpanded(details, false);
+  // How to resolve it is shown next to each conflicted file itself, not
+  // buried in a collapsed entry here.
 
   if (action != tr("squash")) {
     QString abort = tr("You can <a href='action:abort'>abort</a> the %1 "

@@ -93,12 +93,10 @@ public:
 
   Repository *remoteRepo();
 
-  // What to call each side of a conflict, e.g. "master" or "the incoming
-  // commit". During a rebase git's own "ours"/"theirs" are swapped relative
-  // to a merge: "ours" is the branch being rebased onto, not the branch the
-  // user started from.
-  QString conflictOursName();
-  QString conflictTheirsName();
+  // Button labels for each side of a conflict, e.g. "Keep main" and "Take
+  // feature", named by branch since git swaps "ours"/"theirs" in a rebase.
+  QString conflictOursLabel();
+  QString conflictTheirsLabel();
 
   // LFS
   void lfsInitialize();
@@ -402,6 +400,9 @@ protected:
   void closeEvent(QCloseEvent *event) override;
 
 private:
+  QString conflictOursName();
+  QString conflictTheirsName();
+
   struct SubmoduleInfo {
     git::Submodule submodule;
     git::Repository repo;

@@ -164,10 +164,30 @@ _FileWidget::Header::Header(const git::Diff &diff, const git::Patch &patch,
     mResolution = git::Patch::ConflictResolution::Theirs;
   });
 
+  // Outlined, since the button and window colors can match in dark themes.
+  QColor border = palette().color(QPalette::Text);
+  QColor pressed = palette().color(QPalette::Highlight);
+  mExternalMerge = new QToolButton(this);
+  mExternalMerge->setObjectName("ConflictExternalMerge");
+  mExternalMerge->setText(FileWidget::tr("External Merge"));
+  mExternalMerge->setStyleSheet(
+      QString("QToolButton { border: 1px solid rgba(%1, %2, %3, 110);"
+              " border-radius: 3px; padding: 1px 6px; }"
+              "QToolButton:pressed { background: %4; }")
+          .arg(border.red())
+          .arg(border.green())
+          .arg(border.blue())
+          .arg(pressed.name()));
+  connect(mExternalMerge, &QToolButton::clicked, [this] {
+    FileContextMenu::startMergeTool(RepoView::parentView(this), mPatch.name(),
+                                    this);
+  });
+
   buttons->addWidget(mSave);
   buttons->addWidget(mUndo);
   buttons->addWidget(mOurs);
   buttons->addWidget(mTheirs);
+  buttons->addWidget(mExternalMerge);
 
   updatePatch(patch);
 
@@ -210,8 +230,8 @@ void _FileWidget::Header::updatePatch(const git::Patch &patch) {
     auto theirs = QString();
 
     RepoView *view = RepoView::parentView(this);
-    QString oursLabel = tr("Keep %1").arg(view->conflictOursName());
-    QString theirsLabel = tr("Take %1").arg(view->conflictTheirsName());
+    QString oursLabel = view->conflictOursLabel();
+    QString theirsLabel = view->conflictTheirsLabel();
     mOurs->setText(oursLabel);
     mTheirs->setText(theirsLabel);
 
@@ -252,6 +272,13 @@ void _FileWidget::Header::updatePatch(const git::Patch &patch) {
       }
     }
 
+    // A merge tool needs both versions of the file.
+    bool bothSides = !conflict.ours.isNull() && !conflict.theirs.isNull();
+    mExternalMerge->setEnabled(bothSides);
+    mExternalMerge->setToolTip(
+        bothSides ? tr("Open both versions in your external merge tool")
+                  : tr("Not available, because one side deleted the file"));
+
     if (!ours.isEmpty() && ours == theirs) {
       labels.append(
           Badge::Label(Badge::Label::Type::Conflict, tr("both: %1").arg(ours)));
@@ -269,6 +296,7 @@ void _FileWidget::Header::updatePatch(const git::Patch &patch) {
 
   mStatusBadge->setLabels(labels);
 
+  mExternalMerge->setVisible(isConflicted);
   mOurs->setVisible(isConflicted && showFileSolverButtons);
   mTheirs->setVisible(isConflicted && showFileSolverButtons);
 
@@ -420,6 +448,9 @@ FileWidget::FileWidget(DiffView *view, const git::Diff &diff,
     layout->addWidget(addImage(disclosureButton, mPatch));
     return;
   }
+
+  if (mPatch.isConflicted())
+    layout->addWidget(addConflictHint());
 
   mHunkLayout = new QVBoxLayout();
   layout->addLayout(mHunkLayout);
@@ -626,6 +657,38 @@ QWidget *FileWidget::addImage(DisclosureButton *button, const git::Patch patch,
   mImages.append(images);
 
   return images;
+}
+
+QWidget *FileWidget::addConflictHint() {
+  Theme *theme = Application::theme();
+  QColor background = theme->notice(Theme::Notice::Background);
+  QColor foreground = theme->notice(Theme::Notice::Foreground);
+
+  QFrame *hint = new QFrame(this);
+  hint->setObjectName("ConflictHint");
+  hint->setStyleSheet(QString("#ConflictHint { background-color: %1; }")
+                          .arg(background.name()));
+
+  QHBoxLayout *layout = new QHBoxLayout(hint);
+  layout->setContentsMargins(8, 6, 8, 6);
+  layout->setSpacing(8);
+
+  QLabel *icon = new QLabel(hint);
+  icon->setPixmap(
+      style()->standardIcon(QStyle::SP_MessageBoxInformation).pixmap(16, 16));
+  layout->addWidget(icon);
+
+  RepoView *view = RepoView::parentView(this);
+  QLabel *label = new QLabel(
+      tr("Click %1 or %2, then Save. Or edit the file yourself, or use "
+         "External Merge. When it's done, stage the file to mark it resolved.")
+          .arg(view->conflictOursLabel(), view->conflictTheirsLabel()),
+      hint);
+  label->setWordWrap(true);
+  label->setStyleSheet(QString("color: %1;").arg(foreground.name()));
+  layout->addWidget(label, 1);
+
+  return hint;
 }
 
 QWidget *FileWidget::addLargeDiffNotice(qint64 size, qint64 changedLines,

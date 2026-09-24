@@ -437,6 +437,10 @@ void TextEditor::setStatusDiff(bool statusDiff) {
   }
 }
 
+void TextEditor::setExternalMergeAvailable(bool available) {
+  mExternalMerge = available;
+}
+
 void TextEditor::clearHighlights() {
   setIndicatorCurrent(FindAll);
   indicatorClearRange(0, length());
@@ -603,6 +607,10 @@ void TextEditor::contextMenuEvent(QContextMenuEvent *event) {
             .data(),
         DiscardSelected, diffLines > 0);
   }
+  if (mExternalMerge) {
+    AddToPopUp("");
+    AddToPopUp("External Merge", ExternalMerge);
+  }
   AddToPopUp("");
   AddToPopUp("Select All", SelectAll);
   mPopup.exec(event->globalPos());
@@ -673,6 +681,9 @@ void TextEditor::Command(MenuAction action) {
       break;
     case SelectAll:
       selectAll();
+      break;
+    case ExternalMerge:
+      emit externalMergeRequested();
       break;
     default:
       break;

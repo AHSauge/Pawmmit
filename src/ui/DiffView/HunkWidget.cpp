@@ -10,6 +10,7 @@
 
 #include "HunkTextEditor.h"
 
+#include "ui/FileContextMenu.h"
 #include "ui/RepoView.h"
 #include "ui/MenuBar.h"
 #include "ui/EditorWindow.h"
@@ -80,7 +81,7 @@ _HunkWidget::Header::Header(const git::Diff &diff, const git::Patch &patch,
     mOurs->setObjectName("ConflictOurs");
     mOurs->setStyleSheet(
         Application::theme()->diffButtonStyle(Theme::Diff::Ours));
-    mOurs->setText(HunkWidget::tr("Keep %1").arg(view->conflictOursName()));
+    mOurs->setText(view->conflictOursLabel());
     connect(mOurs, &QToolButton::clicked, [this] {
       mSave->setVisible(true);
       mUndo->setVisible(true);
@@ -92,7 +93,7 @@ _HunkWidget::Header::Header(const git::Diff &diff, const git::Patch &patch,
     mTheirs->setObjectName("ConflictTheirs");
     mTheirs->setStyleSheet(
         Application::theme()->diffButtonStyle(Theme::Diff::Theirs));
-    mTheirs->setText(HunkWidget::tr("Take %1").arg(view->conflictTheirsName()));
+    mTheirs->setText(view->conflictTheirsLabel());
     connect(mTheirs, &QToolButton::clicked, [this] {
       mSave->setVisible(true);
       mUndo->setVisible(true);
@@ -212,9 +213,18 @@ HunkWidget::HunkWidget(DiffView *view, const git::Diff &diff,
   if (index >= 0)
     mEditor->setLineCount(patch.lineCount(index));
   mEditor->setStatusDiff(diff.isStatusDiff());
+  if (patch.isConflicted()) {
+    git::Index::Conflict conflict = diff.index().conflict(patch.name());
+    mEditor->setExternalMergeAvailable(!conflict.ours.isNull() &&
+                                       !conflict.theirs.isNull());
+  }
 
   connect(mEditor, &TextEditor::updateUi, MenuBar::instance(this),
           &MenuBar::updateCutCopyPaste);
+  connect(mEditor, &TextEditor::externalMergeRequested, this, [this] {
+    FileContextMenu::startMergeTool(RepoView::parentView(this), mPatch.name(),
+                                    this);
+  });
   connect(mEditor, &TextEditor::stageSelectedSignal, this,
           &HunkWidget::stageSelected);
   connect(mEditor, &TextEditor::unstageSelectedSignal, this,

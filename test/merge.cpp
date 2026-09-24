@@ -43,6 +43,7 @@ private slots:
   void thirdCommit();
   void mergeConflict();
   void resolve();
+  void revertConflict();
   void cleanupTestCase();
 
 private:
@@ -306,6 +307,27 @@ void TestMerge::resolve() {
   QCOMPARE(ours->text(), QString("Keep %1").arg(mMainBranch));
   QCOMPARE(theirs->text(), QString("Take branch2"));
 
+  // How to resolve it is explained next to the file, not only in a log
+  // panel that's about to slide away.
+  QWidget *hint = diffView->widget()->findChild<QWidget *>("ConflictHint");
+  QVERIFY(hint);
+  QVERIFY(hint->isVisible());
+  QStringList hintTexts;
+  for (QLabel *label : hint->findChildren<QLabel *>())
+    hintTexts.append(label->text());
+  QVERIFY(hintTexts.contains(
+      QString("Click Keep %1 or Take branch2, then Save. Or edit the file "
+              "yourself, or use External Merge. When it's done, stage the "
+              "file to mark it resolved.")
+          .arg(mMainBranch)));
+
+  // External Merge is a single file-wide button, not one per conflict.
+  QList<QToolButton *> externalMerge =
+      diffView->widget()->findChildren<QToolButton *>("ConflictExternalMerge");
+  QCOMPARE(externalMerge.count(), 1);
+  QVERIFY(externalMerge.first()->isVisible());
+  QVERIFY(externalMerge.first()->isEnabled());
+
   mouseClick(theirs, Qt::LeftButton, Qt::KeyboardModifiers(), QPoint(),
              inputDelay);
 
@@ -369,6 +391,38 @@ void TestMerge::resolve() {
   QVERIFY(!diff.isConflicted());
 
   QTRY_VERIFY(!view->findChild<StateBanner *>()->isVisible());
+
+  // The hint goes away once the conflict does.
+  QVERIFY(!diffView->widget()->findChild<QWidget *>("ConflictHint"));
+}
+
+void TestMerge::revertConflict() {
+  RepoView *view = mWindow->currentView();
+
+  // Change the line again, so reverting "conflicting commit a" conflicts.
+  QFile file(mRepo->workdir().filePath("test"));
+  QVERIFY(file.open(QFile::WriteOnly));
+  QTextStream(&file) << "This is something else." << Qt::endl;
+  file.close();
+  mRepo->index().setStaged({"test"}, true);
+  QVERIFY(mRepo->commit("something else", git::AnnotatedCommit()).isValid());
+
+  git::Commit merge = mRepo->head().target().parents().first();
+  git::Commit commitA = merge.parents().first();
+  QCOMPARE(commitA.summary(), QString("conflicting commit a"));
+
+  view->revert(commitA);
+  QVERIFY(mRepo->index().hasConflicts());
+  refresh(view);
+
+  // The incoming side of a revert lacks the commit's change, so say "Undo".
+  QString undo = QString("Undo commit %1").arg(commitA.shortId());
+  QCOMPARE(view->conflictTheirsLabel(), undo);
+  DiffView *diffView = view->findChild<DiffView *>();
+  QToolButton *theirs = nullptr;
+  QTRY_VERIFY_WITH_TIMEOUT(
+      (theirs = diffView->findChild<QToolButton *>("ConflictTheirs")), 10000);
+  QCOMPARE(theirs->text(), undo);
 }
 
 void TestMerge::cleanupTestCase() {
