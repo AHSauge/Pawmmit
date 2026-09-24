@@ -46,19 +46,19 @@ const QString kLinkFmt = "<a href='%1'>%2</a>";
 
 QString size(size_t bytes) {
   if (bytes < kKb)
-    return kSizeFmt.arg(bytes).arg("bytes");
+    return kSizeFmt.arg(bytes).arg(RemoteCallbacks::tr("bytes"));
 
   int i = 0;
   QString s;
   if (bytes < kMb) {
     i = kKb;
-    s = "KiB";
+    s = RemoteCallbacks::tr("KiB");
   } else if (bytes < kGb) {
     i = kMb;
-    s = "MiB";
+    s = RemoteCallbacks::tr("MiB");
   } else {
     i = kGb;
-    s = "GiB";
+    s = RemoteCallbacks::tr("GiB");
   }
 
   return kSizeFmt.arg(static_cast<float>(bytes) / i, 0, 'f', 2).arg(s);
@@ -346,7 +346,7 @@ void RemoteCallbacks::interactiveAuthImpl(
     const QVector<git::Remote::SshInteractivePrompt> &prompts,
     QVector<QString> &responses, QString &error) {
   QDialog dialog;
-  dialog.setWindowTitle("SSH interactive authentication");
+  dialog.setWindowTitle(tr("SSH interactive authentication"));
 
   QDialogButtonBox *buttons = new QDialogButtonBox(&dialog);
   buttons->addButton(QDialogButtonBox::Ok);
@@ -431,12 +431,17 @@ void RemoteCallbacks::transferImpl(int total, int current, size_t bytes,
   mBytesReceived = bytes;
 
   // Write text.
-  QString text;
-  QTextStream stream(&text);
-  stream << ((mKind == Receive) ? "Receiving" : "Writing")
-         << " objects: " << percent << "% (" << current << "/" << total << "), "
-         << size(bytes) << " | " << size(transferRate) << "/s"
-         << ((mState != Transfer) ? ", done" : QString()) << ".";
+  bool done = (mState != Transfer);
+  QString fmt;
+  if (mKind == Receive) {
+    fmt = done ? tr("Receiving objects: %1% (%2/%3), %4 | %5/s, done.")
+               : tr("Receiving objects: %1% (%2/%3), %4 | %5/s.");
+  } else {
+    fmt = done ? tr("Writing objects: %1% (%2/%3), %4 | %5/s, done.")
+               : tr("Writing objects: %1% (%2/%3), %4 | %5/s.");
+  }
+  QString text = fmt.arg(percent).arg(current).arg(total).arg(
+      size(bytes), size(transferRate));
 
   // Update the list item.
   setText(text, mLog, mTransferItem);
@@ -447,10 +452,9 @@ void RemoteCallbacks::resolveImpl(int total, int current) {
   int percent = (total > 0) ? 100 * (static_cast<float>(current) / total) : 0;
 
   // Write text.
-  QString text;
-  QTextStream stream(&text);
-  stream << "Resolving deltas: " << percent << "% (" << current << "/" << total
-         << ")" << (current == total ? ", done" : QString()) << ".";
+  QString fmt = (current == total) ? tr("Resolving deltas: %1% (%2/%3), done.")
+                                   : tr("Resolving deltas: %1% (%2/%3).");
+  QString text = fmt.arg(percent).arg(current).arg(total);
 
   // Update the list item.
   setText(text, mLog, mResolveItem);
@@ -480,10 +484,10 @@ void RemoteCallbacks::updateImpl(const QString &name, const git::Id &a,
   if (!astr.contains(re)) {
     flag = '*';
     bool tag = (name.section('/', 1, 1) == "tags");
-    summary = QString("[new %1]").arg(tag ? "tag" : "branch");
+    summary = tag ? tr("[new tag]") : tr("[new branch]");
   } else if (!bstr.contains(re)) {
     flag = '-';
-    summary = "[deleted]";
+    summary = tr("[deleted]");
     fromTo = localName;
   } else if (mRepo.isValid()) {
     git::Commit lhs = mRepo.lookupCommit(a);
@@ -491,7 +495,7 @@ void RemoteCallbacks::updateImpl(const QString &name, const git::Id &a,
     if (lhs.isValid() && rhs.isValid()) {
       git::Commit base = mRepo.mergeBase(lhs, rhs);
       if (!base.isValid() || base != lhs)
-        fromTo.append(" (forced update)");
+        fromTo = tr("%1 (forced update)").arg(fromTo);
     }
   }
 
@@ -508,16 +512,15 @@ void RemoteCallbacks::rejectedImpl(const QString &name, const QString &status) {
 
   QString relativeName = name.section('/', 2);
   QString fromTo = kFromToFmt.arg(relativeName, relativeName);
-  QString text = QString("[remote rejected] %1 (%2)").arg(fromTo, status);
+  QString text = tr("[remote rejected] %1 (%2)").arg(fromTo, status);
   mLog->addEntry(LogEntry::Error, text);
 }
 
 void RemoteCallbacks::addImpl(int total, int current) {
   // Write text.
-  QString text;
-  QTextStream stream(&text);
-  stream << "Counting objects: " << current
-         << (current == total ? ", done" : QString()) << ".";
+  QString fmt = (current == total) ? tr("Counting objects: %1, done.")
+                                   : tr("Counting objects: %1.");
+  QString text = fmt.arg(current);
 
   // Update the list item.
   setText(text, mLog, mAddItem);
@@ -529,12 +532,11 @@ void RemoteCallbacks::deltaImpl(int total, int current) {
     addImpl(total, total);
 
   // Write text.
-  QString text;
-  QTextStream stream(&text);
-  stream << "Compressing objects: "
-         << static_cast<int>(100 * (static_cast<float>(current) / total))
-         << "% (" << current << "/" << total << ")"
-         << (current == total ? ", done" : QString()) << ".";
+  int percent = 100 * (static_cast<float>(current) / total);
+  QString fmt = (current == total)
+                    ? tr("Compressing objects: %1% (%2/%3), done.")
+                    : tr("Compressing objects: %1% (%2/%3).");
+  QString text = fmt.arg(percent).arg(current).arg(total);
 
   // Update the list item.
   setText(text, mLog, mDeltaItem);

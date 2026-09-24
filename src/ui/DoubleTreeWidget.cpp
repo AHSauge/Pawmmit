@@ -103,15 +103,16 @@ DoubleTreeWidget::DoubleTreeWidget(const git::Repository &repo, QWidget *parent)
   contextButton->setMenu(contextMenu);
 
   QAction *singleTree = setupAppearanceAction(
-      "Single View", Setting::Id::ShowChangedFilesInSingleView);
-  QAction *listView =
-      setupAppearanceAction("List View", Setting::Id::ShowChangedFilesAsList);
-  QAction *multiColumn = setupAppearanceAction(
-      "Multi Column", Setting::Id::ShowChangedFilesMultiColumn, true);
+      QT_TR_NOOP("Single View"), Setting::Id::ShowChangedFilesInSingleView);
+  QAction *listView = setupAppearanceAction(
+      QT_TR_NOOP("List View"), Setting::Id::ShowChangedFilesAsList);
+  QAction *multiColumn =
+      setupAppearanceAction(QT_TR_NOOP("Multi Column"),
+                            Setting::Id::ShowChangedFilesMultiColumn, true);
   RepoView::parentView(this)->refresh(); // apply read settings
 
   QAction *hideUntrackedFiles = setupAppearanceAction(
-      "Hide Untracked Files", Setting::Id::HideUntracked, false);
+      QT_TR_NOOP("Hide Untracked Files"), Setting::Id::HideUntracked, false);
 
   contextMenu->addAction(singleTree);
   contextMenu->addAction(listView);
