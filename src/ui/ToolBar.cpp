@@ -990,6 +990,12 @@ void ToolBar::updateRemote(int ahead, int behind) {
   static_cast<RemoteButton *>(mPushButton)->setBadge(ahead);
   static_cast<RemoteButton *>(mPullButton)->setBadge(behind);
 
+  // Explain the badges.
+  HotkeyToolTip::of(mPushButton)
+      ->setDetail(ahead > 0 ? MainWindow::commitsToPush(ahead) : QString());
+  HotkeyToolTip::of(mPullButton)
+      ->setDetail(behind > 0 ? MainWindow::commitsToPull(behind) : QString());
+
   RepoView *view = currentView();
   mFetchButton->setEnabled(view);
   mPullButton->setEnabled(view && !view->repo().isBare());

@@ -445,7 +445,6 @@ void DoubleTreeWidget::setLoading() {
  */
 void DoubleTreeWidget::setDiff(const git::Diff &diff, const QString &file,
                                const QString &pathspec) {
-  Q_UNUSED(file)
   Q_UNUSED(pathspec)
 
   // Diff is being set, so lets not indicate we're loading anything
@@ -460,8 +459,12 @@ void DoubleTreeWidget::setDiff(const git::Diff &diff, const QString &file,
 
   mDiff = diff;
 
-  // Remember selection.
+  // Remember selection, unless the caller asked for a specific file.
   storeSelection();
+  if (!file.isEmpty()) {
+    mSelectedFile.filename = file;
+    mSelectedFile.stagedModel = false;
+  }
 
   // Reset model.
   // because of this, the content in the view is shown.

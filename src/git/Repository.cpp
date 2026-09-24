@@ -40,6 +40,7 @@
 #include "git2/ignore.h"
 #include "git2/merge.h"
 #include "git2/rebase.h"
+#include "git2/reflog.h"
 #include "git2/refs.h"
 #include "git2/remote.h"
 #include "git2/repository.h"
@@ -54,6 +55,7 @@
 #include <QJsonObject>
 #include <QMap>
 #include <QProcess>
+#include <QRegularExpression>
 #include <QSaveFile>
 #include <QStandardPaths>
 #include <QVector>
@@ -391,6 +393,31 @@ bool Repository::isHeadUnborn() const {
 
 bool Repository::isHeadDetached() const {
   return git_repository_head_detached(d->repo);
+}
+
+QString Repository::previousBranchName() const {
+  git_reflog *reflog = nullptr;
+  if (git_reflog_read(&reflog, d->repo, "HEAD"))
+    return QString();
+
+  // Newest first; checkouts are logged as "checkout: moving from X to Y".
+  static const QRegularExpression moving("^checkout: moving from (.+) to ");
+  QString result;
+  size_t count = git_reflog_entrycount(reflog);
+  for (size_t i = 0; i < count && result.isEmpty(); ++i) {
+    const git_reflog_entry *entry = git_reflog_entry_byindex(reflog, i);
+    QRegularExpressionMatch match =
+        moving.match(QString::fromUtf8(git_reflog_entry_message(entry)));
+    if (!match.hasMatch())
+      continue;
+
+    QString name = match.captured(1);
+    if (lookupBranch(name, GIT_BRANCH_LOCAL).isValid())
+      result = name;
+  }
+
+  git_reflog_free(reflog);
+  return result;
 }
 
 QString Repository::unbornHeadName() const {

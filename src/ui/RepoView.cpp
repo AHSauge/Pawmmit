@@ -22,6 +22,7 @@
 #include "PathspecWidget.h"
 #include "qtsupport.h"
 #include "ReferenceWidget.h"
+#include "StateBanner.h"
 #include "RemoteCallbacks.h"
 #include "SearchField.h"
 #include "DoubleTreeWidget.h"
@@ -386,6 +387,27 @@ RepoView::RepoView(const git::Repository &repo, MainWindow *parent)
               configureSettings(ConfigDialog::Lfs);
           });
 
+  // Staging a file with conflict markers would commit them.
+  connect(notifier, &git::RepositoryNotifier::conflictMarkersAboutToBeStaged,
+          this, [this](const QString &file, bool &allow) {
+            QString title = tr("Stage File With Conflict Markers?");
+            QString text =
+                tr("'%1' still contains conflict markers (<<<<<<<, =======, "
+                   ">>>>>>>).")
+                    .arg(file);
+            QMessageBox dialog(QMessageBox::Warning, title, text,
+                               QMessageBox::Cancel, this);
+            dialog.setInformativeText(
+                tr("Staging marks the conflict as resolved, so the markers "
+                   "would end up in your commit. Remove them first, or keep "
+                   "one version with the buttons in the diff."));
+            dialog.setDefaultButton(QMessageBox::Cancel);
+            QPushButton *stage = dialog.addButton(tr("Stage Anyway"),
+                                                  QMessageBox::DestructiveRole);
+            dialog.exec();
+            allow = (dialog.clickedButton() == stage);
+          });
+
   // Refresh when the workdir changes.
   RepositoryWatcher *watcher = RepositoryWatcher::create(repo, this);
   connect(notifier, &git::RepositoryNotifier::referenceUpdated, watcher,
@@ -445,7 +467,24 @@ RepoView::RepoView(const git::Repository &repo, MainWindow *parent)
   connect(mLogView->model(), &QAbstractItemModel::dataChanged, this,
           &RepoView::startLogTimer);
 
-  addWidget(mDetailSplitter);
+  // The banner sits above the commit list and the details.
+  mStateBanner = new StateBanner(this);
+  QWidget *content = new QWidget(this);
+  QVBoxLayout *contentLayout = new QVBoxLayout(content);
+  contentLayout->setContentsMargins(0, 0, 0, 0);
+  contentLayout->setSpacing(0);
+  contentLayout->addWidget(mStateBanner);
+  contentLayout->addWidget(mDetailSplitter, 1);
+
+  connect(notifier, &git::RepositoryNotifier::stateChanged, this,
+          &RepoView::updateStateBanner);
+  connect(notifier, &git::RepositoryNotifier::referenceUpdated, this,
+          &RepoView::updateStateBanner);
+  connect(notifier, &git::RepositoryNotifier::indexChanged, this,
+          &RepoView::updateStateBanner);
+  updateStateBanner();
+
+  addWidget(content);
   addWidget(mLogView);
   setCollapsible(0, false);
   setStretchFactor(0, 1);
@@ -718,7 +757,7 @@ void RepoView::visitLink(const QString &link) {
   }
 
   if (action == "abort") {
-    mergeAbort();
+    promptToAbort();
     return;
   }
 
@@ -1436,6 +1475,247 @@ void RepoView::abortRebase() {
   mRepo.rebaseAbort();
   mRebase = nullptr;
   refresh(false);
+}
+
+namespace {
+
+bool isRebaseState(int state) {
+  return state == GIT_REPOSITORY_STATE_REBASE ||
+         state == GIT_REPOSITORY_STATE_REBASE_INTERACTIVE ||
+         state == GIT_REPOSITORY_STATE_REBASE_MERGE;
+}
+
+// The name of the operation that is in progress, or an empty string.
+QString operationName(int state) {
+  switch (state) {
+    case GIT_REPOSITORY_STATE_MERGE:
+      return RepoView::tr("Merge");
+    case GIT_REPOSITORY_STATE_REVERT:
+    case GIT_REPOSITORY_STATE_REVERT_SEQUENCE:
+      return RepoView::tr("Revert");
+    case GIT_REPOSITORY_STATE_CHERRYPICK:
+    case GIT_REPOSITORY_STATE_CHERRYPICK_SEQUENCE:
+      return RepoView::tr("Cherry-pick");
+    default:
+      return isRebaseState(state) ? RepoView::tr("Rebase") : QString();
+  }
+}
+
+// Git doesn't remember which branch MERGE_HEAD came from, only the commit.
+// Recover a name from a branch still pointing at it, preferring a local one.
+QString branchNameForCommit(const git::Repository &repo,
+                            const git::Commit &commit) {
+  QString remoteMatch;
+  for (const git::Branch &branch : repo.branches()) {
+    git::Commit tip = branch.target();
+    if (!tip.isValid() || tip.id() != commit.id())
+      continue;
+
+    if (branch.isLocalBranch())
+      return branch.name();
+    if (remoteMatch.isEmpty())
+      remoteMatch = branch.name();
+  }
+
+  return remoteMatch;
+}
+
+// The branch or commit being merged in, e.g. "fix/foobar" or "commit a3c9dc".
+QString mergeSourceName(const git::Repository &repo) {
+  git::Commit commit = repo.lookupRef("MERGE_HEAD").target();
+  if (!commit.isValid())
+    return QString();
+
+  QString branch = branchNameForCommit(repo, commit);
+  return !branch.isEmpty() ? branch
+                           : RepoView::tr("commit %1").arg(commit.shortId());
+}
+
+} // namespace
+
+void RepoView::updateStateBanner() {
+  int state = mRepo.state();
+  git::Reference head = mRepo.head();
+  QString branch = head.isValid() ? head.name() : QString();
+  int conflicts = mRepo.index().conflictCount();
+
+  QString conflictText;
+  if (conflicts == 1) {
+    conflictText = tr("1 file has conflicts. Keep one version or edit it, "
+                      "then stage it to mark it resolved.");
+  } else if (conflicts > 1) {
+    conflictText = tr("%1 files have conflicts. For each one, keep one "
+                      "version or edit it, then stage it to mark it resolved.")
+                       .arg(conflicts);
+  }
+
+  QString headline;
+  QString detail;
+  QList<StateBanner::Action> actions;
+  // The banner only navigates; finishing is left to the commit editor.
+  StateBanner::Action show =
+      conflicts
+          ? StateBanner::Action{tr("Show Conflicts"),
+                                [this] { showConflicts(); }}
+          : StateBanner::Action{tr("Show Changes"), [this] { showChanges(); }};
+  auto abort = [this](const QString &text) {
+    return StateBanner::Action{text, [this] { promptToAbort(); }};
+  };
+
+  if (isRebaseState(state)) {
+    git::Rebase rebase = mRepo.rebaseOpen();
+    QString from = rebase.origHeadName();
+    QString onto = rebase.ontoName();
+    size_t index = rebase.currentIndex();
+    bool stepKnown = (index != GIT_REBASE_NO_OPERATION && rebase.count() > 0);
+
+    if (!from.isEmpty() && !onto.isEmpty() && stepKnown) {
+      headline = tr("Rebasing %1 onto %2, commit %3 of %4.")
+                     .arg(from, onto)
+                     .arg(index + 1)
+                     .arg(rebase.count());
+    } else if (!from.isEmpty() && !onto.isEmpty()) {
+      headline = tr("Rebasing %1 onto %2.").arg(from, onto);
+    } else {
+      headline = tr("Rebase in progress.");
+    }
+
+    detail = conflicts ? conflictText + " " +
+                             tr("Finally, click Continue Rebase next to the "
+                                "commit message.")
+                       : tr("No conflicts left. Check the changes, then click "
+                            "Continue Rebase next to the commit message.");
+    actions.append(show);
+    actions.append(abort(tr("Abort Rebase")));
+  } else if (state == GIT_REPOSITORY_STATE_MERGE) {
+    QString source = mergeSourceName(mRepo);
+    headline = source.isEmpty() ? tr("Merging into %1.").arg(branch)
+                                : tr("Merging %1 into %2.").arg(source, branch);
+    detail = conflicts
+                 ? conflictText + " " +
+                       tr("Finally, click Commit Merge to finish the merge.")
+                 : tr("No conflicts left. Check the changes, then click Commit "
+                      "Merge to finish the merge.");
+    actions.append(show);
+    actions.append(abort(tr("Abort Merge")));
+  } else if (state == GIT_REPOSITORY_STATE_REVERT ||
+             state == GIT_REPOSITORY_STATE_REVERT_SEQUENCE) {
+    git::Commit commit = mRepo.lookupRef("REVERT_HEAD").target();
+    headline = commit.isValid()
+                   ? tr("Reverting \"%1\" on %2.").arg(commit.summary(), branch)
+                   : tr("Reverting a commit on %1.").arg(branch);
+    detail = conflicts ? conflictText + " " +
+                             tr("Finally, click Commit to finish the revert.")
+                       : tr("No conflicts left. Check the changes, then click "
+                            "Commit to finish the revert.");
+    actions.append(show);
+    actions.append(abort(tr("Abort Revert")));
+  } else if (state == GIT_REPOSITORY_STATE_CHERRYPICK ||
+             state == GIT_REPOSITORY_STATE_CHERRYPICK_SEQUENCE) {
+    git::Commit commit = mRepo.lookupRef("CHERRY_PICK_HEAD").target();
+    headline =
+        commit.isValid()
+            ? tr("Cherry-picking \"%1\" onto %2.").arg(commit.summary(), branch)
+            : tr("Cherry-picking a commit onto %1.").arg(branch);
+    detail = conflicts
+                 ? conflictText + " " +
+                       tr("Finally, click Commit to finish the cherry-pick.")
+                 : tr("No conflicts left. Check the changes, then click "
+                      "Commit to finish the cherry-pick.");
+    actions.append(show);
+    actions.append(abort(tr("Abort Cherry-pick")));
+  } else if (head.isValid() && !head.isLocalBranch()) {
+    headline = tr("You're not on a branch. You're viewing commit %1.")
+                   .arg(head.target().shortId());
+    detail = tr("Anything you commit here isn't kept on a branch and is easy "
+                "to lose.");
+
+    QString previous = mRepo.previousBranchName();
+    if (!previous.isEmpty()) {
+      actions.append({tr("Back to %1").arg(previous), [this, previous] {
+                        checkout(
+                            mRepo.lookupBranch(previous, GIT_BRANCH_LOCAL));
+                      }});
+    } else {
+      actions.append(
+          {tr("Checkout Branch..."), [this] { promptToCheckout(); }});
+    }
+    actions.append(
+        {tr("Create Branch..."), [this] { promptToCreateBranch(); }});
+  }
+
+  StateBanner::Tone tone =
+      conflicts ? StateBanner::Tone::Warning : StateBanner::Tone::Info;
+  mStateBanner->setState(headline, detail, actions, tone);
+}
+
+void RepoView::showConflicts() {
+  QStringList paths = mRepo.index().conflictedPaths();
+  QString file = !paths.isEmpty() ? paths.first() : QString();
+
+  // The uncommitted changes are only listed when viewing HEAD.
+  if (!mCommits->selectStatus(file)) {
+    selectHead();
+    mCommits->selectStatus(file);
+  }
+}
+
+void RepoView::showChanges() {
+  showConflicts();
+  mDetails->focusCommitMessage();
+}
+
+void RepoView::promptToAbort() {
+  int state = mRepo.state();
+  QString name = operationName(state);
+  if (name.isEmpty())
+    return;
+
+  bool rebase = isRebaseState(state);
+  QMessageBox *dialog = new QMessageBox(
+      QMessageBox::Warning, tr("Abort %1?").arg(name),
+      tr("Are you sure you want to abort the %1?").arg(name.toLower()),
+      QMessageBox::Cancel, this);
+  dialog->setAttribute(Qt::WA_DeleteOnClose);
+  dialog->setDefaultButton(QMessageBox::Cancel);
+  // Say what's kept, so it's clear that the user's own work is safe.
+  QString info;
+  switch (state) {
+    case GIT_REPOSITORY_STATE_MERGE:
+      info = tr("Your branch goes back to how it was before the merge. Your "
+                "commits are kept; only the merge and any conflicts you've "
+                "resolved are undone.");
+      break;
+    case GIT_REPOSITORY_STATE_REVERT:
+    case GIT_REPOSITORY_STATE_REVERT_SEQUENCE:
+      info = tr("Your branch goes back to how it was before the revert. Your "
+                "commits are kept; only the revert and any conflicts you've "
+                "resolved are undone.");
+      break;
+    case GIT_REPOSITORY_STATE_CHERRYPICK:
+    case GIT_REPOSITORY_STATE_CHERRYPICK_SEQUENCE:
+      info = tr("Your branch goes back to how it was before the cherry-pick. "
+                "Your commits are kept; only the cherry-pick and any "
+                "conflicts you've resolved are undone.");
+      break;
+    default:
+      info = tr("Your branch goes back to how it was before the rebase "
+                "started, with all of its commits.");
+      break;
+  }
+  dialog->setInformativeText(info);
+
+  QPushButton *abort =
+      dialog->addButton(tr("Abort %1").arg(name), QMessageBox::DestructiveRole);
+  connect(abort, &QPushButton::clicked, this, [this, rebase] {
+    if (rebase) {
+      abortRebase();
+    } else {
+      mergeAbort();
+    }
+  });
+
+  dialog->open();
 }
 
 void RepoView::continueRebase() {

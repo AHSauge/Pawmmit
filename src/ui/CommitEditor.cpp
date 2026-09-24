@@ -495,23 +495,10 @@ CommitEditor::CommitEditor(const git::Repository &repo, QWidget *parent)
   new HotkeyToolTip(mCommit, mCommit->text(), Hotkeys::commit);
   connect(mCommit, &QPushButton::clicked, this, &CommitEditor::commit);
 
-  mRebaseAbort = new QPushButton(tr("Abort Rebase"), this);
-  mRebaseAbort->setObjectName("AbortRebase");
-  new HotkeyToolTip(mRebaseAbort, mRebaseAbort->text(), Hotkeys::abort);
-  connect(mRebaseAbort, &QPushButton::clicked, this,
-          &CommitEditor::abortRebase);
-
   mRebaseContinue = new QPushButton(tr("Continue Rebase"), this);
   mRebaseContinue->setObjectName("ContinueRebase");
   connect(mRebaseContinue, &QPushButton::clicked, this,
           &CommitEditor::continueRebase);
-
-  mMergeAbort = new QPushButton(tr("Abort Merge"), this);
-  new HotkeyToolTip(mMergeAbort, mMergeAbort->text(), Hotkeys::abort);
-  connect(mMergeAbort, &QPushButton::clicked, [this] {
-    RepoView *view = RepoView::parentView(this);
-    view->mergeAbort();
-  });
 
   // Update buttons on index change.
   connect(repo.notifier(), &git::RepositoryNotifier::indexChanged,
@@ -526,8 +513,6 @@ CommitEditor::CommitEditor(const git::Repository &repo, QWidget *parent)
   buttonLayout->addWidget(mUnstage);
   buttonLayout->addWidget(mCommit);
   buttonLayout->addWidget(mRebaseContinue);
-  buttonLayout->addWidget(mRebaseAbort);
-  buttonLayout->addWidget(mMergeAbort);
 
   QHBoxLayout *layout = new QHBoxLayout(this);
   layout->setContentsMargins(0, 0, 0, 12);
@@ -548,18 +533,9 @@ void CommitEditor::commit(bool force) {
     mMessage->clear(); // Clear the message field.
 }
 
-void CommitEditor::abortRebase() {
-  RepoView *view = RepoView::parentView(this);
-  view->abortRebase();
-}
-
 void CommitEditor::continueRebase() {
   RepoView *view = RepoView::parentView(this);
   view->continueRebase();
-}
-
-bool CommitEditor::isRebaseAbortVisible() const {
-  return mRebaseAbort->isVisible();
 }
 
 bool CommitEditor::isRebaseContinueVisible() const {
@@ -687,48 +663,16 @@ void CommitEditor::updateButtons(bool yieldFocus) {
   RepoView *view = RepoView::parentView(this);
   if (!view || !view->repo().isValid()) {
     mRebaseContinue->setVisible(false);
-    mRebaseAbort->setVisible(false);
   } else {
     const bool rebaseOngoing = view->repo().rebaseOngoing();
     mRebaseContinue->setVisible(rebaseOngoing);
-    mRebaseAbort->setVisible(rebaseOngoing);
+
+    // Same rule as the banner: the rebase can't continue past a conflict.
+    bool conflicts = view->repo().index().hasConflicts();
+    mRebaseContinue->setEnabled(!conflicts);
+    mRebaseContinue->setToolTip(
+        conflicts ? tr("Resolve the remaining conflicts") : QString());
   }
-
-  // TODO: copied from menubar
-  bool merging = false;
-  QString text = tr("Merge");
-  if (view) {
-    switch (view->repo().state()) {
-      case GIT_REPOSITORY_STATE_MERGE:
-        merging = true;
-        break;
-
-      case GIT_REPOSITORY_STATE_REVERT:
-      case GIT_REPOSITORY_STATE_REVERT_SEQUENCE:
-        merging = true;
-        text = tr("Revert");
-        break;
-
-      case GIT_REPOSITORY_STATE_CHERRYPICK:
-      case GIT_REPOSITORY_STATE_CHERRYPICK_SEQUENCE:
-        merging = true;
-        text = tr("Cherry-pick");
-        break;
-
-      case GIT_REPOSITORY_STATE_REBASE:
-      case GIT_REPOSITORY_STATE_REBASE_INTERACTIVE:
-      case GIT_REPOSITORY_STATE_REBASE_MERGE:
-        text = tr("Rebase");
-        break;
-    }
-  }
-
-  git::Reference head = view ? view->repo().head() : git::Reference();
-  git::Branch headBranch = head;
-
-  mMergeAbort->setText(tr("Abort %1").arg(text));
-  HotkeyToolTip::of(mMergeAbort)->setText(mMergeAbort->text());
-  mMergeAbort->setVisible(headBranch.isValid() && merging);
 
   if (!mDiff.isValid()) {
     mStage->setEnabled(false);
@@ -847,5 +791,7 @@ void CommitEditor::updateButtons(bool yieldFocus) {
 }
 
 QTextEdit *CommitEditor::textEdit() const { return mMessage; }
+
+void CommitEditor::focusMessage() { mMessage->setFocus(); }
 
 #include "CommitEditor.moc"

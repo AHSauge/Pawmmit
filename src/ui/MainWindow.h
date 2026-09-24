@@ -19,6 +19,7 @@
 
 class RepoView;
 class TabWidget;
+class QLabel;
 class ToolBar;
 class MenuBar;
 
@@ -58,6 +59,10 @@ public:
   static MainWindow *open(const QString &path, bool warnOnInvalid = true);
   static MainWindow *open(const git::Repository &repo = git::Repository());
 
+  // How many commits a branch has to push or pull, in words.
+  static QString commitsToPush(int count);
+  static QString commitsToPull(int count);
+
   // Ask for a repository directory and open it, or pass it to onSelected.
   static void
   promptToOpen(QWidget *parent = nullptr,
@@ -85,6 +90,7 @@ private:
   void updateTabNames();
   void updateInterface();
   void updateWindowTitle(int ahead = -1, int behind = -1);
+  void updateStatusBar(const git::Repository &repo, int ahead, int behind);
 
   // Returns true if the user chose to initialize a repository at path.
   static bool warnInvalidRepo(const QString &path);
@@ -94,6 +100,11 @@ private:
 
   ToolBar *mToolBar;
   MenuBar *mMenuBar;
+  QLabel *mBranchLabel = nullptr;
+  QLabel *mUpstreamLabel = nullptr;
+  QLabel *mSyncLabel = nullptr;
+  QWidget *mUpstreamSeparator = nullptr;
+  QWidget *mSyncSeparator = nullptr;
 
   bool mFullPath = false;
   bool mIsSideBarVisible = true;

@@ -689,20 +689,7 @@ MenuBar::MenuBar(QWidget *parent) : QMenuBar(parent) {
 
   mAbort = branch->addAction(tr("Abort Merge"));
   Hotkeys::abort.use(mAbort);
-  connect(mAbort, &QAction::triggered, [this] {
-    RepoView *view = this->view();
-    switch (view->repo().state()) {
-      case GIT_REPOSITORY_STATE_REBASE:
-      case GIT_REPOSITORY_STATE_REBASE_INTERACTIVE:
-      case GIT_REPOSITORY_STATE_REBASE_MERGE:
-        view->abortRebase();
-        break;
-
-      default:
-        view->mergeAbort();
-        break;
-    }
-  });
+  connect(mAbort, &QAction::triggered, [this] { view()->promptToAbort(); });
 
   // Submodule
   QMenu *submodule = addMenu(tr("Submodule"));

@@ -25,9 +25,7 @@ class CommitEditor : public QFrame {
 public:
   CommitEditor(const git::Repository &repo, QWidget *parent = nullptr);
   void commit(bool force = false);
-  void abortRebase();
   void continueRebase();
-  bool isRebaseAbortVisible() const;
   bool isRebaseContinueVisible() const;
   bool isCommitEnabled() const;
   void stage();
@@ -38,6 +36,7 @@ public:
   void setMessage(const QStringList &files);
   void setMessage(const QString &message);
   QString message() const;
+  void focusMessage();
   void setDiff(const git::Diff &diff);
 
 public slots:
@@ -56,9 +55,7 @@ private:
   QPushButton *mStage;
   QPushButton *mUnstage;
   QPushButton *mCommit;
-  QPushButton *mRebaseAbort;
   QPushButton *mRebaseContinue;
-  QPushButton *mMergeAbort;
   TemplateButton *mTemplate;
 
   bool mEditorEmpty = true;

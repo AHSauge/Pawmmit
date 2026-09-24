@@ -131,6 +131,10 @@ public:
   bool isHeadUnborn() const;
   bool isHeadDetached() const;
   QString unbornHeadName() const;
+
+  // The local branch HEAD was last moved away from, per the reflog, or an
+  // empty string if there isn't one.
+  QString previousBranchName() const;
   bool setHead(const Reference &ref);
   bool setHeadDetached(const Commit &commit);
 
@@ -343,6 +347,7 @@ signals:
   void directoryStaged();
   void directoryAboutToBeStaged(const QString &dir, int count, bool &allow);
   void largeFileAboutToBeStaged(const QString &path, int size, bool &allow);
+  void conflictMarkersAboutToBeStaged(const QString &path, bool &allow);
   void indexChanged(const QStringList &paths, bool yieldFocus = true);
   void indexStageError(const QString &path);
 

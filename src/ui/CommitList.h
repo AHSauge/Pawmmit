@@ -56,6 +56,10 @@ public:
   void selectReference(const git::Reference &ref);
   void resetSelection(bool spontaneous = false);
   void selectFirstCommit(bool spontaneous = false);
+
+  // Select the uncommitted changes, showing file. Returns false if they
+  // aren't in the list.
+  bool selectStatus(const QString &file);
   void selectCommitRelative(int offset);
   bool selectRange(const QString &range, const QString &file = QString(),
                    bool spontaneous = false, bool dispatchDiff = true);
