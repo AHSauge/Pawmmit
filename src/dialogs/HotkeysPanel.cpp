@@ -132,6 +132,8 @@ QString HotkeyData::fullLabel() const {
 }
 
 class HotkeyModel : public QAbstractItemModel {
+  Q_OBJECT
+
 public:
   enum class ColumnIndex : int { Min = 0, Label = 0, Keys = 1, Max = 1 };
 
@@ -311,6 +313,8 @@ protected:
 };
 
 class KeybindDialog : public QDialog {
+  Q_OBJECT
+
 public:
   KeybindDialog(QWidget *parent, HotkeyModel *hotkeys, Hotkey hotkey)
       : QDialog(parent) {
@@ -468,3 +472,5 @@ void HotkeysPanel::keyPressEvent(QKeyEvent *e) {
 
   QTreeView::keyPressEvent(e);
 }
+
+#include "HotkeysPanel.moc"
