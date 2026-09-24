@@ -578,32 +578,24 @@ void TextEditor::contextMenuEvent(QContextMenuEvent *event) {
   const bool writable = !readOnly();
   ScintillaDocument *pdoc = get_doc();
   mPopup.clear();
-  AddToPopUp("Undo", Undo, writable && pdoc->can_undo());
-  AddToPopUp("Redo", Redo, writable && pdoc->can_redo());
+  AddToPopUp(tr("Undo"), Undo, writable && pdoc->can_undo());
+  AddToPopUp(tr("Redo"), Redo, writable && pdoc->can_redo());
   AddToPopUp("");
-  AddToPopUp("Cut", Cut, writable && !selectionEmpty());
-  AddToPopUp("Copy", Copy, !selectionEmpty());
-  AddToPopUp("Paste", Paste, writable && canPaste());
-  AddToPopUp("Delete", Delete, writable && !selectionEmpty());
+  AddToPopUp(tr("Cut"), Cut, writable && !selectionEmpty());
+  AddToPopUp(tr("Copy"), Copy, !selectionEmpty());
+  AddToPopUp(tr("Paste"), Paste, writable && canPaste());
+  AddToPopUp(tr("Delete"), Delete, writable && !selectionEmpty());
   if (mStatusDiff) {
     AddToPopUp("");
-    AddToPopUp((QString("Stage selected\t") + stage.currentKeys().toString())
-                   .toStdString()
-                   .data(),
+    AddToPopUp(tr("Stage selected\t%1").arg(stage.currentKeys().toString()),
                StageSelected, diffLines - staged > 0);
-    AddToPopUp(
-        (QString("Unstage selected\t") + unstage.currentKeys().toString())
-            .toStdString()
-            .data(),
-        UnstageSelected, staged > 0);
-    AddToPopUp(
-        (QString("Discard selected\t") + discard.currentKeys().toString())
-            .toStdString()
-            .data(),
-        DiscardSelected, diffLines > 0);
+    AddToPopUp(tr("Unstage selected\t%1").arg(unstage.currentKeys().toString()),
+               UnstageSelected, staged > 0);
+    AddToPopUp(tr("Discard selected\t%1").arg(discard.currentKeys().toString()),
+               DiscardSelected, diffLines > 0);
   }
   AddToPopUp("");
-  AddToPopUp("Select All", SelectAll);
+  AddToPopUp(tr("Select All"), SelectAll);
   mPopup.exec(event->globalPos());
 }
 
