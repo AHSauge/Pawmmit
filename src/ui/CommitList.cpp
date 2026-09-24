@@ -103,6 +103,7 @@ public:
     // Connect watcher to signal when the status diff finishes.
     connect(&mStatus, &QFutureWatcher<git::Diff>::finished, [this] {
       mTimer.stop();
+      mMerging = (mRepo.state() == GIT_REPOSITORY_STATE_MERGE);
       dispatchResetWalker(true);
     });
 
@@ -259,8 +260,18 @@ public:
         if (!status)
           return QVariant();
 
-        return mStatus.isFinished() ? tr("Uncommitted changes")
-                                    : tr("Checking for uncommitted changes");
+        if (!mStatus.isFinished())
+          return tr("Checking for uncommitted changes");
+
+        // During a merge this row is where it's committed.
+        if (mMerging) {
+          git::Diff diff = this->status();
+          return (diff.isValid() && diff.isConflicted())
+                     ? tr("Merge in progress")
+                     : tr("Merge ready to commit");
+        }
+
+        return tr("Uncommitted changes");
 
       case Qt::FontRole: {
         if (!status)
@@ -693,6 +704,7 @@ private:
   CommitList::RefsFilter mRefsFilter{CommitList::RefsFilter::AllRefs};
   bool mSortDate = true;
   bool mShowCleanStatus = true;
+  bool mMerging = false;
   bool mGraphVisible = true;
 };
 

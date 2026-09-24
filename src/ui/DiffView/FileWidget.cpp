@@ -29,7 +29,20 @@
 
 namespace {
 bool disclosure = false;
+
+// Whether a text conflict's markers are gone, leaving only staging to do.
+bool onlyStagingLeft(const git::Diff &diff, const git::Patch &patch) {
+  if (!patch.isConflicted() || patch.isBinary())
+    return false;
+
+  git::Index::Conflict conflict = diff.index().conflict(patch.name());
+  if (conflict.ours.isNull() || conflict.theirs.isNull())
+    return false;
+
+  QString path = patch.repo().workdir().filePath(patch.name());
+  return !git::Index::hasConflictMarkers(path);
 }
+} // namespace
 
 _FileWidget::Header::Header(const git::Diff &diff, const git::Patch &patch,
                             bool binary, bool lfs, bool submodule,
@@ -223,6 +236,7 @@ void _FileWidget::Header::updatePatch(const git::Patch &patch) {
 
   auto isConflicted = status == GIT_DELTA_CONFLICTED;
   auto showFileSolverButtons = patch.count() != 1;
+  bool stagingLeft = onlyStagingLeft(mDiff, patch);
 
   if (isConflicted) {
     auto conflict = mDiff.index().conflict(patch.name());
@@ -296,9 +310,9 @@ void _FileWidget::Header::updatePatch(const git::Patch &patch) {
 
   mStatusBadge->setLabels(labels);
 
-  mExternalMerge->setVisible(isConflicted);
-  mOurs->setVisible(isConflicted && showFileSolverButtons);
-  mTheirs->setVisible(isConflicted && showFileSolverButtons);
+  mExternalMerge->setVisible(isConflicted && !stagingLeft);
+  mOurs->setVisible(isConflicted && showFileSolverButtons && !stagingLeft);
+  mTheirs->setVisible(isConflicted && showFileSolverButtons && !stagingLeft);
 
   mSave->setVisible(mResolution != git::Patch::ConflictResolution::Unresolved);
   mUndo->setVisible(mResolution != git::Patch::ConflictResolution::Unresolved);
@@ -679,11 +693,14 @@ QWidget *FileWidget::addConflictHint() {
   layout->addWidget(icon);
 
   RepoView *view = RepoView::parentView(this);
-  QLabel *label = new QLabel(
-      tr("Click %1 or %2, then Save. Or edit the file yourself, or use "
-         "External Merge. When it's done, stage the file to mark it resolved.")
-          .arg(view->conflictOursLabel(), view->conflictTheirsLabel()),
-      hint);
+  QString text =
+      onlyStagingLeft(mDiff, mPatch)
+          ? tr("No conflicts left in this file. Stage it to mark it resolved.")
+          : tr("Click %1 or %2, then Save. Or edit the file yourself, or use "
+               "External Merge. When it's done, stage the file to mark it "
+               "resolved.")
+                .arg(view->conflictOursLabel(), view->conflictTheirsLabel());
+  QLabel *label = new QLabel(text, hint);
   label->setWordWrap(true);
   label->setStyleSheet(QString("color: %1;").arg(foreground.name()));
   layout->addWidget(label, 1);

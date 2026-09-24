@@ -482,6 +482,24 @@ RepoView::RepoView(const git::Repository &repo, MainWindow *parent)
           &RepoView::updateStateBanner);
   connect(notifier, &git::RepositoryNotifier::indexChanged, this,
           &RepoView::updateStateBanner);
+
+  // Resolving a conflict changes the file's status, not only its check state.
+  connect(notifier, &git::RepositoryNotifier::indexChanged, this,
+          [this](const QStringList &paths) {
+            git::Diff diff = this->diff();
+            if (!diff.isValid() || !diff.isStatusDiff() || !diff.isConflicted())
+              return;
+
+            QStringList conflicted = mRepo.index().conflictedPaths();
+            for (const QString &path : paths) {
+              int index = diff.indexOf(path);
+              if (index >= 0 && diff.status(index) == GIT_DELTA_CONFLICTED &&
+                  !conflicted.contains(path)) {
+                refresh();
+                return;
+              }
+            }
+          });
   updateStateBanner();
 
   addWidget(content);

@@ -329,7 +329,11 @@ Diff Repository::status(const Index &index, Diff::Callbacks *callbacks,
   diff.merge(workdir);
   diff.setIndex(index);
 
-  return diff.count() ? diff : Diff();
+  // A merge still needs its commit when nothing differs from HEAD.
+  if (!diff.count() && state() != GIT_REPOSITORY_STATE_MERGE)
+    return Diff();
+
+  return diff;
 }
 
 Diff Repository::diffTreeToIndex(const Tree &tree, const Index &index,

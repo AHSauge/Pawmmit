@@ -727,8 +727,13 @@ void CommitEditor::updateButtons(bool yieldFocus) {
   mStage->setEnabled(count > staged);
   mUnstage->setEnabled(total);
 
+  // Committing a merge records it, even without file changes.
+  git::Repository repo = RepoView::parentView(this)->repo();
+  bool merging = (repo.state() == GIT_REPOSITORY_STATE_MERGE);
+
   // Set status text.
-  QString status = tr("Nothing staged");
+  QString status =
+      (merging && !count) ? tr("No file changes") : tr("Nothing staged");
   if (staged || partial || conflicted) {
     QString fmt = (staged == 1 && count == 1) ? tr("%1 of %2 file staged")
                                               : tr("%1 of %2 files staged");
@@ -754,8 +759,6 @@ void CommitEditor::updateButtons(bool yieldFocus) {
   mStatus->setText(brightText(status));
 
   // Change commit button text for committing a merge.
-  git::Repository repo = RepoView::parentView(this)->repo();
-
   switch (repo.state()) {
     case GIT_REPOSITORY_STATE_MERGE:
       mCommit->setText(tr("Commit Merge"));
@@ -774,13 +777,13 @@ void CommitEditor::updateButtons(bool yieldFocus) {
 
   // The index can't be written to a tree while conflicts remain.
   bool empty = mMessage->document()->isEmpty();
-  mCommit->setEnabled(total && conflicted == 0 && !empty);
+  mCommit->setEnabled((total || merging) && conflicted == 0 && !empty);
 
   // Say what is missing, as a disabled button doesn't.
   QStringList missing;
   if (conflicted)
     missing.append(tr("Resolve the remaining conflicts"));
-  if (!total)
+  if (!total && !merging)
     missing.append(tr("Stage the files you want to commit"));
   if (empty)
     missing.append(tr("Enter a commit message"));

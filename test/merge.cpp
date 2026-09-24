@@ -20,6 +20,7 @@
 #include "ui/StateBanner.h"
 #include "ui/TreeView.h"
 #include "ui/CommitList.h"
+#include "watcher/RepositoryWatcher.h"
 #include <QApplication>
 #include <QFile>
 #include <QLabel>
@@ -223,6 +224,11 @@ void TestMerge::mergeConflict() {
                    "Finally, click Commit Merge to finish the merge.")
                .arg(mMainBranch));
 
+  // The uncommitted changes row is named after the merge.
+  QAbstractItemModel *commits = view->findChild<CommitList *>()->model();
+  QTRY_COMPARE(commits->index(0, 0).data().toString(),
+               QString("Merge in progress"));
+
   // Its main action leads to the conflict, even from another commit.
   auto doubleTree = view->findChild<DoubleTreeWidget *>();
   QVERIFY(doubleTree);
@@ -346,12 +352,53 @@ void TestMerge::resolve() {
   mouseClick(save, Qt::LeftButton, Qt::KeyboardModifiers(), QPoint(),
              inputDelay);
 
+  // Once saved, only staging is left, and the guidance says just that.
+  auto hintText = [diffView] {
+    QStringList texts;
+    if (QWidget *hint =
+            diffView->widget()->findChild<QWidget *>("ConflictHint")) {
+      for (QLabel *label : hint->findChildren<QLabel *>()) {
+        if (!label->text().isEmpty())
+          texts.append(label->text());
+      }
+    }
+    return texts.join(" ");
+  };
+  QTRY_COMPARE_WITH_TIMEOUT(
+      hintText(),
+      QString("No conflicts left in this file. Stage it to mark it resolved."),
+      10000);
+  for (const char *name :
+       {"ConflictFileOurs", "ConflictFileTheirs", "ConflictExternalMerge"}) {
+    QToolButton *button = diffView->widget()->findChild<QToolButton *>(name);
+    QVERIFY(button);
+    QVERIFY(button->isHidden());
+  }
+
   DetailView *detailView = view->findChild<DetailView *>();
   QPushButton *stageAll = nullptr;
   QTRY_VERIFY_WITH_TIMEOUT(
       (stageAll = detailView->findChild<QPushButton *>("StageAll")), 10000);
+  // Stage after the watcher's refresh for Save, as a user usually would.
+  RepositoryWatcher *watcher = nullptr;
+  for (QObject *child : view->children()) {
+    if (auto *candidate = dynamic_cast<RepositoryWatcher *>(child))
+      watcher = candidate;
+  }
+  QVERIFY(watcher);
+  watcher->cancelPendingNotification();
   mouseClick(stageAll, Qt::LeftButton, Qt::KeyboardModifiers(), QPoint(),
              inputDelay);
+
+  // Staging clears the conflict from the view without a manual refresh.
+  QTRY_VERIFY_WITH_TIMEOUT(hintText().isEmpty(), 10000);
+
+  // Keeping master leaves nothing that differs from it, yet the merge still
+  // has to be committed.
+  QAbstractItemModel *commits = view->findChild<CommitList *>()->model();
+  QTRY_COMPARE(commits->index(0, 0).data().toString(),
+               QString("Merge ready to commit"));
+  QTRY_VERIFY(diffView->widget()->findChild<QLabel *>("MergeWithoutChanges"));
 
   QTextEdit *editor = view->findChild<QTextEdit *>("MessageEditor");
   QVERIFY(editor);
@@ -381,8 +428,8 @@ void TestMerge::resolve() {
   QTRY_COMPARE(editor->window()->focusWidget(), editor);
 
   // Commit and refresh.
-
   editor->setText("conflicts resolved");
+  QTRY_VERIFY(view->isCommitEnabled());
   view->commit();
   refresh(view, false);
 
@@ -391,6 +438,7 @@ void TestMerge::resolve() {
   QVERIFY(!diff.isConflicted());
 
   QTRY_VERIFY(!view->findChild<StateBanner *>()->isVisible());
+  QCOMPARE(mRepo->head().target().parents().count(), 2);
 
   // The hint goes away once the conflict does.
   QVERIFY(!diffView->widget()->findChild<QWidget *>("ConflictHint"));

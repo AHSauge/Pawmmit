@@ -66,6 +66,9 @@ public:
   int conflictCount() const;
   QStringList conflictedPaths() const;
 
+  // Whether a file still has a complete <<<<<<< ... ======= ... >>>>>>> block.
+  static bool hasConflictMarkers(const QString &path);
+
   static Index create();
 
 private:
