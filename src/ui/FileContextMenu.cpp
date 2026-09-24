@@ -367,7 +367,7 @@ void FileContextMenu::handleUncommittedChanges(const git::Index &index,
           int strategy = GIT_CHECKOUT_FORCE;
           if (modified.count() &&
               !repo.checkout(git::Commit(), nullptr, modified, strategy)) {
-            QString text = tr("%1 files").arg(modified.size());
+            QString text = tr("%n file(s)", nullptr, modified.size());
             LogEntry *parent = view->addLogEntry(text, tr("Discard"));
             view->error(parent, tr("discard"), text);
           }

@@ -87,6 +87,7 @@ dialogs_moc = qt6.preprocess(
     ),
     moc_sources: files(
         'CloneDialog.cpp',
+        'HotkeysPanel.cpp',
         'StartDialog.cpp',
         'ThemeDialog.cpp',
     ),

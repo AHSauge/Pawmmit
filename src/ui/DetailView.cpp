@@ -116,6 +116,8 @@ public:
 };
 
 class AuthorCommitterDate : public QWidget {
+  Q_OBJECT
+
 public:
   AuthorCommitterDate(QWidget *parent = nullptr) : QWidget(parent) {
     mAuthor = new QLabel(this);
