@@ -185,7 +185,6 @@ private:
   int diagnosticMarker(int line);
   void updateMarkerIcons();
   void loadMarkerIcon(Marker marker, const QIcon &icon);
-  void loadMarkerPixmap(Marker marker, const QPixmap &pixmap);
   void AddToPopUp(const QString &label, MenuAction cmd = None,
                   bool enabled = true);
   void StyleSetQFont(int style, const QFont &font);
@@ -211,8 +210,6 @@ private:
   QIcon mNoteIcon;
   QIcon mWarningIcon;
   QIcon mErrorIcon;
-  QPixmap mStagedIcon;
-  QPixmap mUnStagedIcon;
 
   QMap<int, QList<Diagnostic>> mDiagnostics;
   QMenu mPopup;
