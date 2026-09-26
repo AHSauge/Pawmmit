@@ -31,6 +31,11 @@ public:
 
   QAction *doubleClickAction() { return mDoubleClickAction; }
 
+  // Start the external merge tool for a conflicted file, explaining why if it
+  // can't.
+  static void startMergeTool(RepoView *view, const QString &file,
+                             QWidget *parent);
+
 private slots:
   void ignoreFile();
 

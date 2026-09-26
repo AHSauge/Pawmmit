@@ -93,6 +93,11 @@ public:
 
   Repository *remoteRepo();
 
+  // Button labels for each side of a conflict, e.g. "Keep main" and "Take
+  // feature", named by branch since git swaps "ours"/"theirs" in a rebase.
+  QString conflictOursLabel();
+  QString conflictTheirsLabel();
+
   // LFS
   void lfsInitialize();
   void lfsDeinitialize();
@@ -395,6 +400,9 @@ protected:
   void closeEvent(QCloseEvent *event) override;
 
 private:
+  QString conflictOursName();
+  QString conflictTheirsName();
+
   struct SubmoduleInfo {
     git::Submodule submodule;
     git::Repository repo;

@@ -20,6 +20,7 @@
 #include "ui/StateBanner.h"
 #include "ui/TreeView.h"
 #include "ui/CommitList.h"
+#include "watcher/RepositoryWatcher.h"
 #include <QApplication>
 #include <QFile>
 #include <QLabel>
@@ -43,6 +44,9 @@ private slots:
   void thirdCommit();
   void mergeConflict();
   void resolve();
+  void revertConflict();
+  void detachedMergeLabels();
+  void stashConflictLabels();
   void cleanupTestCase();
 
 private:
@@ -50,6 +54,8 @@ private:
   int closeDelay = 0;
 
   ScratchRepository mRepo;
+  ScratchRepository mDetachedRepo;
+  ScratchRepository mStashRepo;
   MainWindow *mWindow = nullptr;
   QString mMainBranch;
 };
@@ -207,6 +213,9 @@ void TestMerge::mergeConflict() {
 
   QTextEdit *editor = view->findChild<QTextEdit *>("MessageEditor");
   QVERIFY(editor);
+
+  // Git's commented conflict list isn't offered as part of the message.
+  QTRY_COMPARE(editor->toPlainText(), QString("Merge branch 'branch2'"));
   editor->clear();
   editor->setText("merge commit");
   QVERIFY(!commit->isEnabled());
@@ -222,6 +231,11 @@ void TestMerge::mergeConflict() {
                    "Finally, click Commit Merge to finish the merge.")
                .arg(mMainBranch));
 
+  // The uncommitted changes row is named after the merge.
+  QAbstractItemModel *commits = view->findChild<CommitList *>()->model();
+  QTRY_COMPARE(commits->index(0, 0).data().toString(),
+               QString("Merge in progress"));
+
   // Its main action leads to the conflict, even from another commit.
   auto doubleTree = view->findChild<DoubleTreeWidget *>();
   QVERIFY(doubleTree);
@@ -233,11 +247,14 @@ void TestMerge::mergeConflict() {
   QTRY_VERIFY(!editor->isVisible());
 
   QPushButton *show = nullptr;
-  for (QPushButton *button : banner->findChildren<QPushButton *>()) {
-    if (button->isVisibleTo(banner) && button->text() == "Show Conflicts")
-      show = button;
-  }
-  QVERIFY(show);
+  auto findShow = [&] {
+    for (QPushButton *button : banner->findChildren<QPushButton *>()) {
+      if (button->isVisibleTo(banner) && button->text() == tr("Show Conflicts"))
+        show = button;
+    }
+    return show != nullptr;
+  };
+  QTRY_VERIFY(findShow());
   show->click();
   QTRY_VERIFY(editor->isVisible());
   QTRY_COMPARE(files->currentIndex().data(Qt::DisplayRole).toString(),
@@ -295,6 +312,38 @@ void TestMerge::resolve() {
   QToolButton *theirs = nullptr;
   QTRY_VERIFY_WITH_TIMEOUT(
       (theirs = diffView->findChild<QToolButton *>("ConflictTheirs")), 10000);
+
+  QToolButton *ours =
+      diffView->widget()->findChild<QToolButton *>("ConflictOurs");
+  QVERIFY(ours);
+
+  // Named by branch, not by the ambiguous "ours"/"theirs" pronouns. "Ours"
+  // isn't inverted during a plain merge, unlike during a rebase: it's still
+  // the branch merged into (master), not the branch merged in.
+  QCOMPARE(ours->text(), QString("Keep %1").arg(mMainBranch));
+  QCOMPARE(theirs->text(), QString("Take branch2"));
+
+  // How to resolve it is explained next to the file, not only in a log
+  // panel that's about to slide away.
+  QWidget *hint = diffView->widget()->findChild<QWidget *>("ConflictHint");
+  QVERIFY(hint);
+  QVERIFY(hint->isVisible());
+  QStringList hintTexts;
+  for (QLabel *label : hint->findChildren<QLabel *>())
+    hintTexts.append(label->text());
+  QVERIFY(hintTexts.contains(
+      QString("Click Keep %1 or Take branch2, then Save. Or edit the file "
+              "yourself, or use External Merge. When it's done, stage the "
+              "file to mark it resolved.")
+          .arg(mMainBranch)));
+
+  // External Merge is a single file-wide button, not one per conflict.
+  QList<QToolButton *> externalMerge =
+      diffView->widget()->findChildren<QToolButton *>("ConflictExternalMerge");
+  QCOMPARE(externalMerge.count(), 1);
+  QVERIFY(externalMerge.first()->isVisible());
+  QVERIFY(externalMerge.first()->isEnabled());
+
   mouseClick(theirs, Qt::LeftButton, Qt::KeyboardModifiers(), QPoint(),
              inputDelay);
 
@@ -304,9 +353,6 @@ void TestMerge::resolve() {
   mouseClick(undo, Qt::LeftButton, Qt::KeyboardModifiers(), QPoint(),
              inputDelay);
 
-  QToolButton *ours =
-      diffView->widget()->findChild<QToolButton *>("ConflictOurs");
-  QVERIFY(ours);
   mouseClick(ours, Qt::LeftButton, Qt::KeyboardModifiers(), QPoint(),
              inputDelay);
 
@@ -316,12 +362,53 @@ void TestMerge::resolve() {
   mouseClick(save, Qt::LeftButton, Qt::KeyboardModifiers(), QPoint(),
              inputDelay);
 
+  // Once saved, only staging is left, and the guidance says just that.
+  auto hintText = [diffView] {
+    QStringList texts;
+    if (QWidget *hint =
+            diffView->widget()->findChild<QWidget *>("ConflictHint")) {
+      for (QLabel *label : hint->findChildren<QLabel *>()) {
+        if (!label->text().isEmpty())
+          texts.append(label->text());
+      }
+    }
+    return texts.join(" ");
+  };
+  QTRY_COMPARE_WITH_TIMEOUT(
+      hintText(),
+      QString("No conflicts left in this file. Stage it to mark it resolved."),
+      10000);
+  for (const char *name :
+       {"ConflictFileOurs", "ConflictFileTheirs", "ConflictExternalMerge"}) {
+    QToolButton *button = diffView->widget()->findChild<QToolButton *>(name);
+    QVERIFY(button);
+    QVERIFY(button->isHidden());
+  }
+
   DetailView *detailView = view->findChild<DetailView *>();
   QPushButton *stageAll = nullptr;
   QTRY_VERIFY_WITH_TIMEOUT(
       (stageAll = detailView->findChild<QPushButton *>("StageAll")), 10000);
+  // Stage after the watcher's refresh for Save, as a user usually would.
+  RepositoryWatcher *watcher = nullptr;
+  for (QObject *child : view->children()) {
+    if (auto *candidate = dynamic_cast<RepositoryWatcher *>(child))
+      watcher = candidate;
+  }
+  QVERIFY(watcher);
+  watcher->cancelPendingNotification();
   mouseClick(stageAll, Qt::LeftButton, Qt::KeyboardModifiers(), QPoint(),
              inputDelay);
+
+  // Staging clears the conflict from the view without a manual refresh.
+  QTRY_VERIFY_WITH_TIMEOUT(hintText().isEmpty(), 10000);
+
+  // Keeping master leaves nothing that differs from it, yet the merge still
+  // has to be committed.
+  QAbstractItemModel *commits = view->findChild<CommitList *>()->model();
+  QTRY_COMPARE(commits->index(0, 0).data().toString(),
+               QString("Merge ready to commit"));
+  QTRY_VERIFY(diffView->widget()->findChild<QLabel *>("MergeWithoutChanges"));
 
   QTextEdit *editor = view->findChild<QTextEdit *>("MessageEditor");
   QVERIFY(editor);
@@ -329,8 +416,8 @@ void TestMerge::resolve() {
   // With the conflicts gone, the banner points to the commit message.
   StateBanner *banner = view->findChild<StateBanner *>();
   QTRY_COMPARE(banner->message(),
-               QString("Merging branch2 into %1. No conflicts left. Check the "
-                       "changes, then click Commit Merge to finish the merge.")
+               QString("Merging branch2 into %1. No conflicts left and no "
+                       "file changes. Click Commit Merge to record the merge.")
                    .arg(mMainBranch));
 
   // Buttons added to a visible banner are shown on the next event loop turn.
@@ -351,8 +438,8 @@ void TestMerge::resolve() {
   QTRY_COMPARE(editor->window()->focusWidget(), editor);
 
   // Commit and refresh.
-
   editor->setText("conflicts resolved");
+  QTRY_VERIFY(view->isCommitEnabled());
   view->commit();
   refresh(view, false);
 
@@ -361,6 +448,113 @@ void TestMerge::resolve() {
   QVERIFY(!diff.isConflicted());
 
   QTRY_VERIFY(!view->findChild<StateBanner *>()->isVisible());
+  QCOMPARE(mRepo->head().target().parents().count(), 2);
+
+  // The hint goes away once the conflict does.
+  QVERIFY(!diffView->widget()->findChild<QWidget *>("ConflictHint"));
+}
+
+void TestMerge::revertConflict() {
+  RepoView *view = mWindow->currentView();
+
+  // Change the line again, so reverting "conflicting commit a" conflicts.
+  QFile file(mRepo->workdir().filePath("test"));
+  QVERIFY(file.open(QFile::WriteOnly));
+  QTextStream(&file) << "This is something else." << Qt::endl;
+  file.close();
+  mRepo->index().setStaged({"test"}, true);
+  QVERIFY(mRepo->commit("something else", git::AnnotatedCommit()).isValid());
+
+  git::Commit merge = mRepo->head().target().parents().first();
+  git::Commit commitA = merge.parents().first();
+  QCOMPARE(commitA.summary(), QString("conflicting commit a"));
+
+  view->revert(commitA);
+  QVERIFY(mRepo->index().hasConflicts());
+  refresh(view);
+
+  // The incoming side of a revert lacks the commit's change, so say "Undo".
+  QString undo = QString("Undo commit %1").arg(commitA.shortId());
+  QCOMPARE(view->conflictTheirsLabel(), undo);
+  DiffView *diffView = view->findChild<DiffView *>();
+  QToolButton *theirs = nullptr;
+  QTRY_VERIFY_WITH_TIMEOUT(
+      (theirs = diffView->findChild<QToolButton *>("ConflictTheirs")), 10000);
+  QCOMPARE(theirs->text(), undo);
+}
+
+namespace {
+
+void writeFile(git::Repository &repo, const char *text) {
+  QFile file(repo.workdir().filePath("f"));
+  QVERIFY(file.open(QFile::WriteOnly));
+  file.write(text);
+}
+
+void commitFile(git::Repository &repo, const char *message) {
+  repo.index().setStaged({"f"}, true);
+  QVERIFY(repo.commit(message, git::AnnotatedCommit()).isValid());
+}
+
+RepoView *openWindow(git::Repository &repo) {
+  MainWindow *window = new MainWindow(repo);
+  window->show();
+  if (!qWaitForWindowExposed(window))
+    return nullptr;
+  RepoView *view = window->currentView();
+  refresh(view, false);
+  return view;
+}
+
+} // namespace
+
+void TestMerge::detachedMergeLabels() {
+  git::Repository repo = mDetachedRepo;
+  QString main = repo.unbornHeadName();
+  writeFile(repo, "base\n");
+  commitFile(repo, "base");
+  RepoView *view = openWindow(repo);
+  QVERIFY(view);
+
+  view->checkout(repo.createBranch("other", repo.head().target()));
+  refresh(view, false);
+  writeFile(repo, "theirs\n");
+  commitFile(repo, "theirs");
+  view->checkout(repo.lookupRef(QString("refs/heads/%1").arg(main)));
+  refresh(view, false);
+  writeFile(repo, "ours\n");
+  commitFile(repo, "ours");
+
+  // Without a branch there's no name for this side, so describe it instead.
+  QVERIFY(repo.setHeadDetached(repo.head().target()));
+  view->merge(RepoView::Merge, repo.lookupRef("refs/heads/other"));
+  QVERIFY(repo.index().hasConflicts());
+  QCOMPARE(view->conflictOursLabel(), QString("Keep current version"));
+  QCOMPARE(view->conflictTheirsLabel(), QString("Take other"));
+  view->window()->close();
+}
+
+void TestMerge::stashConflictLabels() {
+  git::Repository repo = mStashRepo;
+  writeFile(repo, "base\n");
+  commitFile(repo, "base");
+  RepoView *view = openWindow(repo);
+  QVERIFY(view);
+
+  writeFile(repo, "stashed\n");
+  QVERIFY(repo.stash("stashed").isValid());
+  refresh(view, false);
+  writeFile(repo, "other\n");
+  commitFile(repo, "other");
+
+  // Applying the stash conflicts without any operation in progress.
+  QVERIFY(repo.applyStash());
+  QVERIFY(repo.index().hasConflicts());
+  QCOMPARE(repo.state(), GIT_REPOSITORY_STATE_NONE);
+  QCOMPARE(view->conflictOursLabel(),
+           QString("Keep %1").arg(repo.head().name()));
+  QCOMPARE(view->conflictTheirsLabel(), QString("Take stashed version"));
+  view->window()->close();
 }
 
 void TestMerge::cleanupTestCase() {

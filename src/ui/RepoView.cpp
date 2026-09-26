@@ -282,6 +282,8 @@ RepoView::RepoView(const git::Repository &repo, MainWindow *parent)
   connect(mRefs, &ReferenceWidget::referenceSelected, mCommits,
           &CommitList::selectReference);
   connect(mCommits, &CommitList::statusChanged, this, &RepoView::statusChanged);
+  connect(mCommits, &CommitList::statusChanged, this,
+          &RepoView::updateStateBanner);
   connect(mCommits, &CommitList::loadingChanged, this,
           &RepoView::loadingChanged);
 
@@ -485,6 +487,24 @@ RepoView::RepoView(const git::Repository &repo, MainWindow *parent)
           &RepoView::updateStateBanner);
   connect(notifier, &git::RepositoryNotifier::indexChanged, this,
           &RepoView::updateStateBanner);
+
+  // Resolving a conflict changes the file's status, not only its check state.
+  connect(notifier, &git::RepositoryNotifier::indexChanged, this,
+          [this](const QStringList &paths) {
+            git::Diff diff = this->diff();
+            if (!diff.isValid() || !diff.isStatusDiff() || !diff.isConflicted())
+              return;
+
+            QStringList conflicted = mRepo.index().conflictedPaths();
+            for (const QString &path : paths) {
+              int index = diff.indexOf(path);
+              if (index >= 0 && diff.status(index) == GIT_DELTA_CONFLICTED &&
+                  !conflicted.contains(path)) {
+                refresh();
+                return;
+              }
+            }
+          });
   updateStateBanner();
 
   addWidget(content);
@@ -1501,8 +1521,30 @@ QString operationName(int state) {
   }
 }
 
-// Git doesn't remember which branch MERGE_HEAD came from, only the commit.
-// Recover a name from a branch still pointing at it, preferring a local one.
+// The commit an in-progress merge, revert or cherry-pick is bringing in.
+git::Commit incomingCommit(const git::Repository &repo) {
+  const char *ref = nullptr;
+  switch (repo.state()) {
+    case GIT_REPOSITORY_STATE_MERGE:
+      ref = "MERGE_HEAD";
+      break;
+    case GIT_REPOSITORY_STATE_REVERT:
+    case GIT_REPOSITORY_STATE_REVERT_SEQUENCE:
+      ref = "REVERT_HEAD";
+      break;
+    case GIT_REPOSITORY_STATE_CHERRYPICK:
+    case GIT_REPOSITORY_STATE_CHERRYPICK_SEQUENCE:
+      ref = "CHERRY_PICK_HEAD";
+      break;
+    default:
+      return git::Commit();
+  }
+
+  return repo.lookupRef(ref).target();
+}
+
+// Git only remembers the incoming commit, so name it after a branch still
+// pointing at it, preferring a local one.
 QString branchNameForCommit(const git::Repository &repo,
                             const git::Commit &commit) {
   QString remoteMatch;
@@ -1520,9 +1562,9 @@ QString branchNameForCommit(const git::Repository &repo,
   return remoteMatch;
 }
 
-// The branch or commit being merged in, e.g. "fix/foobar" or "commit a3c9dc".
-QString mergeSourceName(const git::Repository &repo) {
-  git::Commit commit = repo.lookupRef("MERGE_HEAD").target();
+// The incoming branch or commit, e.g. "fix/foobar" or "commit a3c9dc".
+QString incomingName(const git::Repository &repo) {
+  git::Commit commit = incomingCommit(repo);
   if (!commit.isValid())
     return QString();
 
@@ -1588,19 +1630,25 @@ void RepoView::updateStateBanner() {
     actions.append(show);
     actions.append(abort(tr("Abort Rebase")));
   } else if (state == GIT_REPOSITORY_STATE_MERGE) {
-    QString source = mergeSourceName(mRepo);
+    QString source = incomingName(mRepo);
     headline = source.isEmpty() ? tr("Merging into %1.").arg(branch)
                                 : tr("Merging %1 into %2.").arg(source, branch);
-    detail = conflicts
-                 ? conflictText + " " +
-                       tr("Finally, click Commit Merge to finish the merge.")
-                 : tr("No conflicts left. Check the changes, then click Commit "
-                      "Merge to finish the merge.");
+    git::Diff status = mCommits->status();
+    if (conflicts) {
+      detail = conflictText + " " +
+               tr("Finally, click Commit Merge to finish the merge.");
+    } else if (status.isValid() && !status.count()) {
+      detail = tr("No conflicts left and no file changes. Click Commit Merge "
+                  "to record the merge.");
+    } else {
+      detail = tr("No conflicts left. Check the changes, then click Commit "
+                  "Merge to finish the merge.");
+    }
     actions.append(show);
     actions.append(abort(tr("Abort Merge")));
   } else if (state == GIT_REPOSITORY_STATE_REVERT ||
              state == GIT_REPOSITORY_STATE_REVERT_SEQUENCE) {
-    git::Commit commit = mRepo.lookupRef("REVERT_HEAD").target();
+    git::Commit commit = incomingCommit(mRepo);
     headline = commit.isValid()
                    ? tr("Reverting \"%1\" on %2.").arg(commit.summary(), branch)
                    : tr("Reverting a commit on %1.").arg(branch);
@@ -1612,7 +1660,7 @@ void RepoView::updateStateBanner() {
     actions.append(abort(tr("Abort Revert")));
   } else if (state == GIT_REPOSITORY_STATE_CHERRYPICK ||
              state == GIT_REPOSITORY_STATE_CHERRYPICK_SEQUENCE) {
-    git::Commit commit = mRepo.lookupRef("CHERRY_PICK_HEAD").target();
+    git::Commit commit = incomingCommit(mRepo);
     headline =
         commit.isValid()
             ? tr("Cherry-picking \"%1\" onto %2.").arg(commit.summary(), branch)
@@ -3252,6 +3300,51 @@ void RepoView::resumeLogTimer(bool suspended) {
     mLogTimer.start(2000);
 }
 
+QString RepoView::conflictOursName() {
+  git::Reference head = mRepo.head();
+  if (head.isLocalBranch())
+    return head.name();
+
+  // During a rebase HEAD sits on the branch being rebased onto.
+  git::Rebase rebase = mRepo.rebaseOpen();
+  return rebase.isValid() ? rebase.ontoName() : QString();
+}
+
+QString RepoView::conflictTheirsName() {
+  git::Rebase rebase = mRepo.rebaseOpen();
+  if (rebase.isValid()) {
+    QString orig = rebase.origHeadName();
+    if (!orig.isEmpty())
+      return orig;
+  }
+
+  return incomingName(mRepo);
+}
+
+QString RepoView::conflictOursLabel() {
+  QString name = conflictOursName();
+  return !name.isEmpty() ? tr("Keep %1").arg(name) : tr("Keep current version");
+}
+
+QString RepoView::conflictTheirsLabel() {
+  // A revert's incoming side is the file without the reverted commit's change.
+  int state = mRepo.state();
+  if (state == GIT_REPOSITORY_STATE_REVERT ||
+      state == GIT_REPOSITORY_STATE_REVERT_SEQUENCE) {
+    git::Commit commit = incomingCommit(mRepo);
+    if (commit.isValid())
+      return tr("Undo commit %1").arg(commit.shortId());
+  }
+
+  QString name = conflictTheirsName();
+  if (!name.isEmpty())
+    return tr("Take %1").arg(name);
+
+  // Applying a stash is what leaves conflicts without an operation running.
+  return (state == GIT_REPOSITORY_STATE_NONE) ? tr("Take stashed version")
+                                              : tr("Take incoming version");
+}
+
 bool RepoView::checkForConflicts(LogEntry *parent,
                                  ConflictOperation operation) {
   DebugRefresh("Has conflicts: " << mRepo.index().hasConflicts());
@@ -3262,60 +3355,24 @@ bool RepoView::checkForConflicts(LogEntry *parent,
   QString error = tr("There was a merge conflict.");
   LogEntry *entry = parent->addEntry(LogEntry::Error, error);
 
-  QString help;
-  QString commit;
+  // How to resolve it is shown next to each conflicted file instead.
   QString abort;
   switch (operation) {
     case ConflictOperation::Merge:
-      help = tr("Resolve conflicts, then commit to conclude the merge. "
-                "See <a href='expand'>details</a>.");
-      commit = tr("After all conflicted files are staged, commit to "
-                  "conclude the merge.");
       abort = tr("You can <a href='action:abort'>abort</a> the merge to "
                  "return the repository to its previous state.");
       break;
     case ConflictOperation::Squash:
-      help = tr("Resolve conflicts, then commit to conclude the squash. "
-                "See <a href='expand'>details</a>.");
-      commit = tr("After all conflicted files are staged, commit to "
-                  "conclude the squash.");
       break;
     case ConflictOperation::Revert:
-      help = tr("Resolve conflicts, then commit to conclude the revert. "
-                "See <a href='expand'>details</a>.");
-      commit = tr("After all conflicted files are staged, commit to "
-                  "conclude the revert.");
       abort = tr("You can <a href='action:abort'>abort</a> the revert to "
                  "return the repository to its previous state.");
       break;
     case ConflictOperation::CherryPick:
-      help = tr("Resolve conflicts, then commit to conclude the cherry-pick. "
-                "See <a href='expand'>details</a>.");
-      commit = tr("After all conflicted files are staged, commit to "
-                  "conclude the cherry-pick.");
       abort = tr("You can <a href='action:abort'>abort</a> the cherry-pick "
                  "to return the repository to its previous state.");
       break;
   }
-
-  QString conflicts = tr("Resolve conflicts in each conflicted (!) file in "
-                         "one of the following ways:");
-  QString hint1 = tr("1. Click the 'Ours' or 'Theirs' button to choose the "
-                     "correct change. Then click the 'Save' button to apply.");
-  QString hint2 = tr("2. Edit the file in the editor to make a different "
-                     "change. Remember to remove conflict markers.");
-  QString hint3 = tr("3. Use an external merge tool. Right-click on the "
-                     "files in the list and choose 'External Merge'.");
-  QString mark = tr("After all conflicts in the file are resolved, "
-                    "click the check box to mark it as resolved.");
-  LogEntry *details = entry->addEntry(LogEntry::Hint, help);
-  LogEntry *resolve = details->addEntry(LogEntry::Entry, conflicts);
-  resolve->addEntry(LogEntry::Entry, hint1);
-  resolve->addEntry(LogEntry::Entry, hint2);
-  resolve->addEntry(LogEntry::Entry, hint3);
-  details->addEntry(LogEntry::Entry, mark);
-  details->addEntry(LogEntry::Entry, commit);
-  mLogView->setEntryExpanded(details, false);
 
   if (!abort.isEmpty())
     entry->addEntry(LogEntry::Hint, abort);

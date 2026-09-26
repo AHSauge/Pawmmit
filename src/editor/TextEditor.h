@@ -95,6 +95,7 @@ public:
     UnstageSelected,
     DiscardSelected,
     SelectAll,
+    ExternalMerge,
   };
   Q_ENUM(MenuAction);
 
@@ -113,6 +114,9 @@ public:
    * \param statusDiff See \variable mStatusDiff for more information
    */
   void setStatusDiff(bool statusDiff);
+
+  // Whether the context menu offers "External Merge".
+  void setExternalMergeAvailable(bool available);
 
   void clearHighlights();
   int highlightAll(const QString &text);
@@ -176,6 +180,9 @@ signals:
    */
   void discardSelectedSignal(int startPos, int end);
 
+  // Emitted when "External Merge" is triggered in the context menu.
+  void externalMergeRequested();
+
 protected:
   QSize viewportSizeHint() const override;
   void Command(MenuAction action);
@@ -201,6 +208,7 @@ private:
    * diff.
    */
   bool mStatusDiff{false};
+  bool mExternalMerge{false};
 
   QColor mOursColor;
   QColor mTheirsColor;

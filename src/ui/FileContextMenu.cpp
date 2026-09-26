@@ -21,6 +21,7 @@
 #include "git/Tree.h"
 #include "host/Repository.h"
 #include "tools/EditTool.h"
+#include "tools/ExternalTool.h"
 #include "tools/ShowTool.h"
 #include "util/Path.h"
 #include <QApplication>
@@ -531,6 +532,53 @@ bool FileContextMenu::exportFile(const RepoView *view, const QString &folder,
   f.write(blob.content());
   f.close();
   return true;
+}
+
+void FileContextMenu::startMergeTool(RepoView *view, const QString &file,
+                                     QWidget *parent) {
+  ExternalTool *tool =
+      ExternalTool::create(file, view->diff(), view->repo(), false, parent);
+  if (!tool)
+    return;
+
+  if (!tool->isValid()) {
+    tool->deleteLater();
+    QMessageBox::information(
+        parent, tr("External Merge Not Available"),
+        tr("A merge tool needs both versions of the file, but one side "
+           "deleted it."));
+    return;
+  }
+
+  QObject::connect(tool, &ExternalTool::error, parent,
+                   [parent](ExternalTool::Error error) {
+                     if (error != ExternalTool::BashNotFound)
+                       return;
+
+                     QString title = tr("Bash Not Found");
+                     QString text = tr("Bash was not found on your PATH.");
+                     QMessageBox msg(QMessageBox::Warning, title, text,
+                                     QMessageBox::Ok, parent);
+                     msg.setInformativeText(
+                         tr("Bash is required to execute external tools."));
+                     msg.exec();
+                   });
+
+  if (tool->start())
+    return;
+
+  tool->deleteLater();
+  bool shell = false;
+  if (ExternalTool::lookupCommand("merge", shell).isEmpty()) {
+    QMessageBox::information(
+        parent, tr("No Merge Tool Chosen"),
+        tr("Choose the external merge tool to use in Settings, under Tools."));
+  } else {
+    QMessageBox::warning(
+        parent, tr("Merge Tool Didn't Start"),
+        tr("Check the merge tool's setup in Settings, under Tools."));
+  }
+  SettingsDialog::openSharedInstance(SettingsDialog::Tools);
 }
 
 QAction *

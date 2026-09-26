@@ -216,6 +216,17 @@ void DiffView::setDiff(const git::Diff &diff) {
     return;
   }
 
+  // A merge can end without file changes, which is still worth committing.
+  if (diff.isStatusDiff() && !diff.count() &&
+      repo.state() == GIT_REPOSITORY_STATE_MERGE) {
+    QLabel *label =
+        new QLabel(tr("No file changes. Committing records the merge."));
+    label->setObjectName("MergeWithoutChanges");
+    label->setAlignment(Qt::AlignHCenter);
+    label->setWordWrap(true);
+    layout->addWidget(label);
+  }
+
   layout->addLayout(mFileWidgetLayout);
   layout->addSpacerItem(new QSpacerItem(
       0, 0, QSizePolicy::Expanding,

@@ -93,10 +93,7 @@ void Index::setMode(const QString &path, git_filemode_t mode) {
 
 bool Index::isTracked(const QString &path) const { return entry(path); }
 
-namespace {
-
-// Whether a file still has a complete <<<<<<< ... ======= ... >>>>>>> block.
-bool hasConflictMarkers(const QString &path) {
+bool Index::hasConflictMarkers(const QString &path) {
   QFile file(path);
   if (!file.open(QFile::ReadOnly))
     return false;
@@ -116,8 +113,6 @@ bool hasConflictMarkers(const QString &path) {
 
   return false;
 }
-
-} // namespace
 
 Index::StagedState Index::isStaged(const QString &path) const {
   QMap<QString, StagedState>::const_iterator it = d->stagedCache.find(path);

@@ -72,6 +72,7 @@ private:
   QToolButton *mUndo = nullptr;
   QToolButton *mOurs = nullptr;
   QToolButton *mTheirs = nullptr;
+  QToolButton *mExternalMerge = nullptr;
   git::Patch::ConflictResolution mResolution =
       git::Patch::ConflictResolution::Unresolved;
 };
@@ -112,6 +113,7 @@ public:
                               const git::Patch &patch, const git::Patch &staged,
                               const QString &name, const QString &path,
                               bool submodule);
+  QWidget *addConflictHint();
   bool canFetchMore() const;
   int fetchMore(int count = 4);
   void fetchAll(int index);
