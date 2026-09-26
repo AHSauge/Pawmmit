@@ -1154,7 +1154,7 @@ void RepoView::pull(MergeFlags flags, const git::Remote &rmt, bool tags,
   if (mWatcher) {
     // Queue pull.
     connect(mWatcher, &QFutureWatcher<git::Result>::finished, mWatcher,
-            [this, flags, rmt, tags] { pull(flags, rmt, tags); });
+            [this, flags, rmt, tags, prune] { pull(flags, rmt, tags, prune); });
 
     return;
   }
@@ -2242,8 +2242,9 @@ bool RepoView::commit(const git::Signature &author,
     QPushButton *accept =
         dialog->addButton(tr("Commit"), QMessageBox::AcceptRole);
     connect(accept, &QPushButton::clicked, this,
-            [this, message, upstream, parent] {
-              this->commit(message, upstream, parent, true);
+            [this, author, commiter, message, upstream, parent, fakeSignature] {
+              commit(author, commiter, message, upstream, parent, true,
+                     fakeSignature);
             });
 
     dialog->open();
@@ -2838,9 +2839,10 @@ void RepoView::updateSubmodules(const QList<git::Submodule> &submodules,
   if (mWatcher) {
     // Queue update. synchrone
     connect(mWatcher, &QFutureWatcher<git::Result>::finished, mWatcher,
-            [this, submodules, recursive, init, checkout_force, parent] {
+            [this, submodules, recursive, init, checkout_force, parent,
+             restoreSelection] {
               updateSubmodules(submodules, recursive, init, checkout_force,
-                               parent);
+                               parent, restoreSelection);
             });
 
     return;
