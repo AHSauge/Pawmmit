@@ -897,8 +897,12 @@ bool Repository::popStash(int index) {
   // Signal that the previous saved reference changed instead.
   Reference ref = stashRef();
 
+  // Like git, keep the stash when applying it conflicts.
   git_stash_apply_options opts = GIT_STASH_APPLY_OPTIONS_INIT;
-  int error = git_stash_pop(d->repo, index, &opts);
+  int error = git_stash_apply(d->repo, index, &opts);
+  if (!error && !this->index().hasConflicts())
+    error = git_stash_drop(d->repo, index);
+
   emit d->notifier->referenceUpdated(ref);
   return !error;
 }

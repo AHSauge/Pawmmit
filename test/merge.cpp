@@ -47,6 +47,7 @@ private slots:
   void revertConflict();
   void detachedMergeLabels();
   void stashConflictLabels();
+  void stashPopKeepsStashOnConflict();
   void cleanupTestCase();
 
 private:
@@ -550,13 +551,60 @@ void TestMerge::stashConflictLabels() {
   commitFile(repo, "other");
 
   // Applying the stash conflicts without any operation in progress.
-  QVERIFY(repo.applyStash());
+  view->applyStash(0);
   QVERIFY(repo.index().hasConflicts());
   QCOMPARE(repo.state(), GIT_REPOSITORY_STATE_NONE);
   QCOMPARE(view->conflictOursLabel(),
            QString("Keep %1").arg(repo.head().name()));
   QCOMPARE(view->conflictTheirsLabel(), QString("Take stashed version"));
+
+  // The banner says what happened, and only offers to show the conflicts.
+  StateBanner *banner = view->findChild<StateBanner *>();
+  QTRY_COMPARE(banner->message(),
+               QString("Applying the stash caused conflicts. 1 file(s) have "
+                       "conflicts. Keep one version or edit it, then stage it "
+                       "to mark it resolved. Your stash is kept, so nothing is "
+                       "lost."));
+  auto buttons = [banner] {
+    QStringList texts;
+    for (QPushButton *button : banner->findChildren<QPushButton *>()) {
+      if (button->isVisibleTo(banner))
+        texts.append(button->text());
+    }
+    return texts;
+  };
+  QTRY_COMPARE(buttons(), QStringList({"Show Conflicts"}));
+
+  // Resolving the conflict ends it.
+  writeFile(repo, "resolved\n");
+  repo.index().setStaged({"f"}, true);
+  QTRY_VERIFY(!banner->isVisible());
   view->window()->close();
+}
+
+void TestMerge::stashPopKeepsStashOnConflict() {
+  // Like git, a conflicting pop keeps the stash, while a clean one drops it.
+  ScratchRepository conflicting;
+  git::Repository repo = conflicting;
+  writeFile(repo, "base\n");
+  commitFile(repo, "base");
+  writeFile(repo, "stashed\n");
+  QVERIFY(repo.stash("stashed").isValid());
+  writeFile(repo, "other\n");
+  commitFile(repo, "other");
+  QVERIFY(repo.popStash());
+  QVERIFY(repo.index().hasConflicts());
+  QCOMPARE(repo.stashes().size(), 1);
+
+  ScratchRepository clean;
+  repo = clean;
+  writeFile(repo, "base\n");
+  commitFile(repo, "base");
+  writeFile(repo, "stashed\n");
+  QVERIFY(repo.stash("stashed").isValid());
+  QVERIFY(repo.popStash());
+  QVERIFY(!repo.index().hasConflicts());
+  QCOMPARE(repo.stashes().size(), 0);
 }
 
 void TestMerge::cleanupTestCase() {

@@ -1654,6 +1654,12 @@ void RepoView::updateStateBanner() {
                       "Commit to finish the cherry-pick.");
     actions.append(show);
     actions.append(abort(tr("Abort Cherry-pick")));
+  } else if (state == GIT_REPOSITORY_STATE_NONE && conflicts) {
+    // Applying a stash is what leaves conflicts without an operation running.
+    headline = tr("Applying the stash caused conflicts.");
+    detail = StateBanner::joinSentences(
+        conflictText, tr("Your stash is kept, so nothing is lost."));
+    actions.append(show);
   } else if (head.isValid() && !head.isLocalBranch()) {
     headline = tr("You're not on a branch. You're viewing commit %1.")
                    .arg(head.target().shortId());
@@ -2505,6 +2511,10 @@ void RepoView::popStash(int index) {
     error(entry, tr("pop stash"), commit.link());
     return;
   }
+
+  if (mRepo.index().hasConflicts())
+    entry->addEntry(LogEntry::Hint,
+                    tr("The stash caused conflicts, so it was kept."));
   // switch back to head
   selectReference(mRepo.head());
   selectFirstCommit();
