@@ -61,6 +61,7 @@ tests = [
     'language_combo_box',
     'theme_dialog',
     'button_tips',
+    'state_banner',
     'RepositoryWatcher',
     'RepoViewAutoRefresh',
     'PathFilter',

@@ -18,6 +18,7 @@
 
 #include "ui/MainWindow.h"
 #include "ui/MenuBar.h"
+#include "ui/StateBanner.h"
 #include "ui/DetailView.h"
 #include "ui/DiffView/FileWidget.h"
 #include "ui/DiffView/HunkWidget.h"
@@ -152,13 +153,13 @@ void TestRebase::withoutConflicts() {
 
   auto *detailview = repoView->findChild<DetailView *>();
   QVERIFY(detailview);
-  auto *abortRebaseButton = detailview->findChild<QPushButton *>("AbortRebase");
-  QVERIFY(abortRebaseButton);
+  auto *rebaseBanner = repoView->findChild<StateBanner *>();
+  QVERIFY(rebaseBanner);
   auto *continueRebaseButton =
       detailview->findChild<QPushButton *>("ContinueRebase");
   QVERIFY(continueRebaseButton);
   QCOMPARE(continueRebaseButton->isVisible(), false);
-  QCOMPARE(abortRebaseButton->isVisible(), false);
+  QCOMPARE(rebaseBanner->isVisible(), false);
 }
 
 void TestRebase::conflictingRebase() {
@@ -166,13 +167,13 @@ void TestRebase::conflictingRebase() {
 
   auto *detailview = repoView->findChild<DetailView *>();
   QVERIFY(detailview);
-  auto *abortRebaseButton = detailview->findChild<QPushButton *>("AbortRebase");
-  QVERIFY(abortRebaseButton);
+  auto *rebaseBanner = repoView->findChild<StateBanner *>();
+  QVERIFY(rebaseBanner);
   auto *continueRebaseButton =
       detailview->findChild<QPushButton *>("ContinueRebase");
   QVERIFY(continueRebaseButton);
   QCOMPARE(continueRebaseButton->isVisible(), false);
-  QCOMPARE(abortRebaseButton->isVisible(), false);
+  QCOMPARE(rebaseBanner->isVisible(), false);
 
   int rebaseFinished = 0;
   int rebaseAboutToRebase = 0;
@@ -238,7 +239,7 @@ void TestRebase::conflictingRebase() {
 
   // Check that buttons are visible
   QTRY_COMPARE(continueRebaseButton->isVisible(), true);
-  QTRY_COMPARE(abortRebaseButton->isVisible(), true);
+  QTRY_COMPARE(rebaseBanner->isVisible(), true);
 
   // The Branch menu can abort the rebase too.
   MenuBar *menuBar = MenuBar::instance(&window);
@@ -250,6 +251,24 @@ void TestRebase::conflictingRebase() {
   }
   QVERIFY(abortAction);
   QVERIFY(abortAction->isEnabled());
+
+  // The banner says what's happening in plain words, and leads to the
+  // conflict rather than offering to continue past it.
+  QTRY_VERIFY(rebaseBanner->isVisible());
+  QCOMPARE(rebaseBanner->message(),
+           QString("Rebasing singleCommitConflict onto main, commit 1 of 1. "
+                   "1 file has conflicts. Keep one version or edit it, then "
+                   "stage it to mark it resolved. Finally, click Continue "
+                   "Rebase next to the commit message."));
+  QStringList bannerButtons;
+  for (QPushButton *button : rebaseBanner->findChildren<QPushButton *>()) {
+    if (button->isVisibleTo(rebaseBanner))
+      bannerButtons.append(button->text());
+  }
+  QCOMPARE(bannerButtons, QStringList({"Show Conflicts", "Abort Rebase"}));
+
+  // The one next to the commit message agrees with the banner.
+  QTRY_VERIFY(!continueRebaseButton->isEnabled());
 
   // Resolve conflicts
   diff = mRepo.status(mRepo.index(), nullptr, false);
@@ -271,6 +290,19 @@ void TestRebase::conflictingRebase() {
   auto filewidgets = repoView->findChildren<FileWidget *>();
   filewidgets.at(0)->stageStateChanged(filewidgets.at(0)->modelIndex(),
                                        git::Index::StagedState::Staged);
+  QTRY_VERIFY(continueRebaseButton->isEnabled());
+
+  // The banner then only navigates, so there's a single Continue button.
+  QTRY_VERIFY(rebaseBanner->message().contains("No conflicts left."));
+  auto visibleButtons = [&] {
+    QStringList texts;
+    for (QPushButton *button : rebaseBanner->findChildren<QPushButton *>()) {
+      if (button->isVisibleTo(rebaseBanner))
+        texts.append(button->text());
+    }
+    return texts;
+  };
+  QTRY_COMPARE(visibleButtons(), QStringList({"Show Changes", "Abort Rebase"}));
 
   refreshTriggered = 0;
   rebaseConflict = 0;
@@ -291,7 +323,7 @@ void TestRebase::conflictingRebase() {
 
   // Check that buttons are visible
   QTRY_COMPARE(continueRebaseButton->isVisible(), false);
-  QTRY_COMPARE(abortRebaseButton->isVisible(), false);
+  QTRY_COMPARE(rebaseBanner->isVisible(), false);
 
   // Check call counters
   QCOMPARE(rebaseFinished, 1);
@@ -305,13 +337,13 @@ void TestRebase::conflictingRebaseCustomMessage() {
 
   auto *detailview = repoView->findChild<DetailView *>();
   QVERIFY(detailview);
-  auto *abortRebaseButton = detailview->findChild<QPushButton *>("AbortRebase");
-  QVERIFY(abortRebaseButton);
+  auto *rebaseBanner = repoView->findChild<StateBanner *>();
+  QVERIFY(rebaseBanner);
   auto *continueRebaseButton =
       detailview->findChild<QPushButton *>("ContinueRebase");
   QVERIFY(continueRebaseButton);
   QCOMPARE(continueRebaseButton->isVisible(), false);
-  QCOMPARE(abortRebaseButton->isVisible(), false);
+  QCOMPARE(rebaseBanner->isVisible(), false);
 
   const QString rebaseBranchName = "refs/heads/singleCommitConflict";
 
@@ -333,7 +365,7 @@ void TestRebase::conflictingRebaseCustomMessage() {
 
   // Check that buttons are visible
   QTRY_COMPARE(continueRebaseButton->isVisible(), true);
-  QTRY_COMPARE(abortRebaseButton->isVisible(), true);
+  QTRY_COMPARE(rebaseBanner->isVisible(), true);
 
   // Resolve conflicts
   diff = mRepo.status(mRepo.index(), nullptr, false);
@@ -373,7 +405,7 @@ void TestRebase::conflictingRebaseCustomMessage() {
 
   // Check that buttons are visible
   QTRY_COMPARE(continueRebaseButton->isVisible(), false);
-  QTRY_COMPARE(abortRebaseButton->isVisible(), false);
+  QTRY_COMPARE(rebaseBanner->isVisible(), false);
 }
 
 // A second handle on the repository has its own notifier, so the GUI only
@@ -421,13 +453,13 @@ void TestRebase::continueExternalStartedRebase() {
 
   auto *detailview = repoView->findChild<DetailView *>();
   QVERIFY(detailview);
-  auto *abortRebaseButton = detailview->findChild<QPushButton *>("AbortRebase");
-  QVERIFY(abortRebaseButton);
+  auto *rebaseBanner = repoView->findChild<StateBanner *>();
+  QVERIFY(rebaseBanner);
   auto *continueRebaseButton =
       detailview->findChild<QPushButton *>("ContinueRebase");
   QVERIFY(continueRebaseButton);
   QCOMPARE(continueRebaseButton->isVisible(), false);
-  QCOMPARE(abortRebaseButton->isVisible(), false);
+  QCOMPARE(rebaseBanner->isVisible(), false);
 
   int rebaseFinished = 0;
   int rebaseAboutToRebase = 0;
@@ -453,7 +485,7 @@ void TestRebase::continueExternalStartedRebase() {
   Test::refresh(repoView); // The GUI is not notified of external changes
 
   QTRY_COMPARE(continueRebaseButton->isVisible(), true);
-  QTRY_COMPARE(abortRebaseButton->isVisible(), true);
+  QTRY_COMPARE(rebaseBanner->isVisible(), true);
 
   resolveConflict(external);
   Test::refresh(repoView);
@@ -471,7 +503,7 @@ void TestRebase::continueExternalStartedRebase() {
 
   QCOMPARE(mRepo.rebaseOngoing(), false);
   QTRY_COMPARE(continueRebaseButton->isVisible(), false);
-  QTRY_COMPARE(abortRebaseButton->isVisible(), false);
+  QTRY_COMPARE(rebaseBanner->isVisible(), false);
 
   // Only the continue was done by the GUI
   QCOMPARE(rebaseFinished, 1);
@@ -485,8 +517,8 @@ void TestRebase::startRebaseContinueExternally() {
 
   auto *detailview = repoView->findChild<DetailView *>();
   QVERIFY(detailview);
-  auto *abortRebaseButton = detailview->findChild<QPushButton *>("AbortRebase");
-  QVERIFY(abortRebaseButton);
+  auto *rebaseBanner = repoView->findChild<StateBanner *>();
+  QVERIFY(rebaseBanner);
   auto *continueRebaseButton =
       detailview->findChild<QPushButton *>("ContinueRebase");
   QVERIFY(continueRebaseButton);
@@ -502,7 +534,7 @@ void TestRebase::startRebaseContinueExternally() {
   startGuiRebase(repoView);
   QCOMPARE(rebaseConflict, 1);
   QTRY_COMPARE(continueRebaseButton->isVisible(), true);
-  QTRY_COMPARE(abortRebaseButton->isVisible(), true);
+  QTRY_COMPARE(rebaseBanner->isVisible(), true);
 
   git::Repository external = git::Repository::open(path);
   QVERIFY(external.isValid());
@@ -516,7 +548,7 @@ void TestRebase::startRebaseContinueExternally() {
 
   QCOMPARE(mRepo.rebaseOngoing(), false);
   QTRY_COMPARE(continueRebaseButton->isVisible(), false);
-  QTRY_COMPARE(abortRebaseButton->isVisible(), false);
+  QTRY_COMPARE(rebaseBanner->isVisible(), false);
 }
 
 void TestRebase::startRebaseContinueExternallyContinueGUI() {
@@ -524,8 +556,8 @@ void TestRebase::startRebaseContinueExternallyContinueGUI() {
 
   auto *detailview = repoView->findChild<DetailView *>();
   QVERIFY(detailview);
-  auto *abortRebaseButton = detailview->findChild<QPushButton *>("AbortRebase");
-  QVERIFY(abortRebaseButton);
+  auto *rebaseBanner = repoView->findChild<StateBanner *>();
+  QVERIFY(rebaseBanner);
   auto *continueRebaseButton =
       detailview->findChild<QPushButton *>("ContinueRebase");
   QVERIFY(continueRebaseButton);
@@ -545,7 +577,7 @@ void TestRebase::startRebaseContinueExternallyContinueGUI() {
   QCOMPARE(rebaseFinished, 0);
   QCOMPARE(rebaseConflict, 1);
   QTRY_COMPARE(continueRebaseButton->isVisible(), true);
-  QTRY_COMPARE(abortRebaseButton->isVisible(), true);
+  QTRY_COMPARE(rebaseBanner->isVisible(), true);
 
   // Commit the conflicting step but leave finishing the rebase open
   git::Repository external = git::Repository::open(path);
@@ -565,7 +597,7 @@ void TestRebase::startRebaseContinueExternallyContinueGUI() {
   QCOMPARE(rebaseFinished, 1);
   QCOMPARE(mRepo.rebaseOngoing(), false);
   QTRY_COMPARE(continueRebaseButton->isVisible(), false);
-  QTRY_COMPARE(abortRebaseButton->isVisible(), false);
+  QTRY_COMPARE(rebaseBanner->isVisible(), false);
 }
 
 void TestRebase::abortMR() {
@@ -573,13 +605,13 @@ void TestRebase::abortMR() {
 
   auto *detailview = repoView->findChild<DetailView *>();
   QVERIFY(detailview);
-  auto *abortRebaseButton = detailview->findChild<QPushButton *>("AbortRebase");
-  QVERIFY(abortRebaseButton);
+  auto *rebaseBanner = repoView->findChild<StateBanner *>();
+  QVERIFY(rebaseBanner);
   auto *continueRebaseButton =
       detailview->findChild<QPushButton *>("ContinueRebase");
   QVERIFY(continueRebaseButton);
   QCOMPARE(continueRebaseButton->isVisible(), false);
-  QCOMPARE(abortRebaseButton->isVisible(), false);
+  QCOMPARE(rebaseBanner->isVisible(), false);
 
   int rebaseFinished = 0;
   int rebaseAboutToRebase = 0;
@@ -644,7 +676,7 @@ void TestRebase::abortMR() {
 
   // Check that buttons are visible
   QTRY_COMPARE(continueRebaseButton->isVisible(), true);
-  QTRY_COMPARE(abortRebaseButton->isVisible(), true);
+  QTRY_COMPARE(rebaseBanner->isVisible(), true);
 
   refreshTriggered = 0;
   rebaseConflict = 0;
@@ -656,7 +688,7 @@ void TestRebase::abortMR() {
 
   // Check that buttons are visible
   QTRY_COMPARE(continueRebaseButton->isVisible(), false);
-  QTRY_COMPARE(abortRebaseButton->isVisible(), false);
+  QTRY_COMPARE(rebaseBanner->isVisible(), false);
 
   // Check call counters
   QCOMPARE(rebaseFinished, 0);
@@ -677,13 +709,13 @@ void TestRebase::commitDuringRebase() {
 
   auto *detailview = repoView->findChild<DetailView *>();
   QVERIFY(detailview);
-  auto *abortRebaseButton = detailview->findChild<QPushButton *>("AbortRebase");
-  QVERIFY(abortRebaseButton);
+  auto *rebaseBanner = repoView->findChild<StateBanner *>();
+  QVERIFY(rebaseBanner);
   auto *continueRebaseButton =
       detailview->findChild<QPushButton *>("ContinueRebase");
   QVERIFY(continueRebaseButton);
   QCOMPARE(continueRebaseButton->isVisible(), false);
-  QCOMPARE(abortRebaseButton->isVisible(), false);
+  QCOMPARE(rebaseBanner->isVisible(), false);
 
   int rebaseFinished = 0;
   int rebaseAboutToRebase = 0;
@@ -748,7 +780,7 @@ void TestRebase::commitDuringRebase() {
 
   // Check that buttons are visible
   QTRY_COMPARE(continueRebaseButton->isVisible(), true);
-  QTRY_COMPARE(abortRebaseButton->isVisible(), true);
+  QTRY_COMPARE(rebaseBanner->isVisible(), true);
 
   // Resolve conflicts
   diff = mRepo.status(mRepo.index(), nullptr, false);
@@ -797,7 +829,7 @@ void TestRebase::commitDuringRebase() {
 
   // Check that buttons are visible
   QTRY_COMPARE(continueRebaseButton->isVisible(), false);
-  QTRY_COMPARE(abortRebaseButton->isVisible(), false);
+  QTRY_COMPARE(rebaseBanner->isVisible(), false);
 
   // Check call counters
   QCOMPARE(rebaseFinished, 1);

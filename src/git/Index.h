@@ -17,6 +17,7 @@
 #include "git2/index.h"
 #include <QMap>
 #include <QSet>
+#include <QStringList>
 #include <memory>
 
 namespace git {
@@ -62,6 +63,8 @@ public:
   Tree writeTree() const;
 
   bool hasConflicts() const;
+  int conflictCount() const;
+  QStringList conflictedPaths() const;
 
   static Index create();
 

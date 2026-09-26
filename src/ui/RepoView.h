@@ -39,6 +39,7 @@ class Index;
 class Location;
 class LogEntry;
 class LogView;
+class StateBanner;
 class MainWindow;
 class PathspecWidget;
 class ReferenceWidget;
@@ -215,6 +216,18 @@ public:
 
   // Aborting the current ongoing rebase
   void abortRebase();
+
+  // Show what needs attention in the repository, if anything.
+  void updateStateBanner();
+
+  // Ask before aborting the merge, revert, cherry-pick or rebase in progress.
+  void promptToAbort();
+
+  // Show the uncommitted changes with the first conflicted file selected.
+  void showConflicts();
+
+  // Show the uncommitted changes and focus the commit message.
+  void showChanges();
 
   // Continuouing the current ongoing rebase
   void continueRebase();
@@ -440,6 +453,7 @@ private:
   LogEntry *mLogRoot;
   LogEntry *mRebase{nullptr};
   LogView *mLogView;
+  StateBanner *mStateBanner;
   QTimer mLogTimer;
   bool mIsLogVisible = false;
 

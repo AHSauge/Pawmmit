@@ -93,6 +93,32 @@ void Index::setMode(const QString &path, git_filemode_t mode) {
 
 bool Index::isTracked(const QString &path) const { return entry(path); }
 
+namespace {
+
+// Whether a file still has a complete <<<<<<< ... ======= ... >>>>>>> block.
+bool hasConflictMarkers(const QString &path) {
+  QFile file(path);
+  if (!file.open(QFile::ReadOnly))
+    return false;
+
+  bool start = false;
+  bool middle = false;
+  while (!file.atEnd()) {
+    QByteArray line = file.readLine();
+    if (line.startsWith("<<<<<<<")) {
+      start = true;
+    } else if (start && line.startsWith("=======")) {
+      middle = true;
+    } else if (middle && line.startsWith(">>>>>>>")) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+} // namespace
+
 Index::StagedState Index::isStaged(const QString &path) const {
   QMap<QString, StagedState>::const_iterator it = d->stagedCache.find(path);
   if (it != d->stagedCache.end())
@@ -249,6 +275,16 @@ void Index::setStaged(const QStringList &files, bool staged, bool yieldFocus) {
           if (!allow)
             continue;
 
+          // Staging a conflicted file marks it resolved, markers or not.
+          const git_index_entry *ancestor, *ours, *theirs;
+          if (!git_index_conflict_get(&ancestor, &ours, &theirs, d->index,
+                                      path) &&
+              hasConflictMarkers(repo.workdir().filePath(file))) {
+            emit notifier->conflictMarkersAboutToBeStaged(file, allow);
+            if (!allow)
+              continue;
+          }
+
           if (git_index_add_bypath(d->index, path)) {
             emit notifier->indexStageError(file);
             continue;
@@ -334,6 +370,24 @@ Tree Index::writeTree() const {
 }
 
 bool Index::hasConflicts() const { return git_index_has_conflicts(d->index); }
+
+int Index::conflictCount() const { return conflictedPaths().count(); }
+
+QStringList Index::conflictedPaths() const {
+  QStringList paths;
+  git_index_conflict_iterator *iterator = nullptr;
+  if (git_index_conflict_iterator_new(&iterator, d->index))
+    return paths;
+
+  const git_index_entry *ancestor, *ours, *theirs;
+  while (!git_index_conflict_next(&ancestor, &ours, &theirs, iterator)) {
+    const git_index_entry *entry = ours ? ours : theirs ? theirs : ancestor;
+    paths.append(QString::fromUtf8(entry->path));
+  }
+
+  git_index_conflict_iterator_free(iterator);
+  return paths;
+}
 
 Index Index::create() {
   git_index *index = nullptr;

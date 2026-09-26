@@ -1517,6 +1517,22 @@ void CommitList::selectFirstCommit(bool spontaneous) {
   mSelectionIsDefault = true;
 }
 
+bool CommitList::selectStatus(const QString &file) {
+  QModelIndex index = model()->index(0, 0);
+  if (!index.isValid() || index.data(CommitRole).isValid())
+    return false;
+
+  // Reselecting the same row emits no selection change, so dispatch directly.
+  if (selectionModel()->selectedIndexes() == QModelIndexList{index}) {
+    dispatchSelectedDiff(file, false);
+    scrollTo(index);
+    return true;
+  }
+
+  selectIndexes(QItemSelection(index, index), file, false);
+  return true;
+}
+
 void CommitList::selectCommitRelative(int offset) {
   QModelIndexList indices = selectionModel()->selectedIndexes();
   QModelIndex index = indices[0];

@@ -34,6 +34,12 @@ public:
   size_t currentIndex() const;
   const git_rebase_operation *operation(size_t index);
   Commit commitToRebase() const;
+
+  // The branch being rebased onto, and the branch that was checked out
+  // before the rebase started, in short form (e.g. "main"). Either can be
+  // empty if the rebase was started from a bare commit instead of a branch.
+  QString ontoName() const;
+  QString origHeadName() const;
   bool hasNext() const;
   Commit next() const;
   Commit commit(const QString &message);

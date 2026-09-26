@@ -34,10 +34,12 @@
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QLabel>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QPushButton>
 #include <QSettings>
+#include <QStatusBar>
 #include <QTimeLine>
 #include <QToolButton>
 #include "util/Debug.h"
@@ -175,6 +177,28 @@ MainWindow::MainWindow(const git::Repository &repo, QWidget *parent,
   splitter->setStretchFactor(1, 1);
 
   setCentralWidget(splitter);
+
+  // Show the branch and how it relates to its upstream, part by part so that
+  // each can explain itself.
+  auto addLabel = [this](const char *name) {
+    QLabel *label = new QLabel(this);
+    label->setObjectName(name);
+    label->setContentsMargins(6, 0, 6, 0);
+    statusBar()->addWidget(label);
+    return label;
+  };
+  auto addSeparator = [this] {
+    QFrame *line = new QFrame(this);
+    line->setFrameShape(QFrame::VLine);
+    line->setFrameShadow(QFrame::Sunken);
+    statusBar()->addWidget(line);
+    return line;
+  };
+  mBranchLabel = addLabel("BranchLabel");
+  mUpstreamSeparator = addSeparator();
+  mUpstreamLabel = addLabel("UpstreamLabel");
+  mSyncSeparator = addSeparator();
+  mSyncLabel = addLabel("SyncLabel");
 
   if (repo)
     addTab(repo);
@@ -600,10 +624,78 @@ void MainWindow::updateInterface() {
   mToolBar->updateButtons(ahead, behind);
 }
 
+QString MainWindow::commitsToPush(int count) {
+  return count == 1 ? tr("%1 commit to push").arg(count)
+                    : tr("%1 commits to push").arg(count);
+}
+
+QString MainWindow::commitsToPull(int count) {
+  return count == 1 ? tr("%1 commit to pull").arg(count)
+                    : tr("%1 commits to pull").arg(count);
+}
+
+void MainWindow::updateStatusBar(const git::Repository &repo, int ahead,
+                                 int behind) {
+  QString branch, branchTip, upstream, upstreamTip, sync, syncTip;
+
+  if (repo.isValid()) {
+    git::Reference head = repo.head();
+    if (!head.isValid()) {
+      // No commits yet, so there is no branch to point at.
+      branch = tr("On branch %1").arg(repo.unbornHeadName());
+      branchTip = tr("The branch you are working on");
+      upstream = tr("no commits yet");
+      upstreamTip = tr("The branch is created by the first commit.");
+    } else if (!head.isLocalBranch()) {
+      branch = tr("Not on a branch (viewing %1)").arg(head.target().shortId());
+      branchTip = tr("You're looking at a single commit rather than a "
+                     "branch. Anything you commit here is easy to lose.");
+    } else {
+      branch = tr("On branch %1").arg(head.name());
+      branchTip = tr("The branch you are working on");
+
+      git::Branch upstreamBranch = git::Branch(head).upstream();
+      if (upstreamBranch) {
+        upstream = tr("linked to %1").arg(upstreamBranch.name());
+        upstreamTip =
+            tr("Pull and Push exchange commits with this remote branch");
+
+        QStringList parts;
+        if (ahead > 0)
+          parts.append(commitsToPush(ahead));
+        if (behind > 0)
+          parts.append(commitsToPull(behind));
+        sync =
+            parts.isEmpty() ? tr("in sync as of last fetch") : parts.join(", ");
+        syncTip = tr("Compared with the last fetch. Fetch to check for newer "
+                     "commits.");
+      } else {
+        upstream = tr("only on this computer");
+        upstreamTip = tr("This branch isn't on a remote yet. Push it to share "
+                         "it and keep a copy off this computer.");
+      }
+    }
+  }
+
+  auto show = [](QLabel *label, QWidget *separator, const QString &text,
+                 const QString &tip) {
+    label->setText(text);
+    label->setToolTip(tip);
+    label->setAccessibleName(text);
+    label->setVisible(!text.isEmpty());
+    if (separator)
+      separator->setVisible(!text.isEmpty());
+  };
+  show(mBranchLabel, nullptr, branch, branchTip);
+  show(mUpstreamLabel, mUpstreamSeparator, upstream, upstreamTip);
+  show(mSyncLabel, mSyncSeparator, sync, syncTip);
+}
+
 void MainWindow::updateWindowTitle(int ahead, int behind) {
   RepoView *view = currentView();
   if (!view) {
     setWindowTitle(QCoreApplication::applicationName() + BUILD_DESCRIPTION);
+    updateStatusBar(git::Repository(), 0, 0);
     return;
   }
 
@@ -614,7 +706,7 @@ void MainWindow::updateWindowTitle(int ahead, int behind) {
   QString path =
       mFullPath ? util::sandboxPathToHost(dir.path()) : dir.dirName();
   QString name = head.isValid() ? head.name() : repo.unbornHeadName();
-  QString title = tr("%1 - %2").arg(path, name);
+  QString summary = name;
 
   // Add remote tracking information.
   if (git::Branch branch = head) {
@@ -626,15 +718,18 @@ void MainWindow::updateWindowTitle(int ahead, int behind) {
 
       QStringList parts;
       if (ahead > 0)
-        parts.append(tr("ahead: %1").arg(ahead));
+        parts.append(commitsToPush(ahead));
       if (behind > 0)
-        parts.append(tr("behind: %1").arg(behind));
+        parts.append(commitsToPull(behind));
 
-      QString status = parts.isEmpty() ? tr("up-to-date") : parts.join(", ");
+      QString status = parts.isEmpty() ? tr("in sync") : parts.join(", ");
       QString remote = tr("%1 (%2)").arg(status, upstream.name());
-      title = tr("%1 - %2").arg(title, remote);
+      summary = tr("%1 - %2").arg(name, remote);
     }
   }
+
+  updateStatusBar(repo, ahead, behind);
+  QString title = tr("%1 - %2").arg(path, summary);
 
   // Add state.
   QString state;

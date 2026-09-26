@@ -17,11 +17,17 @@
 #include "ui/DiffView/DiffView.h"
 #include "ui/DoubleTreeWidget.h"
 #include "ui/RepoView.h"
+#include "ui/StateBanner.h"
 #include "ui/TreeView.h"
+#include "ui/CommitList.h"
+#include <QApplication>
 #include <QFile>
 #include <QLabel>
+#include <QMessageBox>
 #include <QPushButton>
+#include <QSignalSpy>
 #include <QTextEdit>
+#include <QTimer>
 #include <QToolButton>
 
 using namespace Test;
@@ -205,6 +211,67 @@ void TestMerge::mergeConflict() {
   editor->setText("merge commit");
   QVERIFY(!commit->isEnabled());
   QVERIFY(commit->toolTip().contains("Resolve the remaining conflicts"));
+
+  // The banner says so too, wherever the user is looking.
+  StateBanner *banner = view->findChild<StateBanner *>();
+  QVERIFY(banner);
+  QTRY_VERIFY(banner->isVisible());
+  QCOMPARE(banner->message(),
+           QString("Merging branch2 into %1. 1 file has conflicts. Keep one "
+                   "version or edit it, then stage it to mark it resolved. "
+                   "Finally, click Commit Merge to finish the merge.")
+               .arg(mMainBranch));
+
+  // Its main action leads to the conflict, even from another commit.
+  auto doubleTree = view->findChild<DoubleTreeWidget *>();
+  QVERIFY(doubleTree);
+  auto files = doubleTree->findChild<TreeView *>("Unstaged");
+  QVERIFY(files);
+  CommitList *commitList = view->findChild<CommitList *>();
+  QVERIFY(commitList);
+  commitList->setCurrentIndex(commitList->model()->index(1, 0));
+  QTRY_VERIFY(!editor->isVisible());
+
+  QPushButton *show = nullptr;
+  for (QPushButton *button : banner->findChildren<QPushButton *>()) {
+    if (button->isVisibleTo(banner) && button->text() == "Show Conflicts")
+      show = button;
+  }
+  QVERIFY(show);
+  show->click();
+  QTRY_VERIFY(editor->isVisible());
+  QTRY_COMPARE(files->currentIndex().data(Qt::DisplayRole).toString(),
+               QString("test"));
+
+  // It still works when the uncommitted changes are already shown.
+  QSignalSpy dispatched(commitList, &CommitList::diffSelected);
+  show->click();
+  QCOMPARE(dispatched.count(), 1);
+  QCOMPARE(dispatched.first().at(1).toString(), QString("test"));
+
+  // Staging a file that still has conflict markers asks first. Cancel before
+  // checking, as a failed check would leave the modal dialog open.
+  QString prompt;
+  QTimer::singleShot(0, [&prompt] {
+    auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+    if (!box)
+      return;
+    prompt = box->text();
+    box->button(QMessageBox::Cancel)->click();
+  });
+  mRepo->index().setStaged({"test"}, true);
+  QCOMPARE(prompt, QString("'test' still contains conflict markers (<<<<<<<, "
+                           "=======, >>>>>>>)."));
+  QVERIFY(mRepo->index().hasConflicts());
+
+  // Aborting asks first, and cancelling leaves the merge alone.
+  view->promptToAbort();
+  QMessageBox *confirm = nullptr;
+  QTRY_VERIFY((confirm = view->findChild<QMessageBox *>()));
+  QString question = confirm->text();
+  confirm->button(QMessageBox::Cancel)->click();
+  QCOMPARE(question, QString("Are you sure you want to abort the merge?"));
+  QCOMPARE(mRepo->state(), GIT_REPOSITORY_STATE_MERGE);
 }
 
 void TestMerge::resolve() {
@@ -256,9 +323,34 @@ void TestMerge::resolve() {
   mouseClick(stageAll, Qt::LeftButton, Qt::KeyboardModifiers(), QPoint(),
              inputDelay);
 
-  // Commit and refresh.
   QTextEdit *editor = view->findChild<QTextEdit *>("MessageEditor");
   QVERIFY(editor);
+
+  // With the conflicts gone, the banner points to the commit message.
+  StateBanner *banner = view->findChild<StateBanner *>();
+  QTRY_COMPARE(banner->message(),
+               QString("Merging branch2 into %1. No conflicts left. Check the "
+                       "changes, then click Commit Merge to finish the merge.")
+                   .arg(mMainBranch));
+
+  // Buttons added to a visible banner are shown on the next event loop turn.
+  QPushButton *show = nullptr;
+  auto findShow = [&] {
+    for (QPushButton *button : banner->findChildren<QPushButton *>()) {
+      if (button->isVisibleTo(banner) && button->text() == "Show Changes")
+        show = button;
+    }
+    return show != nullptr;
+  };
+  QTRY_VERIFY(findShow());
+
+  // The offscreen window is never active, so check the window's focus widget.
+  files->setFocus();
+  QCOMPARE(editor->window()->focusWidget(), files);
+  show->click();
+  QTRY_COMPARE(editor->window()->focusWidget(), editor);
+
+  // Commit and refresh.
 
   editor->setText("conflicts resolved");
   view->commit();
@@ -267,6 +359,8 @@ void TestMerge::resolve() {
   // Diff is not in a conflicted state
   git::Diff diff = mRepo->diffIndexToWorkdir();
   QVERIFY(!diff.isConflicted());
+
+  QTRY_VERIFY(!view->findChild<StateBanner *>()->isVisible());
 }
 
 void TestMerge::cleanupTestCase() {

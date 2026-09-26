@@ -554,11 +554,6 @@ bool DetailView::isRebaseContinueVisible() const {
           mCommitEditor->isRebaseContinueVisible());
 }
 
-bool DetailView::isRebaseAbortVisible() const {
-  return (mDetail->currentIndex() == EditorIndex &&
-          mCommitEditor->isRebaseAbortVisible());
-}
-
 void DetailView::stage() {
   Q_ASSERT(isStageEnabled());
   mCommitEditor->stage();
@@ -603,6 +598,8 @@ void DetailView::setCommitMessage(const QString &message) {
 }
 
 QString DetailView::commitMessage() const { return mCommitEditor->message(); }
+
+void DetailView::focusCommitMessage() { mCommitEditor->focusMessage(); }
 
 void DetailView::setDiff(const git::Diff &diff, const QString &file,
                          const QString &pathspec) {

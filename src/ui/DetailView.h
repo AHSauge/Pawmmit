@@ -64,7 +64,6 @@ public:
   void commit(bool force = false);
   bool isCommitEnabled() const;
   bool isRebaseContinueVisible() const;
-  bool isRebaseAbortVisible() const;
 
   // stage / unstage
   void stage();
@@ -80,6 +79,7 @@ public:
 
   QString commitMessage() const;
   void setCommitMessage(const QString &message);
+  void focusCommitMessage();
   void setDiff(const git::Diff &diff, const QString &file = QString(),
                const QString &pathspec = QString());
   void setLoading();
