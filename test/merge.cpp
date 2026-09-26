@@ -12,6 +12,7 @@
 
 #include "qtsupport.h"
 #include "Test.h"
+#include "log/LogEntry.h"
 #include "ui/MainWindow.h"
 #include "ui/DetailView.h"
 #include "ui/DiffView/DiffView.h"
@@ -48,6 +49,7 @@ private slots:
   void detachedMergeLabels();
   void stashConflictLabels();
   void stashPopKeepsStashOnConflict();
+  void stashOverUncommittedChanges();
   void cleanupTestCase();
 
 private:
@@ -57,6 +59,7 @@ private:
   ScratchRepository mRepo;
   ScratchRepository mDetachedRepo;
   ScratchRepository mStashRepo;
+  ScratchRepository mOverlapRepo;
   MainWindow *mWindow = nullptr;
   QString mMainBranch;
 };
@@ -605,6 +608,47 @@ void TestMerge::stashPopKeepsStashOnConflict() {
   QVERIFY(repo.popStash());
   QVERIFY(!repo.index().hasConflicts());
   QCOMPARE(repo.stashes().size(), 0);
+}
+
+void TestMerge::stashOverUncommittedChanges() {
+  git::Repository repo = mOverlapRepo;
+  writeFile(repo, "base\n");
+  commitFile(repo, "base");
+  RepoView *view = openWindow(repo);
+  QVERIFY(view);
+
+  writeFile(repo, "stashed\n");
+  QVERIFY(repo.stash("stashed").isValid());
+  refresh(view, false);
+  writeFile(repo, "local\n");
+
+  // The last error entry in the log, found through the log's root.
+  auto lastError = [view] {
+    LogEntry *root = view->addLogEntry("", "")->parentEntry();
+    for (int i = root->entries().size() - 1; i >= 0; --i) {
+      for (LogEntry *child : root->entries().at(i)->entries()) {
+        if (child->kind() == LogEntry::Error)
+          return child->text();
+      }
+    }
+    return QString();
+  };
+
+  // Neither applying nor popping overwrites the uncommitted change, and the
+  // log says why.
+  QString expected("Can't apply the stash, because it would overwrite your "
+                   "uncommitted changes to f. Commit or stash those changes "
+                   "first, then try again.");
+  view->popStash(0);
+  QCOMPARE(lastError(), expected);
+  view->applyStash(0);
+  QCOMPARE(lastError(), expected);
+
+  QCOMPARE(repo.stashes().size(), 1);
+  QFile file(repo.workdir().filePath("f"));
+  QVERIFY(file.open(QFile::ReadOnly));
+  QCOMPARE(file.readAll(), QByteArray("local\n"));
+  view->window()->close();
 }
 
 void TestMerge::cleanupTestCase() {

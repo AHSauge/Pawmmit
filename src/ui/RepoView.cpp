@@ -63,6 +63,7 @@
 #include <QDesktopServices>
 #include <QFile>
 #include <QFileInfo>
+#include <QLocale>
 #include <QMessageBox>
 #include <QtNetwork>
 #include <QPushButton>
@@ -1546,6 +1547,34 @@ QString branchNameForCommit(const git::Repository &repo,
   return remoteMatch;
 }
 
+// Explains a stash that can't be applied because of uncommitted changes to the
+// same files, or returns an empty string if that isn't why.
+QString stashOverlapError(const git::Repository &repo,
+                          const git::Commit &stash) {
+  git::Diff status = repo.status(repo.index(), nullptr, false);
+  git::Diff changes = stash.diff();
+  if (!status.isValid() || !changes.isValid())
+    return QString();
+
+  QStringList uncommitted;
+  for (int i = 0; i < status.count(); ++i)
+    uncommitted.append(status.name(i));
+
+  QStringList overlap;
+  for (int i = 0; i < changes.count(); ++i) {
+    if (uncommitted.contains(changes.name(i)))
+      overlap.append(changes.name(i));
+  }
+
+  if (overlap.isEmpty())
+    return QString();
+
+  return RepoView::tr("Can't apply the stash, because it would overwrite your "
+                      "uncommitted changes to %1. Commit or stash those "
+                      "changes first, then try again.")
+      .arg(QLocale().createSeparatedList(overlap));
+}
+
 // The incoming branch or commit, e.g. "fix/foobar" or "commit a3c9dc".
 QString incomingName(const git::Repository &repo) {
   git::Commit commit = incomingCommit(repo);
@@ -2477,7 +2506,12 @@ void RepoView::applyStash(int index) {
   git::Commit commit = stashes.at(index);
   LogEntry *entry = addLogEntry(msg(commit), tr("Apply Stash"));
   if (!mRepo.applyStash(index)) {
-    error(entry, tr("apply stash"), commit.link());
+    QString reason = git::Repository::lastError();
+    QString overlap = stashOverlapError(mRepo, commit);
+    if (!overlap.isEmpty())
+      entry->addEntry(LogEntry::Error, overlap);
+    else
+      error(entry, tr("apply stash"), commit.link(), reason);
     return;
   }
 
@@ -2508,9 +2542,16 @@ void RepoView::popStash(int index) {
   git::Commit commit = stashes.at(index);
   LogEntry *entry = addLogEntry(msg(commit), tr("Pop Stash"));
   if (!mRepo.popStash(index)) {
-    error(entry, tr("pop stash"), commit.link());
+    QString reason = git::Repository::lastError();
+    QString overlap = stashOverlapError(mRepo, commit);
+    if (!overlap.isEmpty())
+      entry->addEntry(LogEntry::Error, overlap);
+    else
+      error(entry, tr("pop stash"), commit.link(), reason);
     return;
   }
+
+  refresh(false);
 
   if (mRepo.index().hasConflicts())
     entry->addEntry(LogEntry::Hint,

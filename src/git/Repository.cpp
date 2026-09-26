@@ -893,16 +893,16 @@ bool Repository::dropStash(int index) {
 }
 
 bool Repository::popStash(int index) {
+  // Like git, keep the stash when applying it fails or conflicts.
+  git_stash_apply_options opts = GIT_STASH_APPLY_OPTIONS_INIT;
+  int error = git_stash_apply(d->repo, index, &opts);
+  if (error || this->index().hasConflicts())
+    return !error;
+
   // The stash reference goes away when this is the last stash.
   // Signal that the previous saved reference changed instead.
   Reference ref = stashRef();
-
-  // Like git, keep the stash when applying it conflicts.
-  git_stash_apply_options opts = GIT_STASH_APPLY_OPTIONS_INIT;
-  int error = git_stash_apply(d->repo, index, &opts);
-  if (!error && !this->index().hasConflicts())
-    error = git_stash_drop(d->repo, index);
-
+  error = git_stash_drop(d->repo, index);
   emit d->notifier->referenceUpdated(ref);
   return !error;
 }
