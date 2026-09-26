@@ -23,7 +23,7 @@ class TestCommitAuthorCommitter : public QObject {
 private slots:
   void initTestCase();
   void testCherryPickAuthorEmailPreservance();
-  void testRevertAuthorEmailPreservance();
+  void testRevertAuthorIsCurrentUser();
   void cleanupTestCase();
 
 private:
@@ -73,11 +73,10 @@ void TestCommitAuthorCommitter::testCherryPickAuthorEmailPreservance() {
 }
 
 /*!
- * \brief TestCommitAuthorCommitter::testRevertAuthorEmailPreservance
- * Test reverting a commit and check that author did not change and the commiter
- * is the current user
+ * \brief TestCommitAuthorCommitter::testRevertAuthorIsCurrentUser
+ * Test that a revert is authored and committed by the current user, like git.
  */
-void TestCommitAuthorCommitter::testRevertAuthorEmailPreservance() {
+void TestCommitAuthorCommitter::testRevertAuthorIsCurrentUser() {
   INIT_REPO("CherryPickAuthorEmail.zip");
 
   git::Commit commit =
@@ -106,10 +105,10 @@ void TestCommitAuthorCommitter::testRevertAuthorEmailPreservance() {
   c = branch.annotatedCommit().commit();
   QCOMPARE(c.message(), "Revert \"commit\"\n\nThis reverts commit "
                         "710846db7a1fbd583975da0a6c10f9c2964ebd08.");
-  QCOMPARE(c.author().email(), "test.author@test.com");
-  QCOMPARE(c.author().name(), "TestAuthor");
 
   git::Signature signature = repo.defaultSignature();
+  QCOMPARE(c.author().email(), signature.email());
+  QCOMPARE(c.author().name(), signature.name());
   QCOMPARE(c.committer().email(), signature.email());
   QCOMPARE(c.committer().name(), signature.name());
 }

@@ -704,6 +704,7 @@ void RepoView::visitLink(const QString &link) {
   if (action == "push-to") {
     RemoteDialog *dialog = new RemoteDialog(RemoteDialog::Push, this);
     dialog->open();
+    return;
   }
 
   if (action == "add-remote") {
@@ -1154,7 +1155,7 @@ void RepoView::pull(MergeFlags flags, const git::Remote &rmt, bool tags,
   if (mWatcher) {
     // Queue pull.
     connect(mWatcher, &QFutureWatcher<git::Result>::finished, mWatcher,
-            [this, flags, rmt, tags] { pull(flags, rmt, tags); });
+            [this, flags, rmt, tags, prune] { pull(flags, rmt, tags, prune); });
 
     return;
   }
@@ -1936,9 +1937,6 @@ void RepoView::revert(const git::Commit &commit) {
   if (checkForConflicts(parent, ConflictOperation::Revert))
     return;
 
-  git::Signature committer = mRepo.defaultSignature(
-      nullptr, mDetails->overrideUser(), mDetails->overrideEmail());
-
   QString id = commit.id().toString();
   QString summary = commit.summary();
   QString msg = tr("Revert \"%1\"\n\nThis reverts commit %2.").arg(summary, id);
@@ -1951,11 +1949,9 @@ void RepoView::revert(const git::Commit &commit) {
       mergeAbort(parent);
     });
     connect(dialog, &QDialog::accepted, this,
-            [this, dialog, parent, suspended, commit, committer] {
+            [this, dialog, parent, suspended] {
               resumeLogTimer(suspended);
-              // TODO: or doing it differently
-              this->commit(commit.author(), committer, dialog->message(),
-                           git::AnnotatedCommit(), parent);
+              this->commit(dialog->message(), git::AnnotatedCommit(), parent);
             });
 
     dialog->open();
@@ -1963,7 +1959,7 @@ void RepoView::revert(const git::Commit &commit) {
   }
 
   // Automatically commit with the default message.
-  this->commit(commit.author(), committer, msg, git::AnnotatedCommit(), parent);
+  this->commit(msg, git::AnnotatedCommit(), parent);
 }
 
 void RepoView::cherryPick(const git::Commit &commit) {
@@ -2242,8 +2238,9 @@ bool RepoView::commit(const git::Signature &author,
     QPushButton *accept =
         dialog->addButton(tr("Commit"), QMessageBox::AcceptRole);
     connect(accept, &QPushButton::clicked, this,
-            [this, message, upstream, parent] {
-              this->commit(message, upstream, parent, true);
+            [this, author, commiter, message, upstream, parent, fakeSignature] {
+              commit(author, commiter, message, upstream, parent, true,
+                     fakeSignature);
             });
 
     dialog->open();
@@ -2838,9 +2835,10 @@ void RepoView::updateSubmodules(const QList<git::Submodule> &submodules,
   if (mWatcher) {
     // Queue update. synchrone
     connect(mWatcher, &QFutureWatcher<git::Result>::finished, mWatcher,
-            [this, submodules, recursive, init, checkout_force, parent] {
+            [this, submodules, recursive, init, checkout_force, parent,
+             restoreSelection] {
               updateSubmodules(submodules, recursive, init, checkout_force,
-                               parent);
+                               parent, restoreSelection);
             });
 
     return;
