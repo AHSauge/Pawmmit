@@ -704,6 +704,7 @@ void RepoView::visitLink(const QString &link) {
   if (action == "push-to") {
     RemoteDialog *dialog = new RemoteDialog(RemoteDialog::Push, this);
     dialog->open();
+    return;
   }
 
   if (action == "add-remote") {
