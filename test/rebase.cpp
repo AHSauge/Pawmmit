@@ -256,11 +256,13 @@ void TestRebase::conflictingRebase() {
   // The banner says what's happening in plain words, and leads to the
   // conflict rather than offering to continue past it.
   QTRY_VERIFY(rebaseBanner->isVisible());
-  QCOMPARE(rebaseBanner->message(),
-           QString("Rebasing singleCommitConflict onto main, commit 1 of 1. "
-                   "1 file has conflicts. Keep one version or edit it, then "
-                   "stage it to mark it resolved. Finally, click Continue "
-                   "Rebase next to the commit message."));
+  // Tests run untranslated, so the count shows its plural source text.
+  QCOMPARE(
+      rebaseBanner->message(),
+      QString("Rebasing singleCommitConflict onto main, commit 1 of 1. "
+              "1 file(s) have conflicts. Keep one version or edit it, then "
+              "stage it to mark it resolved. Finally, click Continue "
+              "Rebase next to the commit message."));
   QStringList bannerButtons;
   for (QPushButton *button : rebaseBanner->findChildren<QPushButton *>()) {
     if (button->isVisibleTo(rebaseBanner))

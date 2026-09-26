@@ -1505,22 +1505,6 @@ bool isRebaseState(int state) {
          state == GIT_REPOSITORY_STATE_REBASE_MERGE;
 }
 
-// The name of the operation that is in progress, or an empty string.
-QString operationName(int state) {
-  switch (state) {
-    case GIT_REPOSITORY_STATE_MERGE:
-      return RepoView::tr("Merge");
-    case GIT_REPOSITORY_STATE_REVERT:
-    case GIT_REPOSITORY_STATE_REVERT_SEQUENCE:
-      return RepoView::tr("Revert");
-    case GIT_REPOSITORY_STATE_CHERRYPICK:
-    case GIT_REPOSITORY_STATE_CHERRYPICK_SEQUENCE:
-      return RepoView::tr("Cherry-pick");
-    default:
-      return isRebaseState(state) ? RepoView::tr("Rebase") : QString();
-  }
-}
-
 // The commit an in-progress merge, revert or cherry-pick is bringing in.
 git::Commit incomingCommit(const git::Repository &repo) {
   const char *ref = nullptr;
@@ -1581,15 +1565,10 @@ void RepoView::updateStateBanner() {
   QString branch = head.isValid() ? head.name() : QString();
   int conflicts = mRepo.index().conflictCount();
 
-  QString conflictText;
-  if (conflicts == 1) {
-    conflictText = tr("1 file has conflicts. Keep one version or edit it, "
-                      "then stage it to mark it resolved.");
-  } else if (conflicts > 1) {
-    conflictText = tr("%1 files have conflicts. For each one, keep one "
-                      "version or edit it, then stage it to mark it resolved.")
-                       .arg(conflicts);
-  }
+  QString conflictText =
+      tr("%n file(s) have conflicts. Keep one version or edit it, then stage "
+         "it to mark it resolved.",
+         nullptr, conflicts);
 
   QString headline;
   QString detail;
@@ -1622,9 +1601,10 @@ void RepoView::updateStateBanner() {
       headline = tr("Rebase in progress.");
     }
 
-    detail = conflicts ? conflictText + " " +
+    detail = conflicts ? StateBanner::joinSentences(
+                             conflictText,
                              tr("Finally, click Continue Rebase next to the "
-                                "commit message.")
+                                "commit message."))
                        : tr("No conflicts left. Check the changes, then click "
                             "Continue Rebase next to the commit message.");
     actions.append(show);
@@ -1635,8 +1615,8 @@ void RepoView::updateStateBanner() {
                                 : tr("Merging %1 into %2.").arg(source, branch);
     git::Diff status = mCommits->status();
     if (conflicts) {
-      detail = conflictText + " " +
-               tr("Finally, click Commit Merge to finish the merge.");
+      detail = StateBanner::joinSentences(
+          conflictText, tr("Finally, click Commit Merge to finish the merge."));
     } else if (status.isValid() && !status.count()) {
       detail = tr("No conflicts left and no file changes. Click Commit Merge "
                   "to record the merge.");
@@ -1652,8 +1632,9 @@ void RepoView::updateStateBanner() {
     headline = commit.isValid()
                    ? tr("Reverting \"%1\" on %2.").arg(commit.summary(), branch)
                    : tr("Reverting a commit on %1.").arg(branch);
-    detail = conflicts ? conflictText + " " +
-                             tr("Finally, click Commit to finish the revert.")
+    detail = conflicts ? StateBanner::joinSentences(
+                             conflictText,
+                             tr("Finally, click Commit to finish the revert."))
                        : tr("No conflicts left. Check the changes, then click "
                             "Commit to finish the revert.");
     actions.append(show);
@@ -1666,8 +1647,9 @@ void RepoView::updateStateBanner() {
             ? tr("Cherry-picking \"%1\" onto %2.").arg(commit.summary(), branch)
             : tr("Cherry-picking a commit onto %1.").arg(branch);
     detail = conflicts
-                 ? conflictText + " " +
-                       tr("Finally, click Commit to finish the cherry-pick.")
+                 ? StateBanner::joinSentences(
+                       conflictText,
+                       tr("Finally, click Commit to finish the cherry-pick."))
                  : tr("No conflicts left. Check the changes, then click "
                       "Commit to finish the cherry-pick.");
     actions.append(show);
@@ -1715,46 +1697,56 @@ void RepoView::showChanges() {
 
 void RepoView::promptToAbort() {
   int state = mRepo.state();
-  QString name = operationName(state);
-  if (name.isEmpty())
-    return;
-
-  bool rebase = isRebaseState(state);
-  QMessageBox *dialog = new QMessageBox(
-      QMessageBox::Warning, tr("Abort %1?").arg(name),
-      tr("Are you sure you want to abort the %1?").arg(name.toLower()),
-      QMessageBox::Cancel, this);
-  dialog->setAttribute(Qt::WA_DeleteOnClose);
-  dialog->setDefaultButton(QMessageBox::Cancel);
-  // Say what's kept, so it's clear that the user's own work is safe.
-  QString info;
+  QString title;
+  QString question;
+  QString button;
+  QString info; // Says what's kept, so it's clear the user's own work is safe.
   switch (state) {
     case GIT_REPOSITORY_STATE_MERGE:
+      title = tr("Abort Merge?");
+      question = tr("Are you sure you want to abort the merge?");
+      button = tr("Abort Merge");
       info = tr("Your branch goes back to how it was before the merge. Your "
                 "commits are kept; only the merge and any conflicts you've "
                 "resolved are undone.");
       break;
     case GIT_REPOSITORY_STATE_REVERT:
     case GIT_REPOSITORY_STATE_REVERT_SEQUENCE:
+      title = tr("Abort Revert?");
+      question = tr("Are you sure you want to abort the revert?");
+      button = tr("Abort Revert");
       info = tr("Your branch goes back to how it was before the revert. Your "
                 "commits are kept; only the revert and any conflicts you've "
                 "resolved are undone.");
       break;
     case GIT_REPOSITORY_STATE_CHERRYPICK:
     case GIT_REPOSITORY_STATE_CHERRYPICK_SEQUENCE:
+      title = tr("Abort Cherry-pick?");
+      question = tr("Are you sure you want to abort the cherry-pick?");
+      button = tr("Abort Cherry-pick");
       info = tr("Your branch goes back to how it was before the cherry-pick. "
                 "Your commits are kept; only the cherry-pick and any "
                 "conflicts you've resolved are undone.");
       break;
     default:
+      if (!isRebaseState(state))
+        return;
+      title = tr("Abort Rebase?");
+      question = tr("Are you sure you want to abort the rebase?");
+      button = tr("Abort Rebase");
       info = tr("Your branch goes back to how it was before the rebase "
                 "started, with all of its commits.");
       break;
   }
+
+  bool rebase = isRebaseState(state);
+  QMessageBox *dialog = new QMessageBox(QMessageBox::Warning, title, question,
+                                        QMessageBox::Cancel, this);
+  dialog->setAttribute(Qt::WA_DeleteOnClose);
+  dialog->setDefaultButton(QMessageBox::Cancel);
   dialog->setInformativeText(info);
 
-  QPushButton *abort =
-      dialog->addButton(tr("Abort %1").arg(name), QMessageBox::DestructiveRole);
+  QPushButton *abort = dialog->addButton(button, QMessageBox::DestructiveRole);
   connect(abort, &QPushButton::clicked, this, [this, rebase] {
     if (rebase) {
       abortRebase();

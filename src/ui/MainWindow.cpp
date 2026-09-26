@@ -625,13 +625,11 @@ void MainWindow::updateInterface() {
 }
 
 QString MainWindow::commitsToPush(int count) {
-  return count == 1 ? tr("%1 commit to push").arg(count)
-                    : tr("%1 commits to push").arg(count);
+  return tr("%n commit(s) to push", nullptr, count);
 }
 
 QString MainWindow::commitsToPull(int count) {
-  return count == 1 ? tr("%1 commit to pull").arg(count)
-                    : tr("%1 commits to pull").arg(count);
+  return tr("%n commit(s) to pull", nullptr, count);
 }
 
 void MainWindow::updateStatusBar(const git::Repository &repo, int ahead,

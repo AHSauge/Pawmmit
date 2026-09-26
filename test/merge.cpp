@@ -225,11 +225,13 @@ void TestMerge::mergeConflict() {
   StateBanner *banner = view->findChild<StateBanner *>();
   QVERIFY(banner);
   QTRY_VERIFY(banner->isVisible());
-  QCOMPARE(banner->message(),
-           QString("Merging branch2 into %1. 1 file has conflicts. Keep one "
-                   "version or edit it, then stage it to mark it resolved. "
-                   "Finally, click Commit Merge to finish the merge.")
-               .arg(mMainBranch));
+  // Tests run untranslated, so the count shows its plural source text.
+  QCOMPARE(
+      banner->message(),
+      QString("Merging branch2 into %1. 1 file(s) have conflicts. Keep one "
+              "version or edit it, then stage it to mark it resolved. "
+              "Finally, click Commit Merge to finish the merge.")
+          .arg(mMainBranch));
 
   // The uncommitted changes row is named after the merge.
   QAbstractItemModel *commits = view->findChild<CommitList *>()->model();
