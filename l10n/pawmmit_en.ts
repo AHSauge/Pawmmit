@@ -2508,6 +2508,22 @@ Examples
 </context>
 <context>
     <name>MainWindow</name>
+    <message numerus="yes">
+        <location filename="../src/ui/MainWindow.cpp" line="628"/>
+        <source>%n commit(s) to push</source>
+        <translation>
+            <numerusform>%n commit to push</numerusform>
+            <numerusform>%n commits to push</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../src/ui/MainWindow.cpp" line="632"/>
+        <source>%n commit(s) to pull</source>
+        <translation>
+            <numerusform>%n commit to pull</numerusform>
+            <numerusform>%n commits to pull</numerusform>
+        </translation>
+    </message>
     <message>
         <location filename="../src/ui/MainWindow.cpp" line="441"/>
         <source>Open Repository</source>
@@ -3895,6 +3911,14 @@ Examples
 </context>
 <context>
     <name>RepoView</name>
+    <message numerus="yes">
+        <location filename="../src/ui/RepoView.cpp" line="1569"/>
+        <source>%n file(s) have conflicts. Keep one version or edit it, then stage it to mark it resolved.</source>
+        <translation>
+            <numerusform>%n file has conflicts. Keep one version or edit it, then stage it to mark it resolved.</numerusform>
+            <numerusform>%n files have conflicts. For each one, keep one version or edit it, then stage it to mark it resolved.</numerusform>
+        </translation>
+    </message>
     <message numerus="yes">
         <location filename="../src/ui/RepoView.cpp" line="337"/>
         <source>This will result in the addition of %n file(s).</source>

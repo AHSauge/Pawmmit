@@ -37,6 +37,9 @@ public:
   // The headline and detail as plain text.
   QString message() const;
 
+  // Two sentences in a row, as not every language separates them by a space.
+  static QString joinSentences(const QString &first, const QString &second);
+
 private:
   QLabel *mIcon;
   QLabel *mMessage;

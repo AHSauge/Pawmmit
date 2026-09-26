@@ -42,9 +42,10 @@ StateBanner::StateBanner(QWidget *parent) : QFrame(parent) {
 void StateBanner::setState(const QString &headline, const QString &detail,
                            const QList<Action> &actions, Tone tone) {
   bool wasVisible = isVisible();
-  mPlain = detail.isEmpty() ? headline : headline + " " + detail;
-  mMessage->setText(QString("<b>%1</b> %2")
-                        .arg(headline.toHtmlEscaped(), detail.toHtmlEscaped()));
+  QString bold = QString("<b>%1</b>").arg(headline.toHtmlEscaped());
+  mPlain = detail.isEmpty() ? headline : joinSentences(headline, detail);
+  mMessage->setText(
+      detail.isEmpty() ? bold : joinSentences(bold, detail.toHtmlEscaped()));
 
   QStyle::StandardPixmap icon = (tone == Tone::Warning)
                                     ? QStyle::SP_MessageBoxWarning
@@ -75,3 +76,8 @@ void StateBanner::setState(const QString &headline, const QString &detail,
 }
 
 QString StateBanner::message() const { return mPlain; }
+
+QString StateBanner::joinSentences(const QString &first,
+                                   const QString &second) {
+  return tr("%1 %2", "Two sentences in a row").arg(first, second);
+}

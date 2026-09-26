@@ -114,5 +114,13 @@ foreach name : tests
     if name in tests_needing_network
         suites = ['needs_network']
     endif
-    test(name, exe, env: test_env, suite: suites, timeout: 300)
+    # Some tests load the compiled translations, so keep them up to date.
+    test(
+        name,
+        exe,
+        env: test_env,
+        suite: suites,
+        timeout: 300,
+        depends: qm_files,
+    )
 endforeach

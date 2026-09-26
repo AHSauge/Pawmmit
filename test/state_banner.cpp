@@ -1,4 +1,5 @@
 #include "Test.h"
+#include "conf/Settings.h"
 #include "ui/MainWindow.h"
 #include "ui/RepoView.h"
 #include "ui/StateBanner.h"
@@ -7,6 +8,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QStatusBar>
+#include <QTranslator>
 
 using namespace Test;
 using namespace QTest;
@@ -121,10 +123,26 @@ void TestStateBanner::statusBarExplainsTheUpstream() {
 }
 
 void TestStateBanner::countsAreInWords() {
+  // Tests run untranslated, but English needs its plural forms from l10n.
+  QTranslator english;
+  QVERIFY(english.load("pawmmit_en", Settings::l10nDir().absolutePath()));
+  QCoreApplication::installTranslator(&english);
+
   QCOMPARE(MainWindow::commitsToPush(1), QString("1 commit to push"));
   QCOMPARE(MainWindow::commitsToPush(3), QString("3 commits to push"));
   QCOMPARE(MainWindow::commitsToPull(1), QString("1 commit to pull"));
   QCOMPARE(MainWindow::commitsToPull(2), QString("2 commits to pull"));
+
+  const char *conflicts = "%n file(s) have conflicts. Keep one version or "
+                          "edit it, then stage it to mark it resolved.";
+  QCOMPARE(QCoreApplication::translate("RepoView", conflicts, nullptr, 1),
+           QString("1 file has conflicts. Keep one version or edit it, then "
+                   "stage it to mark it resolved."));
+  QCOMPARE(QCoreApplication::translate("RepoView", conflicts, nullptr, 2),
+           QString("2 files have conflicts. For each one, keep one version or "
+                   "edit it, then stage it to mark it resolved."));
+
+  QCoreApplication::removeTranslator(&english);
 }
 
 void TestStateBanner::warnsAboutADetachedHead() {
