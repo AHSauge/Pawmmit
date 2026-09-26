@@ -243,8 +243,6 @@ TextEditor::TextEditor(QWidget *parent) : ScintillaEdit(parent) {
 void TextEditor::updateMarkerIcons() {
   QColor background = palette().color(QPalette::Base);
   int fontHeight = textHeight(0);
-  mStagedIcon = stagedUnstagedIcon(true, background, fontHeight);
-  mUnStagedIcon = stagedUnstagedIcon(false, background, fontHeight);
   if (mStatusDiff)
     setMarginWidthN(Staged, fontHeight);
 
@@ -252,8 +250,11 @@ void TextEditor::updateMarkerIcons() {
   loadMarkerIcon(WarningMarker, mWarningIcon);
   loadMarkerIcon(ErrorMarker, mErrorIcon);
 
-  loadMarkerPixmap(StagedMarker, mStagedIcon);
-  loadMarkerPixmap(UnstagedMarker, mUnStagedIcon);
+  markerDefineImage(StagedMarker,
+                    stagedUnstagedIcon(true, background, fontHeight).toImage());
+  markerDefineImage(
+      UnstagedMarker,
+      stagedUnstagedIcon(false, background, fontHeight).toImage());
 }
 
 void TextEditor::applySettings() {
@@ -718,20 +719,11 @@ int TextEditor::diagnosticMarker(int line) {
   return -1;
 }
 
-void TextEditor::loadMarkerPixmap(Marker marker, const QPixmap &pixmap) {
-  int height = textHeight(0);
-  QPixmap scaledPixmap(pixmap);
-  if (pixmap.height() > height) {
-    scaledPixmap = pixmap.scaled(height, height, Qt::KeepAspectRatio,
-                                 Qt::SmoothTransformation);
-  }
-
-  markerDefineImage(marker, scaledPixmap.toImage());
-}
-
 void TextEditor::loadMarkerIcon(Marker marker, const QIcon &icon) {
   int height = textHeight(0);
-  QPixmap pixmap = icon.pixmap(height, height);
+  // Scintilla's Qt backend draws marker images at their raw pixel size, so
+  // they must not carry extra pixels for high-DPI screens.
+  QPixmap pixmap = icon.pixmap(QSize(height, height), 1.0);
   markerDefineImage(marker, pixmap.toImage());
 }
 
