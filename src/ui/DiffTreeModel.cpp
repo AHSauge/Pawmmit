@@ -212,6 +212,10 @@ QModelIndex DiffTreeModel::index(Node *n) const {
 }
 
 QModelIndex DiffTreeModel::index(const QString &name) const {
+  // There's no tree until the first diff arrives.
+  if (!mRoot)
+    return QModelIndex();
+
   if (mListView) {
     for (auto c : mRoot->children()) {
       if (c->name() == name)

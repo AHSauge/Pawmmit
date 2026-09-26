@@ -44,6 +44,7 @@ private slots:
   void discardFiles();
   void fileMergeCrash();
   void selectionSurvivesPush();
+  void stagingBeforeFirstDiff();
   void dirtySubmoduleAndStagedSubmodule();
   void conflictedAndStagedFile();
   void stagingKeepsKeyboardFocus();
@@ -319,6 +320,16 @@ void TestTreeView::selectionSurvivesPush() {
   QTRY_VERIFY_WITH_TIMEOUT(repoView->diff().isValid(), 10000);
 
   QTRY_VERIFY_WITH_TIMEOUT(!repoView->isBusy(), 10000);
+}
+
+void TestTreeView::stagingBeforeFirstDiff() {
+  // Staging can notify a file list that hasn't received its first diff yet.
+  git::Repository repo = git::Repository::open(
+      Test::extractRepository("TreeViewCollapseCount.zip"));
+  QVERIFY(repo.isValid());
+  DiffTreeModel model(repo);
+  model.refresh({"File.txt"});
+  QVERIFY(!model.index(QString("File.txt")).isValid());
 }
 
 void TestTreeView::dirtySubmoduleAndStagedSubmodule() {
