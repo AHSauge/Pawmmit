@@ -12,6 +12,7 @@
 
 #include "qtsupport.h"
 #include "Test.h"
+#include "log/LogEntry.h"
 #include "ui/MainWindow.h"
 #include "ui/DetailView.h"
 #include "ui/DiffView/DiffView.h"
@@ -47,6 +48,8 @@ private slots:
   void revertConflict();
   void detachedMergeLabels();
   void stashConflictLabels();
+  void stashPopKeepsStashOnConflict();
+  void stashOverUncommittedChanges();
   void cleanupTestCase();
 
 private:
@@ -56,6 +59,7 @@ private:
   ScratchRepository mRepo;
   ScratchRepository mDetachedRepo;
   ScratchRepository mStashRepo;
+  ScratchRepository mOverlapRepo;
   MainWindow *mWindow = nullptr;
   QString mMainBranch;
 };
@@ -550,12 +554,100 @@ void TestMerge::stashConflictLabels() {
   commitFile(repo, "other");
 
   // Applying the stash conflicts without any operation in progress.
-  QVERIFY(repo.applyStash());
+  view->applyStash(0);
   QVERIFY(repo.index().hasConflicts());
   QCOMPARE(repo.state(), GIT_REPOSITORY_STATE_NONE);
   QCOMPARE(view->conflictOursLabel(),
            QString("Keep %1").arg(repo.head().name()));
   QCOMPARE(view->conflictTheirsLabel(), QString("Take stashed version"));
+
+  // The banner says what happened, and only offers to show the conflicts.
+  StateBanner *banner = view->findChild<StateBanner *>();
+  QTRY_COMPARE(banner->message(),
+               QString("Applying the stash caused conflicts. 1 file(s) have "
+                       "conflicts. Keep one version or edit it, then stage it "
+                       "to mark it resolved. Your stash is kept, so nothing is "
+                       "lost."));
+  auto buttons = [banner] {
+    QStringList texts;
+    for (QPushButton *button : banner->findChildren<QPushButton *>()) {
+      if (button->isVisibleTo(banner))
+        texts.append(button->text());
+    }
+    return texts;
+  };
+  QTRY_COMPARE(buttons(), QStringList({"Show Conflicts"}));
+
+  // Resolving the conflict ends it.
+  writeFile(repo, "resolved\n");
+  repo.index().setStaged({"f"}, true);
+  QTRY_VERIFY(!banner->isVisible());
+  view->window()->close();
+}
+
+void TestMerge::stashPopKeepsStashOnConflict() {
+  // Like git, a conflicting pop keeps the stash, while a clean one drops it.
+  ScratchRepository conflicting;
+  git::Repository repo = conflicting;
+  writeFile(repo, "base\n");
+  commitFile(repo, "base");
+  writeFile(repo, "stashed\n");
+  QVERIFY(repo.stash("stashed").isValid());
+  writeFile(repo, "other\n");
+  commitFile(repo, "other");
+  QVERIFY(repo.popStash());
+  QVERIFY(repo.index().hasConflicts());
+  QCOMPARE(repo.stashes().size(), 1);
+
+  ScratchRepository clean;
+  repo = clean;
+  writeFile(repo, "base\n");
+  commitFile(repo, "base");
+  writeFile(repo, "stashed\n");
+  QVERIFY(repo.stash("stashed").isValid());
+  QVERIFY(repo.popStash());
+  QVERIFY(!repo.index().hasConflicts());
+  QCOMPARE(repo.stashes().size(), 0);
+}
+
+void TestMerge::stashOverUncommittedChanges() {
+  git::Repository repo = mOverlapRepo;
+  writeFile(repo, "base\n");
+  commitFile(repo, "base");
+  RepoView *view = openWindow(repo);
+  QVERIFY(view);
+
+  writeFile(repo, "stashed\n");
+  QVERIFY(repo.stash("stashed").isValid());
+  refresh(view, false);
+  writeFile(repo, "local\n");
+
+  // The last error entry in the log, found through the log's root.
+  auto lastError = [view] {
+    LogEntry *root = view->addLogEntry("", "")->parentEntry();
+    for (int i = root->entries().size() - 1; i >= 0; --i) {
+      for (LogEntry *child : root->entries().at(i)->entries()) {
+        if (child->kind() == LogEntry::Error)
+          return child->text();
+      }
+    }
+    return QString();
+  };
+
+  // Neither applying nor popping overwrites the uncommitted change, and the
+  // log says why.
+  QString expected("Can't apply the stash, because it would overwrite your "
+                   "uncommitted changes to f. Commit or stash those changes "
+                   "first, then try again.");
+  view->popStash(0);
+  QCOMPARE(lastError(), expected);
+  view->applyStash(0);
+  QCOMPARE(lastError(), expected);
+
+  QCOMPARE(repo.stashes().size(), 1);
+  QFile file(repo.workdir().filePath("f"));
+  QVERIFY(file.open(QFile::ReadOnly));
+  QCOMPARE(file.readAll(), QByteArray("local\n"));
   view->window()->close();
 }
 
