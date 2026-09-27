@@ -124,6 +124,10 @@ public:
   // flight for the commit list.
   bool isLoading() const;
 
+  // True from the start of the destructor onward, to guard against a
+  // signal fired mid-teardown reaching into partially destroyed children.
+  bool isDestroying() const { return mDestroying; }
+
   // current reference
   git::Reference reference() const;
   void selectReference(const git::Reference &ref);
@@ -472,6 +476,7 @@ private:
   QList<QWidget *> mTrackedWindows;
 
   bool mShown = false;
+  bool mDestroying = false;
 
   friend class MenuBar;
 
