@@ -10,17 +10,17 @@
 // Author: Shane Gramlich
 //
 
-#include "qtsupport.h"
 #include "Test.h"
 #include "log/LogEntry.h"
-#include "ui/MainWindow.h"
-#include "ui/DetailView.h"
-#include "ui/DiffView/DiffView.h"
-#include "ui/DoubleTreeWidget.h"
-#include "ui/RepoView.h"
-#include "ui/StateBanner.h"
-#include "ui/TreeView.h"
-#include "ui/CommitList.h"
+#include "qtsupport.h"
+#include "ui/commits/CommitList.h"
+#include "ui/detail/DetailView.h"
+#include "ui/detail/DoubleTreeWidget.h"
+#include "ui/diffView/DiffView.h"
+#include "ui/filetree/TreeView.h"
+#include "ui/repo/RepoView.h"
+#include "ui/repo/StateBanner.h"
+#include "ui/window/MainWindow.h"
 #include "watcher/RepositoryWatcher.h"
 #include <QApplication>
 #include <QFile>

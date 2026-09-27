@@ -13,7 +13,7 @@
 #include "SearchPanel.h"
 #include "git/Config.h"
 #include "index/Index.h"
-#include "ui/RepoView.h"
+#include "ui/repo/RepoView.h"
 #include "ui_SearchPanel.h"
 #include <QCheckBox>
 #include <QSpinBox>
