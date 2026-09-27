@@ -26,7 +26,6 @@
 #include "host/Account.h"
 #include <QFuture>
 #include <QFutureWatcher>
-#include <QProcess>
 #include <QSplitter>
 #include <QTimer>
 #include <functional>
@@ -36,6 +35,7 @@ class DetailView;
 class EditorWindow;
 class History;
 class Index;
+class IndexerProcess;
 class Location;
 class LogEntry;
 class LogView;
@@ -154,8 +154,7 @@ public:
   void findPrevious();
 
   // search index
-  void startIndexing();
-  void cancelIndexing();
+  IndexerProcess *indexer() const { return mIndexer; }
 
   // log window
   bool isLogVisible() const;
@@ -448,8 +447,7 @@ private:
   git::Repository mRepo;
 
   Index *mIndex;
-  QProcess mIndexer;
-  bool mRestartIndexer = false;
+  IndexerProcess *mIndexer;
 
   History *mHistory;
 
