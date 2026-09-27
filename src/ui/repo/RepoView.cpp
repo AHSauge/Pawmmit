@@ -39,6 +39,7 @@
 #include "git2/merge.h"
 #include "host/Accounts.h"
 #include "index/Index.h"
+#include "index/IndexerProcess.h"
 #include "log/LogEntry.h"
 #include "log/LogView.h"
 #include "platform/Terminal.h"
@@ -154,8 +155,9 @@ RepoView::RepoView(const git::Repository &repo, MainWindow *parent)
 
   // Start (or restart) indexing after any reference is updated.
   git::RepositoryNotifier *notifier = repo.notifier();
-  connect(notifier, &git::RepositoryNotifier::referenceUpdated, this,
-          &RepoView::startIndexing);
+  mIndexer = new IndexerProcess(repo, this);
+  connect(notifier, &git::RepositoryNotifier::referenceUpdated, mIndexer,
+          &IndexerProcess::start);
 
   MenuBar *menuBar = MenuBar::instance(parent);
   connect(this, &RepoView::statusChanged, menuBar, &MenuBar::updateStash);
@@ -182,36 +184,21 @@ RepoView::RepoView(const git::Repository &repo, MainWindow *parent)
   // Initialize index.
   mIndex = new Index(repo, this);
   SearchField *searchField = toolBar->searchField();
-  connect(&mIndexer, &QProcess::started, this, [searchField] {
+  connect(mIndexer, &IndexerProcess::started, this, [searchField] {
     searchField->setPlaceholderText(tr("Indexing..."));
   });
-  using Signal = void (QProcess::*)(int, QProcess::ExitStatus);
-  auto signal = static_cast<Signal>(&QProcess::finished);
-  connect(&mIndexer, signal, this,
-          [this, searchField](int code, QProcess::ExitStatus status) {
-            Q_UNUSED(code)
-
+  connect(mIndexer, &IndexerProcess::finished, this,
+          [this, searchField](bool crashed) {
             searchField->setPlaceholderText(tr("Search commits"));
-            if (status == QProcess::CrashExit) {
+            if (crashed) {
               QString text =
                   tr("The indexer worker process crashed. If this problem "
                      "persists please contact us at "
                      "https://github.com/Pawmmit/Pawmmit/issues.");
               addLogEntry(text, tr("Indexer Crashed"));
             }
-
-            if (mRestartIndexer) {
-              mRestartIndexer = false;
-              startIndexing();
-            }
           });
-
-  // Forward indexer stderr. Read from stdout.
-  mIndexer.setProcessChannelMode(QProcess::ForwardedErrorChannel);
-  connect(&mIndexer, &QProcess::readyReadStandardOutput, this, [this] {
-    mIndexer.readAllStandardOutput();
-    mIndex->reset();
-  });
+  connect(mIndexer, &IndexerProcess::indexUpdated, mIndex, &Index::reset);
 
   // Initialize history.
   mHistory = new History(this);
@@ -636,7 +623,7 @@ void RepoView::cancelRemoteTransfer(bool processPendingEvents) {
 }
 
 void RepoView::cancelBackgroundTasks(bool processPendingEvents) {
-  cancelIndexing();
+  mIndexer->cancel();
   cancelRemoteTransfer(processPendingEvents);
   mCommits->cancelStatus();
   mDetails->cancelBackgroundTasks();
@@ -910,46 +897,6 @@ void RepoView::find() { mDetails->find(); }
 void RepoView::findNext() { mDetails->findNext(); }
 
 void RepoView::findPrevious() { mDetails->findPrevious(); }
-
-void RepoView::startIndexing() {
-  if (!mRepo.appConfig().value<bool>("index.enable", true))
-    return;
-
-  if (mIndexer.state() != QProcess::NotRunning) {
-    mRestartIndexer = true;
-    return;
-  }
-
-  QStringList args = {"--notify", "--background", mRepo.dir().path()};
-  if (Index::isLoggingEnabled())
-    args.prepend("--log");
-
-  QDir dir(QCoreApplication::applicationDirPath());
-#ifdef WIN32
-  auto indexer_cmd = dir.filePath("pawmmit-indexer.exe");
-#else
-  auto indexer_cmd = dir.filePath("pawmmit-indexer");
-#endif
-  QFileInfo check_file(indexer_cmd);
-  if (!check_file.isFile()) {
-    Debug("No indexer found: " << indexer_cmd);
-  }
-  mIndexer.start(indexer_cmd, args);
-}
-
-void RepoView::cancelIndexing() {
-  if (mIndexer.state() == QProcess::NotRunning)
-    return;
-
-  mIndexer.terminate();
-  mIndexer.waitForFinished(5000);
-
-  if (mIndexer.state() == QProcess::NotRunning)
-    return;
-
-  mIndexer.kill();
-  mIndexer.waitForFinished(5000);
-}
 
 bool RepoView::isLogVisible() const { return mIsLogVisible; }
 
@@ -3142,7 +3089,7 @@ void RepoView::showEvent(QShowEvent *event) {
 
   // Start background tasks after showing for the first time.
   mShown = true;
-  startIndexing();
+  mIndexer->start();
   startFetchTimer();
 }
 
