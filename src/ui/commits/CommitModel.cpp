@@ -27,7 +27,7 @@ CommitModel::CommitModel(const git::Repository &repo, QObject *parent)
   // Connect watcher to signal when the status diff finishes.
   connect(&mStatus, &QFutureWatcher<git::Diff>::finished, [this] {
     mTimer.stop();
-    mMerging = (mRepo.state() == GIT_REPOSITORY_STATE_MERGE);
+    mMerging = (mRepo.operation() == git::Operation::Merge);
     dispatchResetWalker(true);
   });
 

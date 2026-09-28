@@ -740,7 +740,7 @@ void CommitEditor::updateButtons(bool yieldFocus) {
 
   // Committing a merge records it, even without file changes.
   git::Repository repo = RepoView::parentView(this)->repo();
-  bool merging = (repo.state() == GIT_REPOSITORY_STATE_MERGE);
+  bool merging = (repo.operation() == git::Operation::Merge);
 
   // Set status text.
   QString status =
@@ -764,13 +764,11 @@ void CommitEditor::updateButtons(bool yieldFocus) {
   mStatus->setText(brightText(status));
 
   // Change commit button text for committing a merge.
-  switch (repo.state()) {
-    case GIT_REPOSITORY_STATE_MERGE:
+  switch (repo.operation()) {
+    case git::Operation::Merge:
       mCommit->setText(tr("Commit Merge"));
       break;
-    case GIT_REPOSITORY_STATE_REBASE:
-    case GIT_REPOSITORY_STATE_REBASE_MERGE:
-    case GIT_REPOSITORY_STATE_REBASE_INTERACTIVE:
+    case git::Operation::Rebase:
       mCommit->setText(tr("Commit Rebase"));
       break;
     default:
