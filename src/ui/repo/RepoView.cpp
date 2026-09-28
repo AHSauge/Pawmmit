@@ -1207,7 +1207,8 @@ void RepoView::merge(MergeFlags flags, const git::AnnotatedCommit &upstream,
 
 void RepoView::mergeAbort(LogEntry *parent) {
   // Make sure that the we're still merging.
-  if (mRepo.state() == GIT_REPOSITORY_STATE_NONE)
+  auto operation = mRepo.operation();
+  if (operation == git::Operation::None)
     return;
 
   git::Reference head = mRepo.head();
@@ -1244,26 +1245,28 @@ void RepoView::mergeAbort(LogEntry *parent) {
     return;
   }
 
-  int state = mRepo.state();
   if (!commit.reset(GIT_RESET_HARD, paths.values()))
     return;
 
-  QString text = tr("merge");
-  switch (state) {
-    case GIT_REPOSITORY_STATE_REVERT:
-    case GIT_REPOSITORY_STATE_REVERT_SEQUENCE:
+  QString text;
+  switch (operation) {
+    case git::Operation::Revert:
       text = tr("revert");
       break;
 
-    case GIT_REPOSITORY_STATE_CHERRYPICK:
-    case GIT_REPOSITORY_STATE_CHERRYPICK_SEQUENCE:
+    case git::Operation::CherryPick:
       text = tr("cherry-pick");
       break;
 
-    case GIT_REPOSITORY_STATE_REBASE:
-    case GIT_REPOSITORY_STATE_REBASE_INTERACTIVE:
-    case GIT_REPOSITORY_STATE_REBASE_MERGE:
+    case git::Operation::Rebase:
       text = tr("rebase");
+      break;
+
+    case git::Operation::ApplyMailbox:
+    case git::Operation::Bisect:
+    case git::Operation::Merge:
+    case git::Operation::None:
+      text = tr("merge");
       break;
   }
 
@@ -1279,34 +1282,6 @@ void RepoView::abortRebase() {
 }
 
 namespace {
-
-bool isRebaseState(int state) {
-  return state == GIT_REPOSITORY_STATE_REBASE ||
-         state == GIT_REPOSITORY_STATE_REBASE_INTERACTIVE ||
-         state == GIT_REPOSITORY_STATE_REBASE_MERGE;
-}
-
-// The commit an in-progress merge, revert or cherry-pick is bringing in.
-git::Commit incomingCommit(const git::Repository &repo) {
-  const char *ref = nullptr;
-  switch (repo.state()) {
-    case GIT_REPOSITORY_STATE_MERGE:
-      ref = "MERGE_HEAD";
-      break;
-    case GIT_REPOSITORY_STATE_REVERT:
-    case GIT_REPOSITORY_STATE_REVERT_SEQUENCE:
-      ref = "REVERT_HEAD";
-      break;
-    case GIT_REPOSITORY_STATE_CHERRYPICK:
-    case GIT_REPOSITORY_STATE_CHERRYPICK_SEQUENCE:
-      ref = "CHERRY_PICK_HEAD";
-      break;
-    default:
-      return git::Commit();
-  }
-
-  return repo.lookupRef(ref).target();
-}
 
 // Git only remembers the incoming commit, so name it after a branch still
 // pointing at it, preferring a local one.
@@ -1357,7 +1332,7 @@ QString stashOverlapError(const git::Repository &repo,
 
 // The incoming branch or commit, e.g. "fix/foobar" or "commit a3c9dc".
 QString incomingName(const git::Repository &repo) {
-  git::Commit commit = incomingCommit(repo);
+  git::Commit commit = repo.incomingCommit();
   if (!commit.isValid())
     return QString();
 
@@ -1369,10 +1344,10 @@ QString incomingName(const git::Repository &repo) {
 } // namespace
 
 void RepoView::updateStateBanner() {
-  int state = mRepo.state();
   git::Reference head = mRepo.head();
   QString branch = head.isValid() ? head.name() : QString();
   int conflicts = mRepo.index().conflictCount();
+  auto operation = mRepo.operation();
 
   QString conflictText =
       tr("%n file(s) have conflicts. Keep one version or edit it, then stage "
@@ -1392,7 +1367,7 @@ void RepoView::updateStateBanner() {
     return StateBanner::Action{text, [this] { promptToAbort(); }};
   };
 
-  if (isRebaseState(state)) {
+  if (operation == git::Operation::Rebase) {
     git::Rebase rebase = mRepo.rebaseOpen();
     QString from = rebase.origHeadName();
     QString onto = rebase.ontoName();
@@ -1418,7 +1393,7 @@ void RepoView::updateStateBanner() {
                             "Continue Rebase next to the commit message.");
     actions.append(show);
     actions.append(abort(tr("Abort Rebase")));
-  } else if (state == GIT_REPOSITORY_STATE_MERGE) {
+  } else if (operation == git::Operation::Merge) {
     QString source = incomingName(mRepo);
     headline = source.isEmpty() ? tr("Merging into %1.").arg(branch)
                                 : tr("Merging %1 into %2.").arg(source, branch);
@@ -1435,9 +1410,8 @@ void RepoView::updateStateBanner() {
     }
     actions.append(show);
     actions.append(abort(tr("Abort Merge")));
-  } else if (state == GIT_REPOSITORY_STATE_REVERT ||
-             state == GIT_REPOSITORY_STATE_REVERT_SEQUENCE) {
-    git::Commit commit = incomingCommit(mRepo);
+  } else if (operation == git::Operation::Revert) {
+    git::Commit commit = mRepo.incomingCommit();
     headline = commit.isValid()
                    ? tr("Reverting \"%1\" on %2.").arg(commit.summary(), branch)
                    : tr("Reverting a commit on %1.").arg(branch);
@@ -1448,9 +1422,8 @@ void RepoView::updateStateBanner() {
                             "Commit to finish the revert.");
     actions.append(show);
     actions.append(abort(tr("Abort Revert")));
-  } else if (state == GIT_REPOSITORY_STATE_CHERRYPICK ||
-             state == GIT_REPOSITORY_STATE_CHERRYPICK_SEQUENCE) {
-    git::Commit commit = incomingCommit(mRepo);
+  } else if (operation == git::Operation::CherryPick) {
+    git::Commit commit = mRepo.incomingCommit();
     headline =
         commit.isValid()
             ? tr("Cherry-picking \"%1\" onto %2.").arg(commit.summary(), branch)
@@ -1463,7 +1436,7 @@ void RepoView::updateStateBanner() {
                       "Commit to finish the cherry-pick.");
     actions.append(show);
     actions.append(abort(tr("Abort Cherry-pick")));
-  } else if (state == GIT_REPOSITORY_STATE_NONE && conflicts) {
+  } else if (operation == git::Operation::None && conflicts) {
     // Applying a stash is what leaves conflicts without an operation running.
     headline = tr("Applying the stash caused conflicts.");
     detail = StateBanner::joinSentences(
@@ -1511,13 +1484,12 @@ void RepoView::showChanges() {
 }
 
 void RepoView::promptToAbort() {
-  int state = mRepo.state();
   QString title;
   QString question;
   QString button;
   QString info; // Says what's kept, so it's clear the user's own work is safe.
-  switch (state) {
-    case GIT_REPOSITORY_STATE_MERGE:
+  switch (mRepo.operation()) {
+    case git::Operation::Merge:
       title = tr("Abort Merge?");
       question = tr("Are you sure you want to abort the merge?");
       button = tr("Abort Merge");
@@ -1525,8 +1497,7 @@ void RepoView::promptToAbort() {
                 "commits are kept; only the merge and any conflicts you've "
                 "resolved are undone.");
       break;
-    case GIT_REPOSITORY_STATE_REVERT:
-    case GIT_REPOSITORY_STATE_REVERT_SEQUENCE:
+    case git::Operation::Revert:
       title = tr("Abort Revert?");
       question = tr("Are you sure you want to abort the revert?");
       button = tr("Abort Revert");
@@ -1534,8 +1505,7 @@ void RepoView::promptToAbort() {
                 "commits are kept; only the revert and any conflicts you've "
                 "resolved are undone.");
       break;
-    case GIT_REPOSITORY_STATE_CHERRYPICK:
-    case GIT_REPOSITORY_STATE_CHERRYPICK_SEQUENCE:
+    case git::Operation::CherryPick:
       title = tr("Abort Cherry-pick?");
       question = tr("Are you sure you want to abort the cherry-pick?");
       button = tr("Abort Cherry-pick");
@@ -1543,18 +1513,18 @@ void RepoView::promptToAbort() {
                 "Your commits are kept; only the cherry-pick and any "
                 "conflicts you've resolved are undone.");
       break;
-    default:
-      if (!isRebaseState(state))
-        return;
+    case git::Operation::Rebase:
       title = tr("Abort Rebase?");
       question = tr("Are you sure you want to abort the rebase?");
       button = tr("Abort Rebase");
       info = tr("Your branch goes back to how it was before the rebase "
                 "started, with all of its commits.");
       break;
+    default:
+      return;
   }
 
-  bool rebase = isRebaseState(state);
+  bool rebase = mRepo.operation() == git::Operation::Rebase;
   QMessageBox *dialog = new QMessageBox(QMessageBox::Warning, title, question,
                                         QMessageBox::Cancel, this);
   dialog->setAttribute(Qt::WA_DeleteOnClose);
@@ -3006,10 +2976,8 @@ QString RepoView::conflictOursLabel() {
 
 QString RepoView::conflictTheirsLabel() {
   // A revert's incoming side is the file without the reverted commit's change.
-  int state = mRepo.state();
-  if (state == GIT_REPOSITORY_STATE_REVERT ||
-      state == GIT_REPOSITORY_STATE_REVERT_SEQUENCE) {
-    git::Commit commit = incomingCommit(mRepo);
+  if (mRepo.operation() == git::Operation::Revert) {
+    git::Commit commit = mRepo.incomingCommit();
     if (commit.isValid())
       return tr("Undo commit %1").arg(commit.shortId());
   }
@@ -3019,8 +2987,9 @@ QString RepoView::conflictTheirsLabel() {
     return tr("Take %1").arg(name);
 
   // Applying a stash is what leaves conflicts without an operation running.
-  return (state == GIT_REPOSITORY_STATE_NONE) ? tr("Take stashed version")
-                                              : tr("Take incoming version");
+  return (mRepo.operation() == git::Operation::None)
+             ? tr("Take stashed version")
+             : tr("Take incoming version");
 }
 
 bool RepoView::checkForConflicts(LogEntry *parent,

@@ -1049,28 +1049,29 @@ void MenuBar::updateBranch() {
   bool rebasing = false;
   QString text = tr("Merge");
   if (view) {
-    switch (view->repo().state()) {
-      case GIT_REPOSITORY_STATE_MERGE:
+    switch (view->repo().operation()) {
+      case git::Operation::Merge:
         merging = true;
         break;
 
-      case GIT_REPOSITORY_STATE_REVERT:
-      case GIT_REPOSITORY_STATE_REVERT_SEQUENCE:
+      case git::Operation::Revert:
         merging = true;
         text = tr("Revert");
         break;
 
-      case GIT_REPOSITORY_STATE_CHERRYPICK:
-      case GIT_REPOSITORY_STATE_CHERRYPICK_SEQUENCE:
+      case git::Operation::CherryPick:
         merging = true;
         text = tr("Cherry-pick");
         break;
 
-      case GIT_REPOSITORY_STATE_REBASE:
-      case GIT_REPOSITORY_STATE_REBASE_INTERACTIVE:
-      case GIT_REPOSITORY_STATE_REBASE_MERGE:
+      case git::Operation::Rebase:
         rebasing = true;
         text = tr("Rebase");
+        break;
+
+      case git::Operation::ApplyMailbox:
+      case git::Operation::Bisect:
+      case git::Operation::None:
         break;
     }
   }

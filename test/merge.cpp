@@ -295,6 +295,7 @@ void TestMerge::mergeConflict() {
   confirm->button(QMessageBox::Cancel)->click();
   QCOMPARE(question, QString("Are you sure you want to abort the merge?"));
   QCOMPARE(mRepo->state(), GIT_REPOSITORY_STATE_MERGE);
+  QCOMPARE(mRepo->operation(), git::Operation::Merge);
 }
 
 void TestMerge::resolve() {
@@ -557,6 +558,7 @@ void TestMerge::stashConflictLabels() {
   view->applyStash(0);
   QVERIFY(repo.index().hasConflicts());
   QCOMPARE(repo.state(), GIT_REPOSITORY_STATE_NONE);
+  QCOMPARE(repo.operation(), git::Operation::None);
   QCOMPARE(view->conflictOursLabel(),
            QString("Keep %1").arg(repo.head().name()));
   QCOMPARE(view->conflictTheirsLabel(), QString("Take stashed version"));

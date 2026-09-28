@@ -734,32 +734,26 @@ void MainWindow::updateWindowTitle(int ahead, int behind) {
 
   // Add state.
   QString state;
-  switch (repo.state()) {
-    case GIT_REPOSITORY_STATE_MERGE:
+  switch (repo.operation()) {
+    case git::Operation::Merge:
       state = tr("MERGING");
       break;
 
-    case GIT_REPOSITORY_STATE_REVERT:
-    case GIT_REPOSITORY_STATE_REVERT_SEQUENCE:
+    case git::Operation::Revert:
       state = tr("REVERTING");
       break;
 
-    case GIT_REPOSITORY_STATE_CHERRYPICK:
-    case GIT_REPOSITORY_STATE_CHERRYPICK_SEQUENCE:
+    case git::Operation::CherryPick:
       state = tr("CHERRY-PICKING");
       break;
 
-    case GIT_REPOSITORY_STATE_BISECT:
-      break; // FIXME?
-
-    case GIT_REPOSITORY_STATE_REBASE:
-    case GIT_REPOSITORY_STATE_REBASE_INTERACTIVE:
-    case GIT_REPOSITORY_STATE_REBASE_MERGE:
+    case git::Operation::Rebase:
       state = tr("REBASING");
       break;
 
-    case GIT_REPOSITORY_STATE_APPLY_MAILBOX:
-    case GIT_REPOSITORY_STATE_APPLY_MAILBOX_OR_REBASE:
+    case git::Operation::ApplyMailbox:
+    case git::Operation::Bisect:
+    case git::Operation::None:
       break; // FIXME?
   }
 
