@@ -131,6 +131,7 @@ ui_src = files(
     'repo/Location.cpp',
     'repo/PathspecWidget.cpp',
     'repo/RemoteCallbacks.cpp',
+    'repo/RepoLinkHandler.cpp',
     'repo/RepoView.cpp',
     'repo/StateBanner.cpp',
     'search/AdvancedSearchWidget.cpp',

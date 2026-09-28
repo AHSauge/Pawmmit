@@ -14,6 +14,7 @@
 #include "History.h"
 #include "PathspecWidget.h"
 #include "RemoteCallbacks.h"
+#include "RepoLinkHandler.h"
 #include "StateBanner.h"
 #include "app/Application.h"
 #include "conf/Settings.h"
@@ -24,7 +25,6 @@
 #include "dialogs/DeleteTagDialog.h"
 #include "dialogs/DiffFileDialog.h"
 #include "dialogs/NewBranchDialog.h"
-#include "dialogs/RemoteDialog.h"
 #include "dialogs/RenameBranchDialog.h"
 #include "dialogs/SettingsDialog.h"
 #include "dialogs/TagDialog.h"
@@ -60,7 +60,6 @@
 #include "watcher/RepositoryWatcher.h"
 #include <QCheckBox>
 #include <QCloseEvent>
-#include <QDesktopServices>
 #include <QFile>
 #include <QFileInfo>
 #include <QLocale>
@@ -633,172 +632,7 @@ void RepoView::visitLink(const QString &link) {
   ScopedCollapse collapse(mLogView);
   (void)collapse;
 
-  QUrl url(link);
-  QUrlQuery query(url.query());
-
-  if (url.scheme() == "http" || url.scheme() == "https")
-    QDesktopServices::openUrl(url);
-
-  // Lookup reference.
-  git::Reference ref;
-  QString refName = query.queryItemValue("ref");
-  if (!refName.isEmpty())
-    ref = mRepo.lookupRef(refName);
-
-  // commit id
-  if (url.scheme() == "id") {
-    if (ref.isValid())
-      mRefs->select(ref);
-    mCommits->selectRange(url.path(), query.queryItemValue("file"), true);
-    return;
-  }
-
-  // submodule
-  if (url.scheme() == "submodule") {
-    openSubmodule(mRepo.lookupSubmodule(url.path()));
-    return;
-  }
-
-  // actions
-  if (url.scheme() != "action")
-    return;
-
-  QString action = url.path();
-  if (action == "pull") {
-    pull();
-    return;
-  }
-
-  if (action == "push") {
-    git::Remote remote;
-
-    QString value = query.queryItemValue("to");
-    if (!value.isEmpty())
-      remote = mRepo.lookupRemote(value);
-
-    if (query.queryItemValue("force") == "true") {
-      promptToForcePush(remote, ref);
-    } else {
-      bool setUpstream = query.queryItemValue("set-upstream") == "true";
-      push(remote, ref, QString(), setUpstream);
-    }
-
-    return;
-  }
-
-  if (action == "push-to") {
-    RemoteDialog *dialog = new RemoteDialog(RemoteDialog::Push, this);
-    dialog->open();
-    return;
-  }
-
-  if (action == "add-remote") {
-    ConfigDialog *dialog = configureSettings(ConfigDialog::Remotes);
-    dialog->addRemote(query.queryItemValue("name"));
-    return;
-  }
-
-  if (action == "stash") {
-    promptToStash();
-    return;
-  }
-
-  if (action == "unstash") {
-    popStash();
-    return;
-  }
-
-  if (action == "checkout") {
-    if (ref.isValid()) {
-      checkout(ref, query.queryItemValue("detach") == "true");
-    } else {
-      promptToCheckout();
-    }
-
-    return;
-  }
-
-  if (action == "fast-forward") {
-    merge(FastForward, ref);
-    return;
-  }
-
-  // Check for no-ff flag.
-  MergeFlags flags;
-  if (query.queryItemValue("no-ff") == "true")
-    flags |= NoFastForward;
-
-  if (action == "merge") {
-    merge(flags | Merge, ref);
-    return;
-  }
-
-  if (action == "rebase") {
-    merge(flags | Rebase, ref);
-    return;
-  }
-
-  if (action == "config") {
-    if (query.queryItemValue("global") == "true") {
-      SettingsDialog::openSharedInstance();
-    } else {
-      configureSettings(ConfigDialog::General);
-    }
-
-    return;
-  }
-
-  if (action == "amend") {
-    amendCommit();
-    return;
-  }
-
-  if (action == "revert") {
-    revert(mRepo.lookupCommit(query.queryItemValue("id")));
-    return;
-  }
-
-  if (action == "cherry-pick") {
-    cherryPick(mRepo.lookupCommit(query.queryItemValue("id")));
-    return;
-  }
-
-  if (action == "abort") {
-    promptToAbort();
-    return;
-  }
-
-  if (action == "sslverifyrepo") {
-    if (mRepo.isValid()) {
-      git::Config config = mRepo.gitConfig();
-      config.setValue<bool>("http.sslVerify", false);
-      QMessageBox msg(QMessageBox::Icon::Information, tr("Certificate Error"),
-                      tr("SSL verification disabled for this repository"),
-                      QMessageBox::Button::Ok);
-      msg.setDetailedText(tr("[http]\n"
-                             "  sslVerify = false\n\n"
-                             "was added to %1/config")
-                              .arg(mRepo.dir().path()));
-      msg.exec();
-    }
-    return;
-  }
-
-  if (action == "sslverifygit") {
-    git::Config config = git::Config::global();
-    if (config.isValid()) {
-      config.setValue<bool>("http.sslVerify", false);
-      QMessageBox msg(QMessageBox::Icon::Information, tr("Certificate Error"),
-                      tr("SSL verification disabled for all git repositories"),
-                      QMessageBox::Button::Ok);
-      msg.setDetailedText(tr("[http]\n"
-                             "  sslVerify = false\n\n"
-                             "was added to %1")
-                              .arg(config.globalPath()));
-      msg.exec();
-    }
-    return;
-  }
+  RepoLinkHandler::visit(this, link);
 }
 
 Repository *RepoView::remoteRepo() {
