@@ -51,6 +51,7 @@
 #include "ui/detail/DetailView.h"
 #include "ui/detail/DoubleTreeWidget.h"
 #include "ui/references/ReferenceWidget.h"
+#include "ui/repo/ConflictLabel.h"
 #include "ui/repo/RepoView.h"
 #include "ui/search/SearchField.h"
 #include "ui/window/EditorWindow.h"
@@ -1282,26 +1283,6 @@ void RepoView::abortRebase() {
 }
 
 namespace {
-
-// Git only remembers the incoming commit, so name it after a branch still
-// pointing at it, preferring a local one.
-QString branchNameForCommit(const git::Repository &repo,
-                            const git::Commit &commit) {
-  QString remoteMatch;
-  for (const git::Branch &branch : repo.branches()) {
-    git::Commit tip = branch.target();
-    if (!tip.isValid() || tip.id() != commit.id())
-      continue;
-
-    if (branch.isLocalBranch())
-      return branch.name();
-    if (remoteMatch.isEmpty())
-      remoteMatch = branch.name();
-  }
-
-  return remoteMatch;
-}
-
 // Explains a stash that can't be applied because of uncommitted changes to the
 // same files, or returns an empty string if that isn't why.
 QString stashOverlapError(const git::Repository &repo,
@@ -1328,17 +1309,6 @@ QString stashOverlapError(const git::Repository &repo,
                       "uncommitted changes to %1. Commit or stash those "
                       "changes first, then try again.")
       .arg(QLocale().createSeparatedList(overlap));
-}
-
-// The incoming branch or commit, e.g. "fix/foobar" or "commit a3c9dc".
-QString incomingName(const git::Repository &repo) {
-  git::Commit commit = repo.incomingCommit();
-  if (!commit.isValid())
-    return QString();
-
-  QString branch = branchNameForCommit(repo, commit);
-  return !branch.isEmpty() ? branch
-                           : RepoView::tr("commit %1").arg(commit.shortId());
 }
 
 } // namespace
@@ -1394,7 +1364,7 @@ void RepoView::updateStateBanner() {
     actions.append(show);
     actions.append(abort(tr("Abort Rebase")));
   } else if (operation == git::Operation::Merge) {
-    QString source = incomingName(mRepo);
+    QString source = conflict::incomingName(mRepo);
     headline = source.isEmpty() ? tr("Merging into %1.").arg(branch)
                                 : tr("Merging %1 into %2.").arg(source, branch);
     git::Diff status = mCommits->status();
@@ -2946,50 +2916,6 @@ bool RepoView::suspendLogTimer() {
 void RepoView::resumeLogTimer(bool suspended) {
   if (suspended)
     mLogTimer.start(2000);
-}
-
-QString RepoView::conflictOursName() {
-  git::Reference head = mRepo.head();
-  if (head.isLocalBranch())
-    return head.name();
-
-  // During a rebase HEAD sits on the branch being rebased onto.
-  git::Rebase rebase = mRepo.rebaseOpen();
-  return rebase.isValid() ? rebase.ontoName() : QString();
-}
-
-QString RepoView::conflictTheirsName() {
-  git::Rebase rebase = mRepo.rebaseOpen();
-  if (rebase.isValid()) {
-    QString orig = rebase.origHeadName();
-    if (!orig.isEmpty())
-      return orig;
-  }
-
-  return incomingName(mRepo);
-}
-
-QString RepoView::conflictOursLabel() {
-  QString name = conflictOursName();
-  return !name.isEmpty() ? tr("Keep %1").arg(name) : tr("Keep current version");
-}
-
-QString RepoView::conflictTheirsLabel() {
-  // A revert's incoming side is the file without the reverted commit's change.
-  if (mRepo.operation() == git::Operation::Revert) {
-    git::Commit commit = mRepo.incomingCommit();
-    if (commit.isValid())
-      return tr("Undo commit %1").arg(commit.shortId());
-  }
-
-  QString name = conflictTheirsName();
-  if (!name.isEmpty())
-    return tr("Take %1").arg(name);
-
-  // Applying a stash is what leaves conflicts without an operation running.
-  return (mRepo.operation() == git::Operation::None)
-             ? tr("Take stashed version")
-             : tr("Take incoming version");
 }
 
 bool RepoView::checkForConflicts(LogEntry *parent,

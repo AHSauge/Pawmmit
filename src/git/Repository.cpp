@@ -955,7 +955,7 @@ bool Repository::merge(const AnnotatedCommit &mergeHead) {
  * If no current rebase is ongoing an invalid Rebase object is returned
  * \return
  */
-Rebase Repository::rebaseOpen() {
+Rebase Repository::rebaseOpen() const {
   git_rebase *rebase = nullptr;
   git_rebase_options opts = GIT_REBASE_OPTIONS_INIT; // TODO: check quite option
   git_rebase_open(&rebase, d->repo, &opts);

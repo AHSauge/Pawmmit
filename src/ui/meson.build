@@ -127,6 +127,7 @@ ui_src = files(
     'references/ReferenceModel.cpp',
     'references/ReferenceView.cpp',
     'references/ReferenceWidget.cpp',
+    'repo/ConflictLabel.cpp',
     'repo/History.cpp',
     'repo/Location.cpp',
     'repo/PathspecWidget.cpp',
