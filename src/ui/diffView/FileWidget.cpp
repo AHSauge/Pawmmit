@@ -16,6 +16,7 @@
 #include "git2/diff.h"
 #include "ui/Badge.h"
 #include "ui/filetree/FileContextMenu.h"
+#include "ui/repo/ConflictLabel.h"
 #include "ui/repo/RepoView.h"
 
 #include <QCheckBox>
@@ -244,8 +245,7 @@ void _FileWidget::Header::updatePatch(const git::Patch &patch) {
     auto theirs = QString();
 
     RepoView *view = RepoView::parentView(this);
-    QString oursLabel = view->conflictOursLabel();
-    QString theirsLabel = view->conflictTheirsLabel();
+    auto [oursLabel, theirsLabel] = conflict::labels(view->repo());
     mOurs->setText(oursLabel);
     mTheirs->setText(theirsLabel);
 
@@ -693,13 +693,14 @@ QWidget *FileWidget::addConflictHint() {
   layout->addWidget(icon);
 
   RepoView *view = RepoView::parentView(this);
+  auto [oursLabel, theirsLabel] = conflict::labels(view->repo());
   QString text =
       onlyStagingLeft(mDiff, mPatch)
           ? tr("No conflicts left in this file. Stage it to mark it resolved.")
           : tr("Click %1 or %2, then Save. Or edit the file yourself, or use "
                "External Merge. When it's done, stage the file to mark it "
                "resolved.")
-                .arg(view->conflictOursLabel(), view->conflictTheirsLabel());
+                .arg(oursLabel, theirsLabel);
   QLabel *label = new QLabel(text, hint);
   label->setWordWrap(true);
   label->setStyleSheet(QString("color: %1;").arg(foreground.name()));

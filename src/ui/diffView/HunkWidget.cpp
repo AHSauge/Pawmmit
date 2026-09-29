@@ -12,6 +12,7 @@
 
 #include "ui/blame/BlameEditor.h"
 #include "ui/filetree/FileContextMenu.h"
+#include "ui/repo/ConflictLabel.h"
 #include "ui/repo/RepoView.h"
 #include "ui/window/EditorWindow.h"
 #include "ui/window/MenuBar.h"
@@ -63,6 +64,8 @@ _HunkWidget::Header::Header(const git::Diff &diff, const git::Patch &patch,
 
   RepoView *view = RepoView::parentView(this);
   if (patch.isConflicted()) {
+    auto [oursLabel, theirsLabel] = conflict::labels(view->repo());
+
     mSave = new QToolButton(this);
     mSave->setObjectName("ConflictSave");
     mSave->setText(HunkWidget::tr("Save"));
@@ -81,7 +84,7 @@ _HunkWidget::Header::Header(const git::Diff &diff, const git::Patch &patch,
     mOurs->setObjectName("ConflictOurs");
     mOurs->setStyleSheet(
         Application::theme()->diffButtonStyle(Theme::Diff::Ours));
-    mOurs->setText(view->conflictOursLabel());
+    mOurs->setText(oursLabel);
     connect(mOurs, &QToolButton::clicked, [this] {
       mSave->setVisible(true);
       mUndo->setVisible(true);
@@ -93,7 +96,7 @@ _HunkWidget::Header::Header(const git::Diff &diff, const git::Patch &patch,
     mTheirs->setObjectName("ConflictTheirs");
     mTheirs->setStyleSheet(
         Application::theme()->diffButtonStyle(Theme::Diff::Theirs));
-    mTheirs->setText(view->conflictTheirsLabel());
+    mTheirs->setText(theirsLabel);
     connect(mTheirs, &QToolButton::clicked, [this] {
       mSave->setVisible(true);
       mUndo->setVisible(true);

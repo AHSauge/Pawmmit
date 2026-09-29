@@ -233,7 +233,7 @@ public:
   void rebase(const AnnotatedCommit &mergeHead,
               const QString &overrideUser = QString(),
               const QString &overrideEmail = QString());
-  Rebase rebaseOpen();
+  Rebase rebaseOpen() const;
   void rebaseAbort();
   void rebaseContinue(const QString &commitMessage);
   bool rebaseOngoing();
