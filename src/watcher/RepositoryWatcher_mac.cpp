@@ -13,11 +13,14 @@
 #include "PathFilter.h"
 #include "RepositoryWatcher.h"
 #include <CoreServices/CoreServices.h>
+#include <QFileInfo>
 
 class MacRepositoryWatcher : public RepositoryWatcher {
 public:
   MacRepositoryWatcher(const git::Repository &repo, QObject *parent)
-      : RepositoryWatcher(repo, parent), mFilter(repo, false) {
+      : RepositoryWatcher(repo, parent), mFilter(repo, false),
+        // FSEvents reports resolved paths, e.g. /private/var for /var.
+        mWorkdir(QFileInfo(repo.workdir().path()).canonicalFilePath()) {
     // Create dispatch queue.
     mQueue = dispatch_queue_create("com.pawmmit.RepositoryWatcher", nullptr);
 
@@ -28,7 +31,7 @@ public:
     CFArrayRef wds = CFArrayCreate(nullptr, (const void **)&wd, 1, nullptr);
     mStream = FSEventStreamCreate(nullptr, &notify, &context, wds,
                                   kFSEventStreamEventIdSinceNow, 0,
-                                  kFSEventStreamCreateFlagNone);
+                                  kFSEventStreamCreateFlagFileEvents);
     CFRelease(wds);
     CFRelease(wd);
 
@@ -66,10 +69,12 @@ private:
     MacRepositoryWatcher *watcher =
         static_cast<MacRepositoryWatcher *>(clientCallBackInfo);
 
-    // Filter out irrelevant directories.
+    // Filter out irrelevant files.
     const char **paths = static_cast<const char **>(eventPaths);
     for (size_t i = 0; i < numEvents; ++i) {
-      if (watcher->mFilter.isRelevant(paths[i])) {
+      QString path = QString::fromUtf8(paths[i]);
+      if (watcher->mFilter.isRelevant(
+              watcher->mWorkdir.relativeFilePath(path))) {
         // This runs on the dispatch queue; the timer lives on the main thread.
         QMetaObject::invokeMethod(
             watcher, [watcher] { watcher->scheduleNotification(); },
@@ -80,6 +85,7 @@ private:
   }
 
   PathFilter mFilter;
+  QDir mWorkdir;
   dispatch_queue_t mQueue;
   FSEventStreamRef mStream;
 };
