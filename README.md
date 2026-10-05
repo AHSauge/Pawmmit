@@ -11,7 +11,7 @@ Pawmmit
 ==================================
 
 Pawmmit is a graphical Git client designed to help you understand and manage your source code history. The [latest stable release](https://github.com/Pawmmit/Pawmmit/releases/latest)
-is available either as pre-built flatpak for Linux, 32 / 64 binary for Windows, macOS,
+is available pre-built for Linux (Flatpak / AppImage), Windows (64-bit) and macOS,
 or can be built from source by following the directions [below](https://github.com/Pawmmit/Pawmmit#how-to-build).
 
 The [latest development version](https://github.com/Pawmmit/Pawmmit/releases/tag/development) is available pre-built as well.
@@ -19,7 +19,7 @@ The [latest development version](https://github.com/Pawmmit/Pawmmit/releases/tag
 Pawmmit is a fork of [Gittyup](https://github.com/Murmele/Gittyup), which is a
 continuation of the [GitAhead](https://github.com/gitahead/gitahead) client. The rationale behind the fork is provided [here](docs/rationale.md)
 
-![Pawmmit](https://raw.githubusercontent.com/Pawmmit/Pawmmit/master/rsrc/screenshots/main_dark_orig.png)
+![Pawmmit](https://raw.githubusercontent.com/Pawmmit/Pawmmit/main/rsrc/screenshots/main_dark_orig.png)
 
 Table of contents
 =================
@@ -31,7 +31,6 @@ Table of contents
   - [Build Environment](#build-environment)
   - [Dependencies](#dependencies)
   - [How to Build](#how-to-build)
-    - [A Convenient Shell Script for Ubuntu is available here, and will install all the necessary prerequisites, and build a release version for immediate use.](#a-convenient-shell-script-for-ubuntu-is-available-here-and-will-install-all-the-necessary-prerequisites-and-build-a-release-version-for-immediate-use)
   - [How to Install](#how-to-install)
   - [How to Contribute](#how-to-contribute)
   - [License](#license)
@@ -44,10 +43,9 @@ To get an overview of the current features please have a look at the [GitHub Pag
 How to Get Help
 ---------------
 
-Ask questions about building or using Pawmmit on
-[Stack Overflow](http://stackoverflow.com/questions/tagged/pawmmit) by
-including the `pawmmit` tag. Remember to search for existing questions
-before creating a new one.
+Ask questions about building or using Pawmmit in the
+[discussions](https://github.com/Pawmmit/Pawmmit/discussions) section on GitHub.
+Remember to search for existing questions before creating a new one.
 
 Report bugs in Pawmmit by opening an issue in the
 [issue tracker](https://github.com/Pawmmit/Pawmmit/issues).
@@ -63,32 +61,34 @@ Build Environment
 * [Meson](https://mesonbuild.com) >= 1.1
 * Ninja
 * Python 3
+* For AppImage:
+  * `appstreamcli`
 
 Dependencies
 ------------
 
-**Must be provided by the system** (install via your package manager /
-Homebrew / vcpkg) - Meson can't build these itself:
+* Required dependencies (must be installed via your package manager / Homebrew / vcpkg):
+  * Qt (>= 6.7) (Core5Compat and Linguist tools are required)
+    * Debian (or DEB based distros): `apt install qt6-base-dev qt6-tools-dev qt6-l10n-tools libqt6core5compat6-dev`
+    * Fedora (RPM based distros): `dnf install qt6-qtbase-devel qt6-qttools-devel qt6-linguist qt6-qt5compat-devel`
+  * libgit2 (>= 1.9)
+    * macOS: `brew install libgit2`
+    * Windows: `vcpkg install libgit2[ssh]`
+    * Debian (or DEB based distros): `apt install libgit2-dev`
+    * Fedora (RPM based distros): `dnf install libgit2-devel`
+* Optionally installed dependencies (system package is chosen over bundling):
+  * libssh2
+  * hunspell (>= 1.7)
+  * cmark (library + the `cmark` command-line tool)
+  * lua (>= 5.3)
+* Bundled dependencies:
+  * lexilla
+  * scintilla
+  * scintillua
+  * lpeg
+  * zip (test suite only)
 
-* Qt (required >= 6.7)
-* libgit2 (>= 1.9) - its CMake build doesn't translate to Meson cleanly
-  enough to fall back on, so this is the one library every platform needs a
-  real package for. On macOS, `brew install libgit2`; on Windows,
-  `vcpkg install libgit2[ssh]` (see `.github/workflows/build.yml`).
-
-On Debian/Ubuntu, for example:
-
-    sudo apt install meson ninja-build pkg-config python3 \
-        qt6-base-dev qt6-tools-dev libqt6core5compat6-dev libgit2-dev
-
-**Fetched automatically** as Meson subprojects when no system package is
-found (needs network on first configure; see `subprojects/*.wrap`) - install
-the system package instead if you'd rather not build these from source:
-
-* libssh2, hunspell (>= 1.7), cmark (library + the `cmark` command-line
-  tool), lua (>= 5.3)
-* scintilla, lexilla, scintillua, lpeg
-* zip (test suite only)
+For packaging without network access, the optional dependencies that aren't installed and the bundled dependencies need to be downloaded in advance. Run `meson subprojects download` beforehand, or pre-populate `subprojects/packagecache` with the archives (see `com.github.Pawmmit.Pawmmit.yml` for example).
 
 How to Build
 ------------
@@ -112,12 +112,10 @@ On macOS and Windows `meson install` also runs the packaging step
 (`pack/deploy.py`): it bundles Qt with `macdeployqt` / `windeployqt` and writes
 a `.dmg` / NSIS `.exe` into `build/pack/`.
 
-### A Convenient Shell Script for Ubuntu is available [here](https://raw.githubusercontent.com/Pawmmit/Pawmmit/master/pack/buildUbuntu.sh), and will install all the necessary prerequisites, and build a release version for immediate use.
-
 How to Install
 -----------------
 
-TBD (build from source for now)
+See [releases](https://github.com/Pawmmit/Pawmmit/releases), or build from source.
 
 How to Contribute
 -----------------
@@ -139,7 +137,7 @@ adheres to the formatting conventions for this project. You can also use the
 run `clang-format` against all modified files.
 
 Prior to pushing a change, please ensure you run the unit tests to avoid any
-regressions. These are run using `ctest` in `<build-dir>`.
+regressions. These are run using `meson test -C <build-dir>`.
 
 License
 -------
