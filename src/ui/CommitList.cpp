@@ -229,8 +229,9 @@ public:
   }
 
   void fetchMore(const QModelIndex &parent) {
-    FetchResult fetched = fetchRows(mWalker, mParents, mRows, mPathspec,
-                                    mGraphVisible, mRefsFilter);
+    FetchResult fetched =
+        fetchRows(mWalker, mParents, mRows, mPathspec, mGraphVisible,
+                  mRefsFilter, Application::theme()->branchTopologyEdges());
 
     // Update the model.
     if (!fetched.rows.isEmpty()) {
@@ -384,6 +385,7 @@ private:
     git::Repository repo;
     git::Diff statusDiff;
     bool statusCheckFinished;
+    QList<QColor> edgeColors;
 
     // Carried straight through to ResetResult; see its field for why.
     bool emitStatusFinished;
@@ -499,14 +501,14 @@ private:
     return columns;
   }
 
-  static QColor nextColor(const QList<Parent> &parents) {
+  static QColor nextColor(const QList<Parent> &parents,
+                          const QList<QColor> &colors) {
     // Get the first unused (or least used) color.
     QMap<QString, int> counts;
     for (const Parent &parent : parents)
       counts[parent.color.name()]++;
 
     int count = 0;
-    QList<QColor> colors = Application::theme()->branchTopologyEdges();
     forever {
       for (const QColor &color : colors) {
         if (counts.value(color.name()) == count)
@@ -527,7 +529,8 @@ private:
   static FetchResult fetchRows(git::RevWalk &walker, QList<Parent> &parents,
                                const QList<Row> &existingRows,
                                const QString &pathspec, bool graphVisible,
-                               CommitList::RefsFilter refsFilter) {
+                               CommitList::RefsFilter refsFilter,
+                               const QList<QColor> &edgeColors) {
     FetchResult result;
     int i = 0;
     git::Commit commit = walker.next(pathspec);
@@ -536,7 +539,7 @@ private:
       bool root = false;
       if (indexOf(parents, commit) < 0) {
         root = true;
-        parents.append(Parent(commit, nextColor(parents)));
+        parents.append(Parent(commit, nextColor(parents, edgeColors)));
       }
 
       // Calculate graph columns.
@@ -563,7 +566,7 @@ private:
           git::Commit replacement = replacements.takeFirst();
           parents.insert(index, Parent(replacement, parent.color));
           for (const git::Commit &replacement : replacements)
-            parents.append(Parent(replacement, nextColor(parents)));
+            parents.append(Parent(replacement, nextColor(parents, edgeColors)));
         }
       }
 
@@ -599,8 +602,8 @@ private:
       QVector<Column> row;
       if (ctx.graphVisible && ctx.ref.isValid() && ctx.statusCheckFinished) {
         row.append({Segment(Bottom, kTaintedColor), Segment(Dot, QColor())});
-        result.parents.append(
-            Parent(ctx.ref.target(), nextColor(result.parents), true));
+        result.parents.append(Parent(
+            ctx.ref.target(), nextColor(result.parents, ctx.edgeColors), true));
       }
       result.rows.append(Row(git::Commit(), row)); // Uncommitted changes
     }
@@ -642,7 +645,7 @@ private:
     if (result.walker.isValid()) {
       FetchResult fetched =
           fetchRows(result.walker, result.parents, result.rows, ctx.pathspec,
-                    ctx.graphVisible, ctx.refsFilter);
+                    ctx.graphVisible, ctx.refsFilter, ctx.edgeColors);
       result.rows.append(fetched.rows);
       if (fetched.exhausted)
         result.walker = git::RevWalk();
@@ -666,6 +669,7 @@ private:
                      mRepo,
                      status(),
                      mStatus.isFinished(),
+                     Application::theme()->branchTopologyEdges(),
                      emitStatusFinishedAfter};
 
     emit loadingChanged(true);
