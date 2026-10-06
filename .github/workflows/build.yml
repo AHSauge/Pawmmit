@@ -242,15 +242,23 @@ jobs:
 
       - name: Test (Linux)
         if: matrix.env.name == 'linux'
-        run: xvfb-run -a meson test -C build --print-errorlogs
+        run: xvfb-run -a meson test -C build --print-errorlogs --max-lines 1000
 
       - name: Test (Windows)
         if: matrix.env.name == 'win64'
-        run: meson test -C build --print-errorlogs
+        run: meson test -C build --print-errorlogs --max-lines 1000
 
       - name: Test (macOS)
         if: matrix.env.name == 'macos'
-        run: meson test -C build --print-errorlogs
+        run: meson test -C build --print-errorlogs --max-lines 1000
+
+      - name: Publish test log
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          path: build/meson-logs/testlog.txt
+          name: Pawmmit ${{ matrix.env.name }} test log
+          if-no-files-found: ignore
 
       - name: Package (macOS / Windows)
         if: matrix.env.pack == 1
