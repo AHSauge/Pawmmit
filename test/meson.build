@@ -66,6 +66,7 @@ tests = [
     'RepoViewAutoRefresh',
     'PathFilter',
     'RepoViewStaging',
+    'plugin',
 ]
 if host_machine.system() != 'windows'
     tests += 'Filter'
