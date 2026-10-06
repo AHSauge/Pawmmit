@@ -13,6 +13,7 @@
 // Based largely on LexLPeg.cxx.
 
 #include "LPegLexer.h"
+#include <QDebug>
 #include <QFileInfo>
 #include <QHash>
 
@@ -95,12 +96,22 @@ LPegLexer::LPegLexer(const QByteArray &home, const QByteArray &lexer,
   // Load the lexer module.
   lua_getglobal(L, "require");
   lua_pushstring(L, "lexer");
-  lua_pcall(L, 1, 1, 0);
+  if (lua_pcall(L, 1, 1, 0) != LUA_OK || !lua_istable(L, -1)) {
+    qWarning() << "Error loading lexer module:" << lua_tostring(L, -1);
+    lua_settop(L, 0);
+    lua_pushnil(L); // lex() fails on a nil lexer object
+    return;
+  }
 
   // Load the language lexer.
   lua_getfield(L, -1, "load");
   lua_pushstring(L, mName);
-  lua_pcall(L, 1, 1, 0);
+  if (lua_pcall(L, 1, 1, 0) != LUA_OK) {
+    qWarning() << "Error loading lexer" << mName << ":" << lua_tostring(L, -1);
+    lua_settop(L, 0);
+    lua_pushnil(L); // lex() fails on a nil lexer object
+    return;
+  }
 
   // Leave lexer object on top of stack.
   lua_remove(L, -2); // lexer module
@@ -117,13 +128,18 @@ bool LPegLexer::lex(const QByteArray &buffer) {
   // Drop any leftover results from previous runs.
   // This prevents out-of-bounds heap access
   lua_settop(L, 1);
+  if (!lua_istable(L, 1))
+    return false;
 
   // Lex the buffer.
   lua_getfield(L, -1, "lex");
   lua_pushvalue(L, -2); // lexer object
   lua_pushlstring(L, buffer, buffer.length());
   lua_pushinteger(L, Nothing + 1); // initial state
-  lua_pcall(L, 3, 1, 0);
+  if (lua_pcall(L, 3, 1, 0) != LUA_OK) {
+    qWarning() << "Error lexing with" << mName << ":" << lua_tostring(L, -1);
+    return false;
+  }
 
   // Bail out if lex didn't return a table.
   if (!lua_istable(L, -1))
