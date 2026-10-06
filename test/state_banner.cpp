@@ -166,8 +166,8 @@ void TestStateBanner::warnsAboutADetachedHead() {
 
 void TestStateBanner::offersTheWayBack() {
   // Going back to where the user came from comes first.
-  QCOMPARE(buttonTexts(),
-           QStringList({"Back to " + mBranch, "Create Branch..."}));
+  QTRY_COMPARE(buttonTexts(),
+               QStringList({"Back to " + mBranch, "Create Branch..."}));
 }
 
 void TestStateBanner::goesAwayOnABranchAgain() {
