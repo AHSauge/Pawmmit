@@ -23,6 +23,8 @@ private slots:
   void hunk();
   void staleObject();
   void wrongObject();
+  void argumentErrors();
+  void optionDefaults();
   void traceback();
   void nilError();
 
@@ -155,6 +157,48 @@ void TestPlugin::wrongObject() {
   setText(editor);
   QVERIFY(!plugin->hunk(&editor));
   QVERIFY(plugin->errorString().contains("Line expected"));
+}
+
+void TestPlugin::argumentErrors() {
+  PluginRef plugin = createPlugin(R"lua(
+    local function check(f, expected)
+      local ok, msg = pcall(f)
+      assert(not ok, "no error, expected: " .. expected)
+      assert(msg:find(expected, 1, true), msg)
+    end
+
+    check(function() opts:define_integer("k", "t", "x") end,
+          "bad argument #3 to 'define_integer' (number expected, got string)")
+    check(function() opts.value("k") end,
+          "bad argument #1 to 'value' (Options expected, got string)")
+    check(function() opts:define_list("k", "t", {"a", {}}) end,
+          "bad argument #3 to 'define_list' (list of strings expected)")
+    check(function() opts:value("missing") end, "invalid option 'missing'")
+    check(function() hunk:lines()[1]:add_error("err", "x", 1) end,
+          "bad argument #2 to 'add_error' (number expected, got string)")
+  )lua");
+  QVERIFY2(plugin->isValid(), qPrintable(plugin->errorString()));
+
+  TextEditor editor;
+  setText(editor);
+  QVERIFY2(plugin->hunk(&editor), qPrintable(plugin->errorString()));
+}
+
+void TestPlugin::optionDefaults() {
+  PluginRef plugin = createPlugin(R"(
+    opts:define_boolean("b", "B")
+    opts:define_integer("i", "I")
+    opts:define_string("s", "S")
+    opts:define_list("l", "L", {"a", "b"})
+    assert(opts:value("b") == false, "boolean default")
+    assert(opts:value("i") == 0, "integer default")
+    assert(opts:value("s") == "", "string default")
+    assert(opts:value("l") == 1, "list default")
+  )");
+  QVERIFY2(plugin->isValid(), qPrintable(plugin->errorString()));
+
+  TextEditor editor;
+  QVERIFY2(plugin->hunk(&editor), qPrintable(plugin->errorString()));
 }
 
 void TestPlugin::traceback() {
