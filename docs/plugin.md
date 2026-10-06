@@ -60,9 +60,13 @@ into account using the diff editor's current tab width.
 
 ## Lua Environment
 
-Plugins have access to the `string`, `table`, `math` and `io` libraries
-in addition to the basic functions. Other standard libraries, such as
-`os` and `debug`, are not available.
+Plugins have access to the `string`, `table` and `math` libraries in
+addition to the basic functions. Other standard libraries, such as `os`
+and `debug`, are not available.
+
+Files can be read with `io.lines` and `io.open`. `io.open` only accepts
+the read modes `"r"` and `"rb"`, and the rest of the `io` library isn't
+available.
 
 `require` loads Lua modules from the plugin's directory. Compiled
 modules (`.so`/`.dll`) can't be loaded, so plugins can't depend on

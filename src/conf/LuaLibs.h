@@ -15,4 +15,7 @@ struct lua_State;
 // files so that scripts can't load native code.
 void openRestrictedLibs(lua_State *L);
 
+// Open an io library limited to io.lines and a read-only io.open.
+void openReadOnlyIo(lua_State *L);
+
 #endif

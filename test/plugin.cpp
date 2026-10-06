@@ -19,6 +19,7 @@ private slots:
   void confFileErrors();
   void confFileNoNativeCode();
   void noNativeCode();
+  void readOnlyIo();
   void hunk();
   void staleObject();
   void wrongObject();
@@ -57,6 +58,40 @@ void TestPlugin::confFileNoNativeCode() {
   QCOMPARE(map.value("cpath"), QVariant(""));
   QCOMPARE(map.value("loadlib"), QVariant("nil"));
   QCOMPARE(map.value("module"), QVariant("loaded"));
+}
+
+void TestPlugin::readOnlyIo() {
+  QString path = mDir.filePath("data.txt");
+  QFile data(path);
+  QVERIFY(data.open(QFile::WriteOnly));
+  data.write("one\ntwo\n");
+  data.close();
+
+  PluginRef plugin = createPlugin("local path = [[" + path.toUtf8() + "]]" + R"(
+    assert(io.popen == nil, "popen is available")
+    assert(io.output == nil and io.write == nil, "output is available")
+    assert(require("io").popen == nil, "require returns the full library")
+
+    local lines = {}
+    for line in io.lines(path) do lines[#lines + 1] = line end
+    assert(#lines == 2 and lines[2] == "two", "lines failed")
+
+    local file = assert(io.open(path))
+    assert(file:read("l") == "one", "read failed")
+    file:close()
+    assert(io.open(path, "rb")):close()
+    assert(io.open(path .. ".missing") == nil, "missing file opened")
+
+    assert(not pcall(io.open, path, "w"), "write mode allowed")
+    assert(not pcall(io.open, path, "r+"), "update mode allowed")
+  )");
+  QVERIFY2(plugin->isValid(), qPrintable(plugin->errorString()));
+
+  TextEditor editor;
+  QVERIFY2(plugin->hunk(&editor), qPrintable(plugin->errorString()));
+
+  QVERIFY(data.open(QFile::ReadOnly));
+  QCOMPARE(data.readAll(), QByteArray("one\ntwo\n"));
 }
 
 void TestPlugin::noNativeCode() {

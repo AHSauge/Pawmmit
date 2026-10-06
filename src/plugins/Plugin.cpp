@@ -512,8 +512,7 @@ Plugin::Plugin(const QString &file, const git::Repository &repo,
 
   // Load a limited set of libraries
   openRestrictedLibs(L);
-  luaL_requiref(L, LUA_IOLIBNAME, luaopen_io, 1);
-  lua_pop(L, 1);
+  openReadOnlyIo(L);
 
   // Add script dir to path.
   lua_getglobal(L, "package");
