@@ -100,7 +100,7 @@ endif
 
 libssh2_dep = dependency('libssh2')
 lpeg_dep = dependency('lpeg')
-lua_dep = dependency('lua', version: '>=5.3')
+lua_dep = dependency('lua', version: '>=5.4')
 scintilla_dep = dependency('scintilla')
 scintillua_dep = dependency('scintillua')
 qt_modules = ['Core', 'Concurrent', 'Core5Compat', 'Gui', 'Network', 'Widgets']

@@ -80,7 +80,7 @@ Dependencies
   * libssh2
   * hunspell (>= 1.7)
   * cmark (library + the `cmark` command-line tool)
-  * lua (>= 5.3)
+  * lua (>= 5.4)
 * Bundled dependencies:
   * lexilla
   * scintilla
