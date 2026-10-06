@@ -67,6 +67,7 @@ tests = [
     'PathFilter',
     'RepoViewStaging',
     'plugin',
+    'search_index',
 ]
 if host_machine.system() != 'windows'
     tests += 'Filter'
@@ -104,10 +105,18 @@ foreach name : tests
             dependencies: [pawmmit_common, qt_test_dep],
         )
     endif
+    # The search index test runs the real indexer executable.
+    test_args = app_public_args
+    test_depends = [qm_files]
+    if name == 'search_index'
+        test_args += '-DINDEXER_PATH="' + indexer_exe.full_path().replace('\\', '/') + '"'
+        test_depends += indexer_exe
+    endif
+
     exe = executable(
         'test_' + name,
         sources,
-        cpp_args: app_public_args,
+        cpp_args: test_args,
         link_whole: pawmmit_module_libs,
         dependencies: [testlib_dep] + pawmmit_link_deps,
         build_rpath: test_rpath,
@@ -124,6 +133,6 @@ foreach name : tests
         env: test_env,
         suite: suites,
         timeout: 300,
-        depends: qm_files,
+        depends: test_depends,
     )
 endforeach

@@ -23,7 +23,7 @@ endif
 
 # Installed next to the main executable on every platform (Contents/MacOS on
 # macOS) - the app spawns it as a sibling.
-executable(
+indexer_exe = executable(
     'pawmmit-indexer',
     indexer_src,
     cpp_args: ['-DPAWMMIT_VERSION="' + meson.project_version() + '"'],

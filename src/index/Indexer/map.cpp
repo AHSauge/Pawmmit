@@ -11,6 +11,10 @@
 
 namespace {
 const QRegularExpression kWsRe("\\s+");
+
+// Some Scintillua lexers rescan the text from its start for every line they
+// check, which gets quadratically slower as runs grow.
+const int kMaxRunLines = 128;
 } // namespace
 
 Map::Map(const git::Repository &repo, LexerPool &lexers,
@@ -90,7 +94,6 @@ void Map::run() {
       QByteArray name = Settings::instance()->lexer(patch.name()).toUtf8();
       Lexer *lexer = (name == "null") ? &generic : mLexers.acquire(name);
 
-      // Lex one line at a time.
       int hunks = patch.count();
       for (int hidx = 0; hidx < hunks; ++hidx) {
         if (canceled || diffPos > mTermLimit)
@@ -103,14 +106,18 @@ void Map::run() {
             index(lexer->next(), result.fields, Index::Scope, hunkPos);
         }
 
-        // Index content.
+        // Index content. Consecutive lines with the same origin are lexed
+        // together, except with the generic lexer, where an unmatched quote
+        // would drop the rest of the run.
         int lines = patch.lineCount(hidx);
-        for (int line = 0; line < lines; ++line) {
+        int line = 0;
+        while (line < lines) {
           if (canceled || diffPos > mTermLimit)
             break;
 
+          char origin = patch.lineOrigin(hidx, line);
           Index::Field field;
-          switch (patch.lineOrigin(hidx, line)) {
+          switch (origin) {
             case GIT_DIFF_LINE_CONTEXT:
               field = Index::Context;
               break;
@@ -121,10 +128,18 @@ void Map::run() {
               field = Index::Deletion;
               break;
             default:
+              ++line;
               continue;
           }
 
-          if (lexer->lex(patch.lineContent(hidx, line))) {
+          int first = line;
+          QByteArray text = patch.lineContent(hidx, line++);
+          while (lexer != &generic && line < lines &&
+                 line - first < kMaxRunLines &&
+                 patch.lineOrigin(hidx, line) == origin)
+            text.append(patch.lineContent(hidx, line++));
+
+          if (lexer->lex(text)) {
             while (!canceled && lexer->hasNext())
               index(lexer->next(), result.fields, field, diffPos);
           }
