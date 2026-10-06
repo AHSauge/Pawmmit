@@ -108,8 +108,11 @@ LPegLexer::LPegLexer(const QByteArray &home, const QByteArray &lexer,
     return;
   }
 
-  // Leave lexer object on top of stack.
+  // Leave lexer object at index 1.
   lua_remove(L, -2); // lexer module
+
+  // Cache tag tokens at index 2 to avoid looking up every tag name.
+  lua_newtable(L);
 }
 
 bool LPegLexer::lex(const QByteArray &buffer) {
@@ -122,13 +125,13 @@ bool LPegLexer::lex(const QByteArray &buffer) {
   lua_State *L = mL.get();
   // Drop any leftover results from previous runs.
   // This prevents out-of-bounds heap access
-  lua_settop(L, 1);
+  lua_settop(L, 2);
   if (!lua_istable(L, 1))
     return false;
 
   // Lex the buffer.
-  lua_getfield(L, -1, "lex");
-  lua_pushvalue(L, -2); // lexer object
+  lua_getfield(L, 1, "lex");
+  lua_pushvalue(L, 1); // lexer object
   lua_pushlstring(L, buffer, buffer.length());
   lua_pushinteger(L, Nothing + 1); // initial state
   if (lua_pcall(L, 3, 1, 0) != LUA_OK) {
@@ -149,10 +152,22 @@ bool LPegLexer::hasNext() { return (mIndex < mLength); }
 Lexer::Lexeme LPegLexer::next() {
   lua_State *L = mL.get();
 
+  Token token;
   lua_rawgeti(L, -1, mIndex); // tag name
-  QByteArray tag(lua_tostring(L, -1), lua_rawlen(L, -1));
-  Token token = tokenForTag(tag);
-  lua_pop(L, 1); // tag name
+  lua_pushvalue(L, -1);
+  if (lua_rawget(L, 2) == LUA_TNUMBER) {
+    token = static_cast<Token>(lua_tointeger(L, -1));
+    lua_pop(L, 2); // token, tag name
+  } else {
+    lua_pop(L, 1); // nil
+    token = tokenForTag(QByteArray(lua_tostring(L, -1), lua_rawlen(L, -1)));
+    if (lua_type(L, -1) == LUA_TSTRING) {
+      lua_pushinteger(L, token);
+      lua_rawset(L, 2); // pops tag name and token
+    } else {
+      lua_pop(L, 1); // tag name
+    }
+  }
 
   lua_rawgeti(L, -1, mIndex + 1); // endPos
   int endPos = lua_tointeger(L, -1) - 1;
