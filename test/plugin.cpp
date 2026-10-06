@@ -22,6 +22,8 @@ private slots:
   void hunk();
   void staleObject();
   void wrongObject();
+  void traceback();
+  void nilError();
 
 private:
   PluginRef createPlugin(const QByteArray &hunk);
@@ -118,6 +120,31 @@ void TestPlugin::wrongObject() {
   setText(editor);
   QVERIFY(!plugin->hunk(&editor));
   QVERIFY(plugin->errorString().contains("Line expected"));
+}
+
+void TestPlugin::traceback() {
+  // The hunk body starts on line 5 of the generated script.
+  PluginRef plugin = createPlugin(R"(
+    local function fail() error("boom") end
+    fail()
+  )");
+  QVERIFY2(plugin->isValid(), qPrintable(plugin->errorString()));
+
+  TextEditor editor;
+  QVERIFY(!plugin->hunk(&editor));
+  QString msg = plugin->errorString();
+  QVERIFY2(msg.section('\n', 0, 0).endsWith(":6: boom"), qPrintable(msg));
+  QVERIFY2(msg.contains("stack traceback:"), qPrintable(msg));
+  QVERIFY2(msg.contains(":7: in "), qPrintable(msg));
+}
+
+void TestPlugin::nilError() {
+  PluginRef plugin = createPlugin("error(nil)");
+  QVERIFY2(plugin->isValid(), qPrintable(plugin->errorString()));
+
+  TextEditor editor;
+  QVERIFY(!plugin->hunk(&editor));
+  QVERIFY(!plugin->isValid());
 }
 
 PluginRef TestPlugin::createPlugin(const QByteArray &hunk) {

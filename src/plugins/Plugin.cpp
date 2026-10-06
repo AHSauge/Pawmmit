@@ -476,6 +476,26 @@ int lexemeIsKind(lua_State *L) {
   return 1;
 }
 
+int traceback(lua_State *L) {
+  const char *msg = lua_tostring(L, 1);
+  if (!msg)
+    msg =
+        lua_pushfstring(L, "(error object is a %s value)", luaL_typename(L, 1));
+
+  luaL_traceback(L, L, msg, 1);
+  return 1;
+}
+
+// Call the function below nargs arguments, adding a traceback to any error.
+int pcall(lua_State *L, int nargs) {
+  int base = lua_gettop(L) - nargs;
+  lua_pushcfunction(L, &traceback);
+  lua_insert(L, base);
+  int status = lua_pcall(L, nargs, 0, base);
+  lua_remove(L, base);
+  return status;
+}
+
 } // namespace
 
 Plugin::Plugin(const QString &file, const git::Repository &repo,
@@ -505,7 +525,7 @@ Plugin::Plugin(const QString &file, const git::Repository &repo,
   lua_pop(L, 1); // package
 
   // Load script.
-  if (luaL_dofile(L, file.toLocal8Bit())) {
+  if (luaL_loadfile(L, file.toLocal8Bit()) || pcall(L, 0)) {
     setError(lua_tostring(L, -1));
     return;
   }
@@ -516,7 +536,7 @@ Plugin::Plugin(const QString &file, const git::Repository &repo,
     createInstance(L, this, "Options", kOptionsFuncs);
 
     // Call options.
-    if (lua_pcall(L, 1, 0, 0)) {
+    if (pcall(L, 1)) {
       setError(lua_tostring(L, -1));
       return;
     }
@@ -536,7 +556,7 @@ Plugin::Plugin(const QString &file, const git::Repository &repo,
   createInstance(L, this, "Options", kOptionsFuncs);
 
   // Call kinds.
-  if (lua_pcall(L, 2, 0, 0))
+  if (pcall(L, 2))
     setError(lua_tostring(L, -1));
 }
 
@@ -667,7 +687,7 @@ bool Plugin::hunk(TextEditor *editor) const {
   createInstance(L, const_cast<Plugin *>(this), "Options", kOptionsFuncs);
 
   // Call hunk function, then invalidate the objects it was given.
-  bool failed = lua_pcall(L, 2, 0, 0);
+  bool failed = pcall(L, 2);
   ++mGeneration;
   if (failed) {
     const_cast<Plugin *>(this)->setError(lua_tostring(L, -1));
