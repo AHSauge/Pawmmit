@@ -12,6 +12,7 @@
 
 #include "Plugin.h"
 #include "qtsupport.h"
+#include "conf/LuaLibs.h"
 #include "conf/Settings.h"
 #include "editor/TextEditor.h"
 #include "git/Config.h"
@@ -490,13 +491,9 @@ Plugin::Plugin(const QString &file, const git::Repository &repo,
   });
 
   // Load a limited set of libraries
-  luaL_requiref(L, LUA_GNAME, luaopen_base, 1);
-  luaL_requiref(L, LUA_LOADLIBNAME, luaopen_package, 1);
-  luaL_requiref(L, LUA_STRLIBNAME, luaopen_string, 1);
-  luaL_requiref(L, LUA_TABLIBNAME, luaopen_table, 1);
+  openRestrictedLibs(L);
   luaL_requiref(L, LUA_IOLIBNAME, luaopen_io, 1);
-  luaL_requiref(L, LUA_MATHLIBNAME, luaopen_math, 1);
-  lua_pop(L, 6);
+  lua_pop(L, 1);
 
   // Add script dir to path.
   lua_getglobal(L, "package");

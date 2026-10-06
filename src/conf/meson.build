@@ -10,6 +10,7 @@ conf_moc = qt6.preprocess(
 
 conf_src = [
     'ConfFile.cpp',
+    'LuaLibs.cpp',
     'Setting.cpp',
     'Settings.cpp',
     'RecentRepository.cpp',

@@ -17,6 +17,8 @@ class TestPlugin : public QObject {
 
 private slots:
   void confFileErrors();
+  void confFileNoNativeCode();
+  void noNativeCode();
   void hunk();
   void staleObject();
   void wrongObject();
@@ -37,6 +39,39 @@ void TestPlugin::confFileErrors() {
 
   QVariantMap map = ConfFile("return {[1.5] = 'x', a = 'b'}", dir).parse();
   QCOMPARE(map, QVariantMap({{"a", "b"}}));
+}
+
+void TestPlugin::confFileNoNativeCode() {
+  QFile module(mDir.filePath("confmodule.lua"));
+  QVERIFY(module.open(QFile::WriteOnly));
+  module.write("return {value = 'loaded'}");
+  module.close();
+
+  QVariantMap map = ConfFile("return {cpath = package.cpath,"
+                             "        loadlib = type(package.loadlib),"
+                             "        module = require('confmodule').value}",
+                             QDir(mDir.path()))
+                        .parse();
+  QCOMPARE(map.value("cpath"), QVariant(""));
+  QCOMPARE(map.value("loadlib"), QVariant("nil"));
+  QCOMPARE(map.value("module"), QVariant("loaded"));
+}
+
+void TestPlugin::noNativeCode() {
+  QFile module(mDir.filePath("pluginmodule.lua"));
+  QVERIFY(module.open(QFile::WriteOnly));
+  module.write("return {value = 'loaded'}");
+  module.close();
+
+  PluginRef plugin = createPlugin(R"(
+    assert(package.cpath == "", "cpath is set")
+    assert(package.loadlib == nil, "loadlib is available")
+    assert(require("pluginmodule").value == "loaded")
+  )");
+  QVERIFY2(plugin->isValid(), qPrintable(plugin->errorString()));
+
+  TextEditor editor;
+  QVERIFY2(plugin->hunk(&editor), qPrintable(plugin->errorString()));
 }
 
 void TestPlugin::hunk() {

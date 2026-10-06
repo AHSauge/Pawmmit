@@ -13,6 +13,7 @@
 // Based largely on LexLPeg.cxx.
 
 #include "LPegLexer.h"
+#include "conf/LuaLibs.h"
 #include <QDebug>
 #include <QFileInfo>
 #include <QHash>
@@ -76,13 +77,7 @@ LPegLexer::LPegLexer(const QByteArray &home, const QByteArray &lexer,
 
   lua_State *L = mL.get();
 
-  // Load a limited set of libraries
-  luaL_requiref(L, LUA_GNAME, luaopen_base, 1);
-  luaL_requiref(L, LUA_LOADLIBNAME, luaopen_package, 1);
-  luaL_requiref(L, LUA_STRLIBNAME, luaopen_string, 1);
-  luaL_requiref(L, LUA_TABLIBNAME, luaopen_table, 1);
-  luaL_requiref(L, LUA_MATHLIBNAME, luaopen_math, 1);
-  lua_pop(L, 5);
+  openRestrictedLibs(L);
   luaL_requiref(L, "lpeg", luaopen_lpeg, 1), lua_pop(L, 1);
 
   // Set `package.path` to find lexers.

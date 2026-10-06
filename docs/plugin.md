@@ -58,6 +58,18 @@ into account using the diff editor's current tab width.
 
 ---
 
+## Lua Environment
+
+Plugins have access to the `string`, `table`, `math` and `io` libraries
+in addition to the basic functions. Other standard libraries, such as
+`os` and `debug`, are not available.
+
+`require` loads Lua modules from the plugin's directory. Compiled
+modules (`.so`/`.dll`) can't be loaded, so plugins can't depend on
+native Lua libraries.
+
+---
+
 ## Plugin Format
 
 Plugins should define the following global functions to be invoked
