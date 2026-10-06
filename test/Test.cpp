@@ -91,13 +91,15 @@ QString zipReturnValueToString(int value) {
   }
 }
 
+#ifdef DEBUG_OUTPUT_GENERAL
 int on_extract_entry(const char *filename, void *arg) {
   static int i = 0;
   int n = *(int *)arg;
-  printf("Extracted: %s (%d of %d)\n", filename, ++i, n);
+  Debug("Extracted: " << filename << " (" << ++i << " of " << n << ")");
 
   return 0;
 }
+#endif
 
 /*!
  * \brief extractRepository
@@ -136,7 +138,13 @@ QString extractRepository(const QString &filename) {
   const char *filename_c = ba_filename.data();
 
   int arg = 2;
-  auto res = zip_extract(filename_c, path_c, on_extract_entry, &arg);
+  auto res = zip_extract(filename_c, path_c,
+#ifdef DEBUG_OUTPUT_GENERAL
+                         on_extract_entry,
+#else
+                         nullptr,
+#endif
+                         &arg);
   if (res < 0) {
     Debug("Error opening zip file: " << zipReturnValueToString(res));
     return "";
