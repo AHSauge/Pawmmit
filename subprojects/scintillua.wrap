@@ -4,6 +4,7 @@ source_url = https://github.com/orbitalquark/scintillua/archive/refs/tags/scinti
 source_filename = scintillua-scintillua_6.7.tar.gz
 source_hash = 47fe74d86d8616779c9efc659f737de4b8bfe6dfc022692a7fdeaf7995710ae5
 patch_directory = scintillua
+diff_files = scintillua-0001-match-plain-text-words-in-markup-langues-for-better-performance.patch, scintillua-0002-fixed-performance-issue-detecting-code-blocks-in-markdown-lexer.patch
 
 [provide]
 scintillua = scintillua_dep

@@ -1,0 +1,181 @@
+From 4af571f368018208d064a8030273c016c39c5950 Mon Sep 17 00:00:00 2001
+From: orbitalquark <70453897+orbitalquark@users.noreply.github.com>
+Date: Fri, 29 May 2026 23:51:38 -0400
+Subject: [PATCH] Match plain text words in markup languages for better
+ performance.
+
+It's better than falling back on one character/byte at a time.
+---
+ docs/api.md         |  7 +++++++
+ lexers/html.lua     |  3 +++
+ lexers/lexer.lua    |  5 +++++
+ lexers/markdown.lua |  3 +++
+ lexers/xml.lua      |  3 +++
+ lexers/yaml.lua     |  3 +++
+ tests.lua           | 23 ++++++++++++-----------
+ 7 files changed, 36 insertions(+), 11 deletions(-)
+
+diff --git a/docs/api.md b/docs/api.md
+index 19f37ed4..08c531ac 100644
+--- a/docs/api.md
++++ b/docs/api.md
+@@ -1384,6 +1384,13 @@ local keyword = lex:tag(lexer.KEYWORD, lexer.word_match({'foo-bar', 'foo-baz',
+ local keyword = lex:tag(lexer.KEYWORD, lexer.word_match('foo bar baz'))
+ ```
+ 
++<a id="lexer.word_utf8"></a>
++### `lexer.word_utf8`
++
++A pattern that matches a typical UTF-8 word.
++UTF-8 words begin with a letter, underscore,
++or UTF-8 character, and consist of alphanumeric, underscore, and UTF-8 characters.
++
+ <a id="lexer.xdigit"></a>
+ ### `lexer.xdigit`
+ 
+diff --git a/lexers/html.lua b/lexers/html.lua
+index 0595b585..c1023662 100644
+--- a/lexers/html.lua
++++ b/lexers/html.lua
+@@ -47,6 +47,9 @@ local ws = lex:get_rule('whitespace')
+ local attribute_eq = (known_attribute + unknown_attribute) * ws^-1 * equals
+ lex:add_rule('attribute', attribute_eq)
+ 
++-- Plain text.
++lex:add_rule('word', lex:tag(lexer.DEFAULT, lexer.word_utf8))
++
+ -- Strings.
+ local string = lex:tag(lexer.STRING, lexer.after_set('=', lexer.range("'") + lexer.range('"')))
+ lex:add_rule('string', string)
+diff --git a/lexers/lexer.lua b/lexers/lexer.lua
+index dab24d41..84ee6919 100644
+--- a/lexers/lexer.lua
++++ b/lexers/lexer.lua
+@@ -1960,6 +1960,11 @@ M.number = M.number_(false)
+ -- of alphanumeric and underscore characters.
+ M.word = (M.alpha + '_') * (M.alnum + '_')^0
+ 
++local utf8_char = lpeg.utfR and lpeg.utfR(0x7F, 0x10FFFF) or R('\128\255')^1
++--- A pattern that matches a typical UTF-8 word. UTF-8 words begin with a letter, underscore,
++-- or UTF-8 character, and consist of alphanumeric, underscore, and UTF-8 characters.
++M.word_utf8 = (M.alpha + '_' + utf8_char) * (M.alnum + '_' + utf8_char)^1
++
+ --- Returns a pattern that matches a prefix until the end of its line.
+ -- @param[opt] prefix String or pattern prefix to start matching at. The default value is any
+ --   non-newline character.
+diff --git a/lexers/markdown.lua b/lexers/markdown.lua
+index bbb1097b..aee57506 100644
+--- a/lexers/markdown.lua
++++ b/lexers/markdown.lua
+@@ -118,6 +118,9 @@ local underscore_em = (B(punct_space) + #lexer.starts_line('_')) * flanked_range
+ 	#(punct_space + -1)
+ lex:add_rule('em', lex:tag(lexer.ITALIC, asterisk_em + underscore_em))
+ 
++-- Plain text.
++lex:add_rule('word', lex:tag(lexer.DEFAULT, lexer.word_utf8))
++
+ -- Embedded HTML.
+ local html = lexer.load('html')
+ local start_rule = lexer.starts_line(P(' ')^-3) * #P('<') * html:get_rule('tag') -- P(' ')^4 starts code_line
+diff --git a/lexers/xml.lua b/lexers/xml.lua
+index 3a45172e..0b413f00 100644
+--- a/lexers/xml.lua
++++ b/lexers/xml.lua
+@@ -45,6 +45,9 @@ local equals = lex:tag(lexer.OPERATOR, '=') -- * in_tag
+ local attribute_eq = lex:tag(lexer.ATTRIBUTE, identifier) * namespace^-1 * ws^-1 * equals
+ lex:add_rule('attribute', attribute_eq)
+ 
++-- Plain text.
++lex:add_rule('word', lex:tag(lexer.DEFAULT, lexer.word_utf8))
++
+ -- Strings.
+ local sq_str = lexer.range("'", false, false)
+ local dq_str = lexer.range('"', false, false)
+diff --git a/lexers/yaml.lua b/lexers/yaml.lua
+index 7e5c6f21..8d4a7cdf 100644
+--- a/lexers/yaml.lua
++++ b/lexers/yaml.lua
+@@ -101,6 +101,9 @@ lex:add_rule('scalar', lex:tag(lexer.DEFAULT, block + seq + csv + map))
+ -- Directives
+ lex:add_rule('directive', lex:tag(lexer.PREPROCESSOR, lexer.starts_line(lexer.to_eol('%'))))
+ 
++-- Plain text.
++lex:add_rule('word', lex:tag(lexer.DEFAULT, lexer.word_utf8))
++
+ lexer.property['scintillua.comment'] = '#'
+ 
+ return lex
+diff --git a/tests.lua b/tests.lua
+index 05a4c8ad..ac045462 100644
+--- a/tests.lua
++++ b/tests.lua
+@@ -732,7 +732,7 @@ function test_html()
+ 	assert_default_tags(html)
+ 	local rules = {
+ 		'comment', 'doctype', 'tag', 'tag_close', 'attribute', -- 'equals',
+-		'string', 'number', 'entity'
++		'word', 'string', 'number', 'entity'
+ 	}
+ 	assert_rules(html, rules)
+ 	local tags = {
+@@ -771,7 +771,7 @@ function test_html()
+       </HEAD>
+       <bod clss = "unknown">
+       <hr tabindex=1/> &copy;
+-      <div style="float: right">
++      <div style="float: right">floating
+     </html>
+   ]]
+ 	local tag_chars = TAG .. '.chars'
+@@ -836,6 +836,7 @@ function test_html()
+ 		ATTRIBUTE, 'style', OPERATOR, '=', STRING, '"', --
+ 		'property', 'float', OPERATOR, ':', CONSTANT_BUILTIN, 'right', --
+ 		STRING, '"', tag_chars, '>', --
++		DEFAULT, 'floating', --
+ 		tag_chars, '</', TAG, 'html', tag_chars, '>'
+ 	}
+ 	assert_lex(html, code, tags)
+@@ -1332,13 +1333,13 @@ function test_markdown()
+ 	local tags = {
+ 		HEADING .. '.h1', '# header1', --
+ 		HEADING .. '.h2', '## header2', --
+-		STRING, '>', DEFAULT, 'b', DEFAULT, '1', --
+-		STRING, '>', DEFAULT, 'b', DEFAULT, '2', --
+-		DEFAULT, 'b', DEFAULT, '3', --
+-		LIST, '1. ', DEFAULT, 'l', DEFAULT, '1', --
++		STRING, '>', DEFAULT, 'b1', --
++		STRING, '>', DEFAULT, 'b2', --
++		DEFAULT, 'b3', --
++		LIST, '1. ', DEFAULT, 'l1', --
+ 		DEFAULT, '2', --
+-		LIST, '* ', DEFAULT, 'l', DEFAULT, '2', --
+-		DEFAULT, '!', DEFAULT, 'c', DEFAULT, 'o', DEFAULT, 'd', DEFAULT, 'e', --
++		LIST, '* ', DEFAULT, 'l2', --
++		DEFAULT, '!', DEFAULT, 'code', --
+ 		DEFAULT, 't', --
+ 		CODE, 'code1', --
+ 		CODE, '```\ncode2\n```\n', --
+@@ -1348,12 +1349,12 @@ function test_markdown()
+ 		'hr', '* * *\n', --
+ 		LINK, '[link](target)', LINK, '![image](target "alt_text")', REFERENCE, '[link] [1]', --
+ 		LINK, 'http://link', --
+-		DEFAULT, 't', DEFAULT, 'e', DEFAULT, 'x', DEFAULT, 't', --
++		DEFAULT, 'text', --
+ 		LINK, '<http://link>', --
+ 		REFERENCE, '[1]:', LINK, 'link#text', --
+ 		BOLD, '**strong**', --
+ 		ITALIC, '*emphasis*', --
+-		DEFAULT, '\\*', DEFAULT, 't', DEFAULT, 'e', DEFAULT, 'x', DEFAULT, 't', DEFAULT, '\\*', --
++		DEFAULT, '\\*', DEFAULT, 'text', DEFAULT, '\\*', --
+ 		TAG .. '.chars', '<', TAG, 'html', TAG .. '.chars', '>', --
+ 		TAG .. '.chars', '</', TAG, 'html', TAG .. '.chars', '>', --
+ 		CODE, '<a>'
+@@ -1439,7 +1440,7 @@ function test_yaml()
+ 		OPERATOR, ']', --
+ 		OPERATOR, '-', --
+ 		OPERATOR, '&', LABEL, 'anchor', TYPE, '!!str', --
+-		DEFAULT, 'i', DEFAULT, 't', DEFAULT, 'e', DEFAULT, 'm', --
++		DEFAULT, 'item', --
+ 		OPERATOR, '-', OPERATOR, '*', LABEL, 'anchor', --
+ 		OPERATOR, '...', COMMENT, '# document end', --
+ 		STRING, 'key', OPERATOR, ':', DEFAULT, 'value', --
