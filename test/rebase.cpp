@@ -263,12 +263,17 @@ void TestRebase::conflictingRebase() {
               "1 file(s) have conflicts. Keep one version or edit it, then "
               "stage it to mark it resolved. Finally, click Continue "
               "Rebase next to the commit message."));
-  QStringList bannerButtons;
-  for (QPushButton *button : rebaseBanner->findChildren<QPushButton *>()) {
-    if (button->isVisibleTo(rebaseBanner))
-      bannerButtons.append(button->text());
-  }
-  QCOMPARE(bannerButtons, QStringList({"Show Conflicts", "Abort Rebase"}));
+  // Buttons added to the already visible banner are shown by a queued call.
+  auto visibleButtons = [&] {
+    QStringList texts;
+    for (QPushButton *button : rebaseBanner->findChildren<QPushButton *>()) {
+      if (button->isVisibleTo(rebaseBanner))
+        texts.append(button->text());
+    }
+    return texts;
+  };
+  QTRY_COMPARE(visibleButtons(),
+               QStringList({"Show Conflicts", "Abort Rebase"}));
 
   // The one next to the commit message agrees with the banner.
   QTRY_VERIFY(!continueRebaseButton->isEnabled());
@@ -311,14 +316,6 @@ void TestRebase::conflictingRebase() {
 
   // The banner then only navigates, so there's a single Continue button.
   QTRY_VERIFY(rebaseBanner->message().contains("No conflicts left."));
-  auto visibleButtons = [&] {
-    QStringList texts;
-    for (QPushButton *button : rebaseBanner->findChildren<QPushButton *>()) {
-      if (button->isVisibleTo(rebaseBanner))
-        texts.append(button->text());
-    }
-    return texts;
-  };
   QTRY_COMPARE(visibleButtons(), QStringList({"Show Changes", "Abort Rebase"}));
 
   refreshTriggered = 0;
