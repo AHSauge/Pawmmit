@@ -16,7 +16,6 @@
 #include "languages.h"
 #include <QCoreApplication>
 #include <QDir>
-#include <QRegularExpression>
 #include <QSettings>
 #include <QStandardPaths>
 #include <stdexcept>
@@ -63,6 +62,20 @@ Settings::Settings(QObject *parent) : QObject(parent) {
   map[kTranslationLanguage] = QVariant(Languages::system);
   mDefaults[kTranslation] = map;
   mDefaults[kTranslation].toMap()[kTranslationLanguage] = Languages::system;
+
+  // Pre-cache regexp objects for lexer method
+  QVariantMap lexers(mDefaults.value("lexers").toMap());
+  for (const QString &key : lexers.keys()) {
+    QVariantMap map(lexers.value(key).toMap());
+    if (map.contains("patterns")) {
+      for (const QString &pattern :
+           map.value("patterns").toString().split(",")) {
+        QRegularExpression regExp{
+            QRegularExpression::fromWildcard(pattern, CS)};
+        mCachedRegexp[pattern] = regExp;
+      }
+    }
+  }
 }
 
 QString Settings::group() const { return mGroup.join("/"); }
@@ -133,9 +146,7 @@ QString Settings::lexer(const QString &filename) {
     if (map.contains("patterns")) {
       for (const QString &pattern :
            map.value("patterns").toString().split(",")) {
-        QRegularExpression regExp{
-            QRegularExpression::fromWildcard(pattern, CS)};
-        if (regExp.match(name).hasMatch())
+        if (mCachedRegexp.value(pattern).match(name).hasMatch())
           return key;
       }
     }
