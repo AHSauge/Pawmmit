@@ -76,6 +76,8 @@ endif
 
 test_env = environment()
 test_env.set('QT_QPA_PLATFORM', 'offscreen')
+# Without a console window, as on CI, Windows QTest logs only to the debugger.
+test_env.set('QT_FORCE_STDERR_LOGGING', '1')
 
 # Meson adds no rpath for Qt frameworks, so the tests can't load them from the
 # build directory without one.
