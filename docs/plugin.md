@@ -60,8 +60,8 @@ into account using the diff editor's current tab width.
 
 ## Lua Environment
 
-Plugins have access to the `string`, `table` and `math` libraries in
-addition to the basic functions. Other standard libraries, such as `os`
+Plugins have access to the `string`, `table`, `math` and `utf8`
+libraries in addition to the basic functions. Other standard libraries, such as `os`
 and `debug`, are not available.
 
 Files can be read with `io.lines` and `io.open`. `io.open` only accepts

@@ -39,7 +39,8 @@ void openRestrictedLibs(lua_State *L) {
   luaL_requiref(L, LUA_STRLIBNAME, luaopen_string, 1);
   luaL_requiref(L, LUA_TABLIBNAME, luaopen_table, 1);
   luaL_requiref(L, LUA_MATHLIBNAME, luaopen_math, 1);
-  lua_pop(L, 5);
+  luaL_requiref(L, LUA_UTF8LIBNAME, luaopen_utf8, 1);
+  lua_pop(L, 6);
 
   // An empty cpath leaves the C library searchers nothing to find.
   lua_getglobal(L, LUA_LOADLIBNAME);

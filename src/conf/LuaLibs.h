@@ -11,8 +11,8 @@
 
 struct lua_State;
 
-// Open base, package, string, table and math, with require() limited to Lua
-// files so that scripts can't load native code.
+// Open base, package, string, table, math and utf8, with require() limited to
+// Lua files so that scripts can't load native code.
 void openRestrictedLibs(lua_State *L);
 
 // Open an io library limited to io.lines and a read-only io.open.

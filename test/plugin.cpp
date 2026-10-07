@@ -20,6 +20,7 @@ private slots:
   void confFileNoNativeCode();
   void noNativeCode();
   void readOnlyIo();
+  void utf8Library();
   void hunk();
   void staleObject();
   void wrongObject();
@@ -94,6 +95,16 @@ void TestPlugin::readOnlyIo() {
 
   QVERIFY(data.open(QFile::ReadOnly));
   QCOMPARE(data.readAll(), QByteArray("one\ntwo\n"));
+}
+
+void TestPlugin::utf8Library() {
+  PluginRef plugin = createPlugin(R"(
+    assert(utf8.len("\u{e6}\u{f8}\u{e5}") == 3, "utf8.len failed")
+  )");
+  QVERIFY2(plugin->isValid(), qPrintable(plugin->errorString()));
+
+  TextEditor editor;
+  QVERIFY2(plugin->hunk(&editor), qPrintable(plugin->errorString()));
 }
 
 void TestPlugin::noNativeCode() {
