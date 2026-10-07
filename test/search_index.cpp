@@ -36,9 +36,12 @@ void TestSearchIndex::multiLineComment() {
   repo->index().setStaged({"main.cpp"}, true);
   QVERIFY(repo->commit("Add main", git::AnnotatedCommit()).isValid());
 
+  // Forward the indexer's errors so that failures show up in the test log.
   QProcess indexer;
+  indexer.setProcessChannelMode(QProcess::ForwardedErrorChannel);
   indexer.start(INDEXER_PATH, {repo->workdir().path()});
   QVERIFY(indexer.waitForFinished(60000));
+  QCOMPARE(indexer.exitStatus(), QProcess::NormalExit);
   QCOMPARE(indexer.exitCode(), 0);
 
   // The middle line of the block comment is only recognized as a comment

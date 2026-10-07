@@ -119,6 +119,16 @@ if _qtpaths.found()
     endif
 endif
 
+# Meson adds no rpath for Qt frameworks, so executables run from the build
+# directory can't load them without one.
+qt_build_rpath = ''
+if is_mac and _qtpaths.found()
+    _libs = run_command(_qtpaths, '--query', 'QT_INSTALL_LIBS', check: false)
+    if _libs.returncode() == 0
+        qt_build_rpath = _libs.stdout().strip()
+    endif
+endif
+
 # Install layout differs per platform. On macOS everything lands inside the
 # .app bundle.
 if is_mac

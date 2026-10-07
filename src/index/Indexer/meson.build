@@ -16,7 +16,10 @@ indexer_kwargs = {}
 if is_win
     indexer_deps += cc.find_library('dbghelp')
 elif is_mac
-    indexer_kwargs += {'install_rpath': '@loader_path/../Frameworks'}
+    indexer_kwargs += {
+        'install_rpath': '@loader_path/../Frameworks',
+        'build_rpath': qt_build_rpath,
+    }
 elif get_option('bundled')
     indexer_kwargs += {'install_rpath': '$ORIGIN'}
 endif
