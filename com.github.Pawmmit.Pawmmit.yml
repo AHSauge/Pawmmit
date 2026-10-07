@@ -101,15 +101,15 @@ modules:
       # Pre-seeds subprojects/packagecache/ since this sandbox has no network
       # mid-build; keep hashes in sync with subprojects/*.wrap.
       - type: file
-        url: https://downloads.sourceforge.net/project/scintilla/scintilla/5.6.6/scintilla566.tgz
-        sha256: b6b08598c68fac90990d010c1142494d707530602b5320753274d045c2b02189
+        url: https://downloads.sourceforge.net/project/scintilla/scintilla/5.6.7/scintilla567.tgz
+        sha256: 19e4476706750056f86ca70974810e4a5b08e73477e13f7d9fae78243606f6a7
         dest: subprojects/packagecache
-        dest-filename: scintilla566.tgz
+        dest-filename: scintilla567.tgz
       - type: file
-        url: https://github.com/ScintillaOrg/lexilla/archive/refs/tags/rel-5-5-3.tar.gz
-        sha256: b3bce10c60918da5c87a9849b12fbcac0a5f0a6e4cb2c0b6684f320f00899c47
+        url: https://github.com/ScintillaOrg/lexilla/archive/refs/tags/rel-5-5-4.tar.gz
+        sha256: a80c80b2f39db8a27ab158e3444dbeb16439f9a0ddb5eddafc5cb47cabc9c43e
         dest: subprojects/packagecache
-        dest-filename: lexilla-rel-5-5-3.tar.gz
+        dest-filename: lexilla-rel-5-5-4.tar.gz
       - type: file
         url: https://github.com/orbitalquark/scintillua/archive/refs/tags/scintillua_6.7.tar.gz
         sha256: 47fe74d86d8616779c9efc659f737de4b8bfe6dfc022692a7fdeaf7995710ae5
