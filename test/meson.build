@@ -66,6 +66,8 @@ tests = [
     'RepoViewAutoRefresh',
     'PathFilter',
     'RepoViewStaging',
+    'plugin',
+    'search_index',
 ]
 if host_machine.system() != 'windows'
     tests += 'Filter'
@@ -79,15 +81,6 @@ test_env.set('QT_QPA_PLATFORM', 'offscreen')
 # Without a console window, as on CI, Windows QTest logs only to the debugger.
 test_env.set('QT_FORCE_STDERR_LOGGING', '1')
 
-# Meson adds no rpath for Qt frameworks, so the tests can't load them from the
-# build directory without one.
-test_rpath = ''
-if host_machine.system() == 'darwin' and _qtpaths.found()
-    _libs = run_command(_qtpaths, '--query', 'QT_INSTALL_LIBS', check: false)
-    if _libs.returncode() == 0
-        test_rpath = _libs.stdout().strip()
-    endif
-endif
 
 # Every test .cpp ends with #include "<name>.moc" except this one.
 tests_without_moc = ['Diff']
@@ -103,13 +96,21 @@ foreach name : tests
             dependencies: [pawmmit_common, qt_test_dep],
         )
     endif
+    # The search index test runs the real indexer executable.
+    test_args = app_public_args
+    test_depends = [qm_files]
+    if name == 'search_index'
+        test_args += '-DINDEXER_PATH="' + indexer_exe.full_path().replace('\\', '/') + '"'
+        test_depends += indexer_exe
+    endif
+
     exe = executable(
         'test_' + name,
         sources,
-        cpp_args: app_public_args,
+        cpp_args: test_args,
         link_whole: pawmmit_module_libs,
         dependencies: [testlib_dep] + pawmmit_link_deps,
-        build_rpath: test_rpath,
+        build_rpath: qt_build_rpath,
         build_by_default: false,
     )
     suites = []
@@ -123,6 +124,6 @@ foreach name : tests
         env: test_env,
         suite: suites,
         timeout: 300,
-        depends: qm_files,
+        depends: test_depends,
     )
 endforeach

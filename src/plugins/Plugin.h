@@ -65,6 +65,7 @@ public:
   QString diagnosticDescription(const QString &key) const;
 
   bool hunk(TextEditor *editor) const;
+  quint64 generation() const { return mGeneration; }
 
   static QList<PluginRef>
   plugins(const git::Repository &repo = git::Repository());
@@ -94,6 +95,7 @@ private:
   git::Repository mRepo;
 
   lua_State *L;
+  mutable quint64 mGeneration = 0;
   QString mDir;
   QString mName;
   QString mError;

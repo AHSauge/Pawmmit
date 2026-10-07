@@ -19,6 +19,7 @@
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSpinBox>
@@ -50,11 +51,19 @@ void PluginsPanel::refresh() {
     root->setData(Name, Qt::UserRole, QVariant::fromValue(plugin));
     root->setFont(Name, bold);
 
-    // Report error message.
+    // Report error message as selectable plain text so it can be copied.
+    // Paths are shown relative to the plugin's directory to keep lines short.
     if (!plugin->isValid()) {
       QString msg = plugin->errorString();
-      QTreeWidgetItem *item = new QTreeWidgetItem(root, {msg});
+      msg.replace(plugin->scriptDir() + "/", QString());
+      msg.replace('\t', "    ");
+
+      QTreeWidgetItem *item = new QTreeWidgetItem(root);
       item->setFirstColumnSpanned(true);
+      QLabel *label = new QLabel(msg);
+      label->setTextFormat(Qt::PlainText);
+      label->setTextInteractionFlags(Qt::TextSelectableByMouse);
+      setItemWidget(item, Name, label);
       continue;
     }
 

@@ -14,6 +14,7 @@
 #define SETTINGS_H
 
 #include <QDir>
+#include <QRegularExpression>
 #include <QString>
 #include <QVariant>
 
@@ -85,6 +86,7 @@ private:
   QStringList mGroup;
   QVariantMap mDefaults;
   QVariantMap mCache;
+  QMap<QString, QRegularExpression> mCachedRegexp;
 };
 
 #endif

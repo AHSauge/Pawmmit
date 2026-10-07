@@ -404,7 +404,7 @@ QMap<Index::Field, QStringList> Index::fieldMap(const QString &prefix) const {
   return map;
 }
 
-quint8 Index::version() { return 2; }
+quint8 Index::version() { return 3; }
 
 int Index::staleLockTime() { return 24 * 60 * 60 * 1000; }
 

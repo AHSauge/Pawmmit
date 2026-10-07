@@ -12,6 +12,7 @@
 
 #include "Plugin.h"
 #include "qtsupport.h"
+#include "conf/LuaLibs.h"
 #include "conf/Settings.h"
 #include "editor/TextEditor.h"
 #include "git/Config.h"
@@ -87,44 +88,34 @@ const luaL_Reg kLexemeFuncs[] = {
     {"__eq", &lexemeEq},   {"pos", &lexemePos},        {"text", &lexemeText},
     {"kind", &lexemeKind}, {"is_kind", &lexemeIsKind}, {nullptr, nullptr}};
 
+// Hunk, Line and Lexeme objects are only valid during the hunk() call that
+// created them, which is tracked by the plugin's generation.
+struct HunkData {
+  TextEditor *editor;
+  quint64 generation;
+};
+
+struct LineData {
+  TextEditor *editor;
+  quint64 generation;
+  int line;
+};
+
+struct LexemeData {
+  TextEditor *editor;
+  quint64 generation;
+  int line;
+  int pos;
+  int len;
+  int style;
+};
+
 Plugin *plugin(lua_State *L) {
   return static_cast<Plugin *>(lua_touserdata(L, lua_upvalueindex(1)));
 }
 
-template <typename T> T member(lua_State *L, const char *member) {
-  lua_getfield(L, 1, member);
-  void *result = lua_touserdata(L, -1);
-  lua_pop(L, 1); // member
-  return static_cast<T>(result);
-}
-
-template <> int member<int>(lua_State *L, const char *member) {
-  lua_getfield(L, 1, member);
-  int result = lua_tointeger(L, -1);
-  lua_pop(L, 1); // member
-  return result;
-}
-
-template <typename T>
-void setMember(lua_State *L, const char *member, T value) {
-  lua_pushlightuserdata(L, value);
-  lua_setfield(L, -2, member);
-}
-
-template <> void setMember(lua_State *L, const char *member, int value) {
-  lua_pushinteger(L, value);
-  lua_setfield(L, -2, member);
-}
-
-template <>
-void setMember(lua_State *L, const char *member, const char *value) {
-  lua_pushstring(L, value);
-  lua_setfield(L, -2, member);
-}
-
-void createInstance(lua_State *L, Plugin *plugin, const char *name,
-                    const luaL_Reg functions[]) {
-  lua_newtable(L);
+void setMetatable(lua_State *L, Plugin *plugin, const char *name,
+                  const luaL_Reg functions[]) {
   if (luaL_newmetatable(L, name)) {
     lua_pushvalue(L, -1); // metatable
     lua_setfield(L, -2, "__index");
@@ -135,78 +126,109 @@ void createInstance(lua_State *L, Plugin *plugin, const char *name,
   lua_setmetatable(L, -2);
 }
 
-int optionsScriptDir(lua_State *L) {
-  if (lua_gettop(L) != 1 || !lua_istable(L, 1))
-    luaL_error(L, "invalid arguments");
+void createInstance(lua_State *L, Plugin *plugin, const char *name,
+                    const luaL_Reg functions[]) {
+  lua_newuserdatauv(L, 0, 0);
+  setMetatable(L, plugin, name, functions);
+}
 
+template <typename T>
+void createData(lua_State *L, Plugin *plugin, const char *name,
+                const luaL_Reg functions[], const T &data) {
+  *static_cast<T *>(lua_newuserdata(L, sizeof(T))) = data;
+  setMetatable(L, plugin, name, functions);
+}
+
+template <typename T> T *checkData(lua_State *L, const char *name) {
+  T *data = static_cast<T *>(luaL_checkudata(L, 1, name));
+  if (data->generation != plugin(L)->generation())
+    luaL_error(L, "%s used outside of the hunk() call that created it", name);
+
+  return data;
+}
+
+// Lua errors longjmp past C++ destructors, so read all arguments before
+// creating any C++ objects.
+bool optBoolean(lua_State *L, int arg, bool def) {
+  if (lua_isnoneornil(L, arg))
+    return def;
+
+  luaL_checktype(L, arg, LUA_TBOOLEAN);
+  return lua_toboolean(L, arg);
+}
+
+int optionsScriptDir(lua_State *L) {
+  luaL_checkudata(L, 1, "Options");
   lua_pushstring(L, plugin(L)->scriptDir().toUtf8());
   return 1;
 }
 
 int optionsDefineBoolean(lua_State *L) {
-  if (lua_gettop(L) != 4 || !lua_istable(L, 1) || !lua_isstring(L, 2) ||
-      !lua_isstring(L, 3) || !lua_isboolean(L, 4))
-    luaL_error(L, "invalid arguments");
-
-  plugin(L)->defineOption(lua_tostring(L, 2), Plugin::Boolean,
-                          lua_tostring(L, 3), lua_toboolean(L, 4));
+  luaL_checkudata(L, 1, "Options");
+  const char *key = luaL_checkstring(L, 2);
+  const char *text = luaL_checkstring(L, 3);
+  bool value = optBoolean(L, 4, false);
+  plugin(L)->defineOption(key, Plugin::Boolean, text, value);
 
   return 0;
 }
 
 int optionsDefineInteger(lua_State *L) {
-  if (lua_gettop(L) != 4 || !lua_istable(L, 1) || !lua_isstring(L, 2) ||
-      !lua_isstring(L, 3) || !lua_isinteger(L, 4))
-    luaL_error(L, "invalid arguments");
-
-  plugin(L)->defineOption(lua_tostring(L, 2), Plugin::Integer,
-                          lua_tostring(L, 3), lua_tointeger(L, 4));
+  luaL_checkudata(L, 1, "Options");
+  const char *key = luaL_checkstring(L, 2);
+  const char *text = luaL_checkstring(L, 3);
+  lua_Integer value = luaL_optinteger(L, 4, 0);
+  plugin(L)->defineOption(key, Plugin::Integer, text, value);
 
   return 0;
 }
 
 int optionsDefineString(lua_State *L) {
-  if (lua_gettop(L) != 4 || !lua_istable(L, 1) || !lua_isstring(L, 2) ||
-      !lua_isstring(L, 3) || !lua_isstring(L, 4))
-    luaL_error(L, "invalid arguments");
-
-  plugin(L)->defineOption(lua_tostring(L, 2), Plugin::String,
-                          lua_tostring(L, 3), lua_tostring(L, 4));
+  luaL_checkudata(L, 1, "Options");
+  const char *key = luaL_checkstring(L, 2);
+  const char *text = luaL_checkstring(L, 3);
+  const char *value = luaL_optstring(L, 4, "");
+  plugin(L)->defineOption(key, Plugin::String, text, value);
 
   return 0;
 }
 
 int optionsDefineList(lua_State *L) {
-  if (lua_gettop(L) != 5 || !lua_istable(L, 1) || !lua_isstring(L, 2) ||
-      !lua_isstring(L, 3) || !lua_istable(L, 4) || !lua_isinteger(L, 5))
-    luaL_error(L, "invalid arguments");
+  luaL_checkudata(L, 1, "Options");
+  const char *key = luaL_checkstring(L, 2);
+  const char *text = luaL_checkstring(L, 3);
+  luaL_checktype(L, 4, LUA_TTABLE);
+  lua_Integer index = luaL_optinteger(L, 5, 1);
+
+  lua_Integer count = 0;
+  while (lua_rawgeti(L, 4, count + 1) != LUA_TNIL) {
+    if (!lua_isstring(L, -1))
+      luaL_argerror(L, 4, "list of strings expected");
+
+    lua_pop(L, 1);
+    ++count;
+  }
+  lua_pop(L, 1); // nil
 
   QStringList opts;
-  for (int i = 1;; ++i) {
+  for (lua_Integer i = 1; i <= count; ++i) {
     lua_rawgeti(L, 4, i);
-    if (lua_isnil(L, -1)) {
-      lua_pop(L, 1);
-      break;
-    }
-
     opts.append(lua_tostring(L, -1));
     lua_pop(L, 1);
   }
 
-  plugin(L)->defineOption(lua_tostring(L, 2), Plugin::List, lua_tostring(L, 3),
-                          lua_tointeger(L, 5), opts);
+  plugin(L)->defineOption(key, Plugin::List, text, index, opts);
 
   return 0;
 }
 
 int optionsValue(lua_State *L) {
-  if (lua_gettop(L) != 2 || !lua_istable(L, 1) || !lua_isstring(L, 2))
-    luaL_error(L, "invalid arguments");
+  luaL_checkudata(L, 1, "Options");
+  const char *key = luaL_checkstring(L, 2);
+  if (!plugin(L)->optionKeys().contains(key))
+    luaL_error(L, "invalid option '%s'", key);
 
-  QString key = lua_tostring(L, 2);
   QVariant value = plugin(L)->optionValue(key);
-  if (!value.isValid())
-    luaL_error(L, "invalid option");
 
   switch (plugin(L)->optionKind(key)) {
     case Plugin::Boolean:
@@ -227,14 +249,13 @@ int optionsValue(lua_State *L) {
 }
 
 int defineDiagnostic(lua_State *L, Plugin::DiagnosticKind kind) {
-  if (lua_gettop(L) < 5 || lua_gettop(L) > 6 || !lua_istable(L, 1) ||
-      !lua_isstring(L, 2) || !lua_isstring(L, 3) || !lua_isstring(L, 4) ||
-      !lua_isstring(L, 5) || (lua_gettop(L) == 6 && !lua_isboolean(L, 6)))
-    luaL_error(L, "invalid arguments");
-
-  plugin(L)->defineDiagnostic(lua_tostring(L, 2), kind, lua_tostring(L, 3),
-                              lua_tostring(L, 4), lua_tostring(L, 5),
-                              (lua_gettop(L) == 6 && lua_toboolean(L, 6)));
+  luaL_checkudata(L, 1, "Kinds");
+  const char *key = luaL_checkstring(L, 2);
+  const char *name = luaL_checkstring(L, 3);
+  const char *msg = luaL_checkstring(L, 4);
+  const char *desc = luaL_checkstring(L, 5);
+  bool enabled = optBoolean(L, 6, false);
+  plugin(L)->defineDiagnostic(key, kind, name, msg, desc, enabled);
 
   return 0;
 }
@@ -250,66 +271,45 @@ int kindsDefineError(lua_State *L) {
 }
 
 int hunkLines(lua_State *L) {
-  if (lua_gettop(L) != 1 || !lua_istable(L, 1))
-    luaL_error(L, "invalid arguments");
-
-  TextEditor *editor = member<TextEditor *>(L, "_editor");
+  HunkData *hunk = checkData<HunkData>(L, "Hunk");
 
   // Create lines table.
-  int count = editor->lineCount();
+  int count = hunk->editor->lineCount();
   lua_createtable(L, count, 0);
   for (int i = 0; i < count; ++i) {
-    // index
-    lua_pushinteger(L, i + 1);
-
-    // Create line table.
-    createInstance(L, plugin(L), "Line", kLineFuncs);
-    setMember(L, "_editor", editor);
-    setMember(L, "_line", i);
-
-    // Add to hunk.
-    lua_settable(L, -3);
+    createData(L, plugin(L), "Line", kLineFuncs,
+               LineData{hunk->editor, hunk->generation, i});
+    lua_rawseti(L, -2, i + 1);
   }
 
   return 1;
 }
 
 int hunkLexer(lua_State *L) {
-  if (lua_gettop(L) != 1 || !lua_istable(L, 1))
-    luaL_error(L, "invalid arguments");
-
-  lua_pushstring(L, member<TextEditor *>(L, "_editor")->lexer().toUtf8());
+  HunkData *hunk = checkData<HunkData>(L, "Hunk");
+  lua_pushstring(L, hunk->editor->lexer().toUtf8());
   return 1;
 }
 
 int hunkTabWidth(lua_State *L) {
-  if (lua_gettop(L) != 1 || !lua_istable(L, 1))
-    luaL_error(L, "invalid arguments");
-
-  lua_pushinteger(L, member<TextEditor *>(L, "_editor")->tabWidth());
+  HunkData *hunk = checkData<HunkData>(L, "Hunk");
+  lua_pushinteger(L, hunk->editor->tabWidth());
   return 1;
 }
 
 int lineText(lua_State *L) {
-  if (lua_gettop(L) != 1 || !lua_istable(L, 1))
-    luaL_error(L, "invalid arguments");
-
-  TextEditor *editor = member<TextEditor *>(L, "_editor");
-  int line = member<int>(L, "_line");
-
-  lua_pushstring(L, editor->getLine(line));
+  LineData *line = checkData<LineData>(L, "Line");
+  QByteArray text = line->editor->getLine(line->line);
+  lua_pushlstring(L, text.constData(), text.size());
   return 1;
 }
 
 int lineOrigin(lua_State *L) {
-  if (lua_gettop(L) != 1 || !lua_istable(L, 1))
-    luaL_error(L, "invalid arguments");
-
-  TextEditor *editor = member<TextEditor *>(L, "_editor");
-  int line = member<int>(L, "_line");
+  LineData *line = checkData<LineData>(L, "Line");
+  TextEditor *editor = line->editor;
 
   QByteArray marker = " ";
-  int markers = editor->markerGet(line);
+  int markers = editor->markerGet(line->line);
   if (markers & (1 << TextEditor::Addition)) {
     marker = "+";
   } else if (markers & (1 << TextEditor::Deletion)) {
@@ -320,32 +320,22 @@ int lineOrigin(lua_State *L) {
   return 1;
 }
 
-void addLexeme(lua_State *L, Plugin *plugin, int index, TextEditor *editor,
-               int pos, int style, const QByteArray &text) {
-  // index
-  lua_pushinteger(L, index);
-
-  // Create lexeme table.
-  createInstance(L, plugin, "Lexeme", kLexemeFuncs);
-  setMember(L, "_editor", editor);
-  setMember(L, "_pos", pos + 1);
-  setMember(L, "_style", style);
-  setMember(L, "_text", text.constData());
-
-  lua_settable(L, -3);
+void addLexeme(lua_State *L, const LineData *line, int index, int pos, int len,
+               int style) {
+  createData(
+      L, plugin(L), "Lexeme", kLexemeFuncs,
+      LexemeData{line->editor, line->generation, line->line, pos, len, style});
+  lua_rawseti(L, -2, index);
 }
 
 int lineLexemes(lua_State *L) {
-  if (lua_gettop(L) != 1 || !lua_istable(L, 1))
-    luaL_error(L, "invalid arguments");
-
-  TextEditor *editor = member<TextEditor *>(L, "_editor");
-  int line = member<int>(L, "_line");
+  LineData *line = checkData<LineData>(L, "Line");
+  TextEditor *editor = line->editor;
 
   // Create lexemes table.
   lua_newtable(L);
-  int max = editor->lineEndPosition(line);
-  int pos = editor->positionFromLine(line);
+  int max = editor->lineEndPosition(line->line);
+  int pos = editor->positionFromLine(line->line);
   if (pos == max)
     return 1;
 
@@ -355,106 +345,83 @@ int lineLexemes(lua_State *L) {
     editor->colourise(endStyled, max);
 
   int count = 0;
-  int current = 0;
-  QByteArray text(1, editor->charAt(pos));
+  int start = pos;
   int style = editor->styleAt(pos);
   for (int i = pos + 1; i < max; ++i) {
     int nextStyle = editor->styleAt(i);
     if (nextStyle != style) {
-      addLexeme(L, plugin(L), ++count, editor, current, style, text);
-      current = i - pos;
+      addLexeme(L, line, ++count, start - pos, i - start, style);
+      start = i;
       style = nextStyle;
-      text = QByteArray();
     }
-
-    text.append(editor->charAt(i));
   }
 
-  addLexeme(L, plugin(L), ++count, editor, current, style, text);
+  addLexeme(L, line, ++count, start - pos, max - start, style);
 
   return 1;
 }
 
 int lineAddError(lua_State *L) {
-  if (lua_gettop(L) < 4 || lua_gettop(L) > 5 || !lua_istable(L, 1) ||
-      !lua_isstring(L, 2) || !lua_isinteger(L, 3) || !lua_isinteger(L, 4) ||
-      (lua_gettop(L) == 5 && !lua_isstring(L, 5)))
-    luaL_error(L, "invalid arguments");
+  LineData *data = checkData<LineData>(L, "Line");
+  TextEditor *editor = data->editor;
+  int line = data->line;
+  const char *keyArg = luaL_checkstring(L, 2);
+  int pos = luaL_checkinteger(L, 3) - 1;
+  int len = luaL_checkinteger(L, 4);
+  const char *replacementArg = luaL_optstring(L, 5, nullptr);
+  QString key = keyArg;
+  QString replacement = replacementArg;
 
   // Check if this error is enabled.
-  QString key = lua_tostring(L, 2);
   if (!plugin(L)->isEnabled(key))
     return 0;
 
-  TextEditor *editor = member<TextEditor *>(L, "_editor");
-  int line = member<int>(L, "_line");
-
   // Add diagnostic.
-  int len = lua_tointeger(L, 4);
-  int pos = lua_tointeger(L, 3) - 1;
   QString msg = plugin(L)->diagnosticMessage(key);
   QString desc = plugin(L)->diagnosticDescription(key);
   TextEditor::DiagnosticKind kind =
       static_cast<TextEditor::DiagnosticKind>(plugin(L)->diagnosticKind(key));
-  QString replacement = (lua_gettop(L) == 5) ? lua_tostring(L, 5) : QString();
   editor->addDiagnostic(line, {kind, msg, desc, {pos, len}, replacement});
 
   return 0;
 }
 
 int lineColumn(lua_State *L) {
-  if (lua_gettop(L) != 2 || !lua_istable(L, 1) || !lua_isinteger(L, 2))
-    luaL_error(L, "invalid arguments");
+  LineData *line = checkData<LineData>(L, "Line");
+  TextEditor *editor = line->editor;
 
-  TextEditor *editor = member<TextEditor *>(L, "_editor");
-  int line = member<int>(L, "_line");
-
-  int pos = editor->positionFromLine(line) + lua_tointeger(L, 2) - 1;
+  int pos = editor->positionFromLine(line->line) + luaL_checkinteger(L, 2) - 1;
   lua_pushinteger(L, editor->column(pos) + 1);
   return 1;
 }
 
 int lineColumnPos(lua_State *L) {
-  if (lua_gettop(L) != 2 || !lua_istable(L, 1) || !lua_isinteger(L, 2))
-    luaL_error(L, "invalid arguments");
+  LineData *line = checkData<LineData>(L, "Line");
+  TextEditor *editor = line->editor;
 
-  TextEditor *editor = member<TextEditor *>(L, "_editor");
-  int line = member<int>(L, "_line");
-
-  int pos = editor->findColumn(line, lua_tointeger(L, 2) - 1);
-  lua_pushinteger(L, pos - editor->positionFromLine(line) + 1);
+  int pos = editor->findColumn(line->line, luaL_checkinteger(L, 2) - 1);
+  lua_pushinteger(L, pos - editor->positionFromLine(line->line) + 1);
   return 1;
 }
 
 int lexemeEq(lua_State *L) {
-  if (lua_gettop(L) != 2 || !lua_istable(L, 1) || !lua_istable(L, 2))
-    luaL_error(L, "invalid arguments");
-
-  lua_getfield(L, 1, "_pos");
-  int lhs = lua_tointeger(L, -1);
-  lua_pop(L, 1); // lhs
-
-  lua_getfield(L, 2, "_pos");
-  int rhs = lua_tointeger(L, -1);
-  lua_pop(L, 1); // rhs
-
-  lua_pushboolean(L, lhs == rhs);
+  auto *lhs = static_cast<LexemeData *>(luaL_testudata(L, 1, "Lexeme"));
+  auto *rhs = static_cast<LexemeData *>(luaL_testudata(L, 2, "Lexeme"));
+  lua_pushboolean(L,
+                  lhs && rhs && lhs->line == rhs->line && lhs->pos == rhs->pos);
   return 1;
 }
 
 int lexemePos(lua_State *L) {
-  if (lua_gettop(L) != 1 || !lua_istable(L, 1))
-    luaL_error(L, "invalid arguments");
-
-  lua_getfield(L, 1, "_pos");
+  lua_pushinteger(L, checkData<LexemeData>(L, "Lexeme")->pos + 1);
   return 1;
 }
 
 int lexemeText(lua_State *L) {
-  if (lua_gettop(L) != 1 || !lua_istable(L, 1))
-    luaL_error(L, "invalid arguments");
-
-  lua_getfield(L, 1, "_text");
+  LexemeData *lexeme = checkData<LexemeData>(L, "Lexeme");
+  QByteArray text =
+      lexeme->editor->getLine(lexeme->line).mid(lexeme->pos, lexeme->len);
+  lua_pushlstring(L, text.constData(), text.size());
   return 1;
 }
 
@@ -467,25 +434,36 @@ QByteArray kind(TextEditor *editor, int style) {
 }
 
 int lexemeKind(lua_State *L) {
-  if (lua_gettop(L) != 1 || !lua_istable(L, 1))
-    luaL_error(L, "invalid arguments");
-
-  TextEditor *editor = member<TextEditor *>(L, "_editor");
-  int style = member<int>(L, "_style");
-
-  lua_pushstring(L, kind(editor, style));
+  LexemeData *lexeme = checkData<LexemeData>(L, "Lexeme");
+  lua_pushstring(L, kind(lexeme->editor, lexeme->style));
   return 1;
 }
 
 int lexemeIsKind(lua_State *L) {
-  if (lua_gettop(L) != 2 || !lua_istable(L, 1) || !lua_isstring(L, 2))
-    luaL_error(L, "invalid arguments");
-
-  TextEditor *editor = member<TextEditor *>(L, "_editor");
-  int style = member<int>(L, "_style");
-
-  lua_pushboolean(L, kind(editor, style) == QByteArray(lua_tostring(L, 2)));
+  LexemeData *lexeme = checkData<LexemeData>(L, "Lexeme");
+  const char *name = luaL_checkstring(L, 2);
+  lua_pushboolean(L, kind(lexeme->editor, lexeme->style) == name);
   return 1;
+}
+
+int traceback(lua_State *L) {
+  const char *msg = lua_tostring(L, 1);
+  if (!msg)
+    msg =
+        lua_pushfstring(L, "(error object is a %s value)", luaL_typename(L, 1));
+
+  luaL_traceback(L, L, msg, 1);
+  return 1;
+}
+
+// Call the function below nargs arguments, adding a traceback to any error.
+int pcall(lua_State *L, int nargs) {
+  int base = lua_gettop(L) - nargs;
+  lua_pushcfunction(L, &traceback);
+  lua_insert(L, base);
+  int status = lua_pcall(L, nargs, 0, base);
+  lua_remove(L, base);
+  return status;
 }
 
 } // namespace
@@ -502,8 +480,9 @@ Plugin::Plugin(const QString &file, const git::Repository &repo,
     QTextStream(stderr) << "plugin error: " << msg << Qt::endl;
   });
 
-  // Load libraries.
-  luaL_openlibs(L);
+  // Load a limited set of libraries
+  openRestrictedLibs(L);
+  openReadOnlyIo(L);
 
   // Add script dir to path.
   lua_getglobal(L, "package");
@@ -515,7 +494,7 @@ Plugin::Plugin(const QString &file, const git::Repository &repo,
   lua_pop(L, 1); // package
 
   // Load script.
-  if (luaL_dofile(L, file.toLocal8Bit())) {
+  if (luaL_loadfile(L, file.toLocal8Bit()) || pcall(L, 0)) {
     setError(lua_tostring(L, -1));
     return;
   }
@@ -526,7 +505,7 @@ Plugin::Plugin(const QString &file, const git::Repository &repo,
     createInstance(L, this, "Options", kOptionsFuncs);
 
     // Call options.
-    if (lua_pcall(L, 1, 0, 0)) {
+    if (pcall(L, 1)) {
       setError(lua_tostring(L, -1));
       return;
     }
@@ -546,7 +525,7 @@ Plugin::Plugin(const QString &file, const git::Repository &repo,
   createInstance(L, this, "Options", kOptionsFuncs);
 
   // Call kinds.
-  if (lua_pcall(L, 2, 0, 0))
+  if (pcall(L, 2))
     setError(lua_tostring(L, -1));
 }
 
@@ -669,15 +648,17 @@ bool Plugin::hunk(TextEditor *editor) const {
     return false;
   }
 
-  // Create hunk table.
-  createInstance(L, const_cast<Plugin *>(this), "Hunk", kHunkFuncs);
-  setMember(L, "_editor", editor);
+  // Create hunk object.
+  createData(L, const_cast<Plugin *>(this), "Hunk", kHunkFuncs,
+             HunkData{editor, mGeneration});
 
   // Create options table.
   createInstance(L, const_cast<Plugin *>(this), "Options", kOptionsFuncs);
 
-  // Call hunk function.
-  if (lua_pcall(L, 2, 0, 0)) {
+  // Call hunk function, then invalidate the objects it was given.
+  bool failed = pcall(L, 2);
+  ++mGeneration;
+  if (failed) {
     const_cast<Plugin *>(this)->setError(lua_tostring(L, -1));
     return false;
   }

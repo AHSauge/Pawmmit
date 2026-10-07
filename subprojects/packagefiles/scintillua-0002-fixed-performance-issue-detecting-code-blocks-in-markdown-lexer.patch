@@ -1,0 +1,34 @@
+From 9c595777f6342afb172f0a9cb2dc41795fb66b76 Mon Sep 17 00:00:00 2001
+From: orbitalquark <70453897+orbitalquark@users.noreply.github.com>
+Date: Sat, 30 May 2026 10:12:28 -0400
+Subject: [PATCH] Fixed performance issue detecting code blocks in Markdown
+ lexer.
+
+Only run the function pattern if the line starts with 4 spaces or a tab, instead of running the
+pattern after detecting indentation and then checking if it starts on a new line.
+---
+ lexers/markdown.lua | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/lexers/markdown.lua b/lexers/markdown.lua
+index aee57506..fec64eab 100644
+--- a/lexers/markdown.lua
++++ b/lexers/markdown.lua
+@@ -29,7 +29,7 @@ lex:add_rule('list', lex:tag(lexer.LIST,
+ local hspace = lexer.space - '\n'
+ local blank_line = '\n' * hspace^0 * ('\n' + P(-1))
+ 
+-local code_line = lexer.starts_line((B('    ') + B('\t')) * lpeg.P(function(input, index)
++local code_line = lexer.starts_line((B('    ') + B('\t')), true) * lpeg.P(function(input, index)
+ 	-- Backtrack to the start of the current paragraph, which is either after a blank line,
+ 	-- at the start of a higher level of indentation, or at the start of the buffer.
+ 	local line, blank_line = lexer.line_from_position(index), false
+@@ -62,7 +62,7 @@ local code_line = lexer.starts_line((B('    ') + B('\t')) * lpeg.P(function(inpu
+ 	if text:find('^%d+%.[ \t]') then return false end
+ 
+ 	return true -- if all else fails, it is probably a code block
+-end) * lexer.to_eol(), true)
++end) * lexer.to_eol()
+ 
+ local code_block = lexer.range(lexer.starts_line('```', true),
+ 	'\n' * hspace^0 * '```' * hspace^0 * ('\n' + P(-1))) +

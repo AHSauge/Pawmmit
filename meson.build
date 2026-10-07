@@ -5,13 +5,15 @@ project(
     meson_version: '>= 1.3',
     # buildtype=release alone doesn't define NDEBUG, but confDir()/l10nDir()
     # need it to prefer installed paths. The fallback Lua would otherwise be a
-    # shared library that no packaging step bundles.
+    # shared library that no packaging step bundles. Lua errors unwind through
+    # extern "C" functions, which MSVC's default /EHsc assumes never throw.
     default_options: [
         'cpp_std=c++17',
         'c_std=c99',
         'warning_level=1',
         'b_ndebug=if-release',
         'lua:default_library=static',
+        'cpp_eh=s',
     ],
 )
 
@@ -100,7 +102,7 @@ endif
 
 libssh2_dep = dependency('libssh2')
 lpeg_dep = dependency('lpeg')
-lua_dep = dependency('lua', version: '>=5.3')
+lua_dep = dependency('lua', version: '>=5.4')
 scintilla_dep = dependency('scintilla')
 scintillua_dep = dependency('scintillua')
 qt_modules = ['Core', 'Concurrent', 'Core5Compat', 'Gui', 'Network', 'Widgets']
@@ -116,6 +118,16 @@ if _qtpaths.found()
     _r = run_command(_qtpaths, '--query', 'QT_INSTALL_TRANSLATIONS', check: false)
     if _r.returncode() == 0 and _r.stdout().strip() != ''
         qt_translations_dir = _r.stdout().strip()
+    endif
+endif
+
+# Meson adds no rpath for Qt frameworks, so executables run from the build
+# directory can't load them without one.
+qt_build_rpath = ''
+if is_mac and _qtpaths.found()
+    _libs = run_command(_qtpaths, '--query', 'QT_INSTALL_LIBS', check: false)
+    if _libs.returncode() == 0
+        qt_build_rpath = _libs.stdout().strip()
     endif
 endif
 

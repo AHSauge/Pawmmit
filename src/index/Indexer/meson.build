@@ -16,14 +16,17 @@ indexer_kwargs = {}
 if is_win
     indexer_deps += cc.find_library('dbghelp')
 elif is_mac
-    indexer_kwargs += {'install_rpath': '@loader_path/../Frameworks'}
+    indexer_kwargs += {
+        'install_rpath': '@loader_path/../Frameworks',
+        'build_rpath': qt_build_rpath,
+    }
 elif get_option('bundled')
     indexer_kwargs += {'install_rpath': '$ORIGIN'}
 endif
 
 # Installed next to the main executable on every platform (Contents/MacOS on
 # macOS) - the app spawns it as a sibling.
-executable(
+indexer_exe = executable(
     'pawmmit-indexer',
     indexer_src,
     cpp_args: ['-DPAWMMIT_VERSION="' + meson.project_version() + '"'],

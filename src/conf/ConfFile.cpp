@@ -11,6 +11,8 @@
 //
 
 #include "ConfFile.h"
+#include "LuaLibs.h"
+#include <QDebug>
 #include <QFileInfo>
 
 extern "C" {
@@ -39,7 +41,7 @@ QVariantMap table(lua_State *L) {
     QString key;
     if (lua_isinteger(L, -2)) {
       key = QString::number(lua_tointeger(L, -2));
-    } else if (lua_isstring(L, -2)) {
+    } else if (lua_type(L, -2) == LUA_TSTRING) {
       key = lua_tostring(L, -2);
     }
 
@@ -94,7 +96,7 @@ QVariantMap ConfFile::parse(const QString &name) {
 
   // Create the lua state.
   lua_State *L = luaL_newstate();
-  luaL_openlibs(L);
+  openRestrictedLibs(L);
 
   // Prepend this script's directory to the package path.
   lua_getglobal(L, "package");
@@ -129,15 +131,21 @@ QVariantMap ConfFile::parse(const QString &name) {
     failed = luaL_dofile(L, localName);
   }
 
-  if (failed)
-    lua_error(L);
+  if (failed) {
+    qWarning() << "Error loading" << (mFilename.isEmpty() ? canPath : mFilename)
+               << ":" << lua_tostring(L, -1);
+    lua_close(L);
+    return QVariantMap();
+  }
 
   // Push global table.
   if (!tableName.isEmpty())
     lua_getglobal(L, tableName);
 
   // The script returned a single table.
-  QVariantMap map = table(L);
+  QVariantMap map;
+  if (lua_gettop(L) > 0 && lua_istable(L, -1))
+    map = table(L);
   lua_close(L);
 
   return map;
