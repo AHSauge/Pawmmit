@@ -5,13 +5,15 @@ project(
     meson_version: '>= 1.3',
     # buildtype=release alone doesn't define NDEBUG, but confDir()/l10nDir()
     # need it to prefer installed paths. The fallback Lua would otherwise be a
-    # shared library that no packaging step bundles.
+    # shared library that no packaging step bundles. Lua errors unwind through
+    # extern "C" functions, which MSVC's default /EHsc assumes never throw.
     default_options: [
         'cpp_std=c++17',
         'c_std=c99',
         'warning_level=1',
         'b_ndebug=if-release',
         'lua:default_library=static',
+        'cpp_eh=s',
     ],
 )
 

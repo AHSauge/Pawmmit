@@ -147,6 +147,8 @@ template <typename T> T *checkData(lua_State *L, const char *name) {
   return data;
 }
 
+// Lua errors longjmp past C++ destructors, so read all arguments before
+// creating any C++ objects.
 bool optBoolean(lua_State *L, int arg, bool def) {
   if (lua_isnoneornil(L, arg))
     return def;
@@ -165,7 +167,8 @@ int optionsDefineBoolean(lua_State *L) {
   luaL_checkudata(L, 1, "Options");
   const char *key = luaL_checkstring(L, 2);
   const char *text = luaL_checkstring(L, 3);
-  plugin(L)->defineOption(key, Plugin::Boolean, text, optBoolean(L, 4, false));
+  bool value = optBoolean(L, 4, false);
+  plugin(L)->defineOption(key, Plugin::Boolean, text, value);
 
   return 0;
 }
@@ -174,7 +177,8 @@ int optionsDefineInteger(lua_State *L) {
   luaL_checkudata(L, 1, "Options");
   const char *key = luaL_checkstring(L, 2);
   const char *text = luaL_checkstring(L, 3);
-  plugin(L)->defineOption(key, Plugin::Integer, text, luaL_optinteger(L, 4, 0));
+  lua_Integer value = luaL_optinteger(L, 4, 0);
+  plugin(L)->defineOption(key, Plugin::Integer, text, value);
 
   return 0;
 }
@@ -183,7 +187,8 @@ int optionsDefineString(lua_State *L) {
   luaL_checkudata(L, 1, "Options");
   const char *key = luaL_checkstring(L, 2);
   const char *text = luaL_checkstring(L, 3);
-  plugin(L)->defineOption(key, Plugin::String, text, luaL_optstring(L, 4, ""));
+  const char *value = luaL_optstring(L, 4, "");
+  plugin(L)->defineOption(key, Plugin::String, text, value);
 
   return 0;
 }
@@ -195,17 +200,19 @@ int optionsDefineList(lua_State *L) {
   luaL_checktype(L, 4, LUA_TTABLE);
   lua_Integer index = luaL_optinteger(L, 5, 1);
 
-  QStringList opts;
-  for (int i = 1;; ++i) {
-    lua_rawgeti(L, 4, i);
-    if (lua_isnil(L, -1)) {
-      lua_pop(L, 1);
-      break;
-    }
-
+  lua_Integer count = 0;
+  while (lua_rawgeti(L, 4, count + 1) != LUA_TNIL) {
     if (!lua_isstring(L, -1))
       luaL_argerror(L, 4, "list of strings expected");
 
+    lua_pop(L, 1);
+    ++count;
+  }
+  lua_pop(L, 1); // nil
+
+  QStringList opts;
+  for (lua_Integer i = 1; i <= count; ++i) {
+    lua_rawgeti(L, 4, i);
     opts.append(lua_tostring(L, -1));
     lua_pop(L, 1);
   }
@@ -247,8 +254,8 @@ int defineDiagnostic(lua_State *L, Plugin::DiagnosticKind kind) {
   const char *name = luaL_checkstring(L, 3);
   const char *msg = luaL_checkstring(L, 4);
   const char *desc = luaL_checkstring(L, 5);
-  plugin(L)->defineDiagnostic(key, kind, name, msg, desc,
-                              optBoolean(L, 6, false));
+  bool enabled = optBoolean(L, 6, false);
+  plugin(L)->defineDiagnostic(key, kind, name, msg, desc, enabled);
 
   return 0;
 }
@@ -358,10 +365,12 @@ int lineAddError(lua_State *L) {
   LineData *data = checkData<LineData>(L, "Line");
   TextEditor *editor = data->editor;
   int line = data->line;
-  QString key = luaL_checkstring(L, 2);
+  const char *keyArg = luaL_checkstring(L, 2);
   int pos = luaL_checkinteger(L, 3) - 1;
   int len = luaL_checkinteger(L, 4);
-  QString replacement = luaL_optstring(L, 5, nullptr);
+  const char *replacementArg = luaL_optstring(L, 5, nullptr);
+  QString key = keyArg;
+  QString replacement = replacementArg;
 
   // Check if this error is enabled.
   if (!plugin(L)->isEnabled(key))
@@ -432,8 +441,8 @@ int lexemeKind(lua_State *L) {
 
 int lexemeIsKind(lua_State *L) {
   LexemeData *lexeme = checkData<LexemeData>(L, "Lexeme");
-  lua_pushboolean(L, kind(lexeme->editor, lexeme->style) ==
-                         QByteArray(luaL_checkstring(L, 2)));
+  const char *name = luaL_checkstring(L, 2);
+  lua_pushboolean(L, kind(lexeme->editor, lexeme->style) == name);
   return 1;
 }
 
