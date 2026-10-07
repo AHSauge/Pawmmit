@@ -1,8 +1,8 @@
 [wrap-file]
 directory = scintilla
-source_url = https://downloads.sourceforge.net/project/scintilla/scintilla/5.6.6/scintilla566.tgz
-source_filename = scintilla566.tgz
-source_hash = b6b08598c68fac90990d010c1142494d707530602b5320753274d045c2b02189
+source_url = https://downloads.sourceforge.net/project/scintilla/scintilla/5.6.7/scintilla567.tgz
+source_filename = scintilla567.tgz
+source_hash = 19e4476706750056f86ca70974810e4a5b08e73477e13f7d9fae78243606f6a7
 patch_directory = scintilla
 
 [provide]

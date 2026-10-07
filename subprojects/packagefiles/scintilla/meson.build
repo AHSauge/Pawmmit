@@ -1,8 +1,17 @@
 project(
     'scintilla',
     'cpp',
-    version: '5.6.6',
+    version: '5.6.7',
     default_options: ['cpp_std=c++17'],
+)
+
+# ScintillaEdit.{h,cpp} ship only as templates; WidgetGen.py fills them in and must run from its own directory.
+run_command(
+    import('python').find_installation(),
+    '-c',
+    'import os, runpy, sys; os.chdir(sys.argv[1]); runpy.run_path("WidgetGen.py", run_name="__main__")',
+    meson.current_source_dir() / 'qt' / 'ScintillaEdit',
+    check: true,
 )
 
 qt6 = import('qt6')
