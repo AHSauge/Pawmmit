@@ -13,7 +13,8 @@
 
 extern "C" {
 #include <lua.h>
-}
+#include <lauxlib.h>
+#include <lualib.h>
 
 #if LUA_VERSION_NUM < 504
 // Backport changes needed to support Lua 5.3
@@ -27,4 +28,17 @@ inline void *lua_newuserdatauv(lua_State *L, size_t sz, int nuv) {
 
 #endif
 
+#if LUA_VERSION_NUM == 501
+// Compatibility with LuaJIT
+#include <luajit.h>
+#include <compat-5.3.h>
+
+#define LUA_LOADED_TABLE "_LOADED"
+#define LUA_UTF8LIBNAME "utf8"
+#define luaopen_utf8 luaopen_compat53_utf8
+
+extern int luaopen_utf8(lua_State *L);
+
+#endif
+}
 #endif
