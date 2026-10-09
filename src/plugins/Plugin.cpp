@@ -21,6 +21,7 @@
 
 #include <stdexcept>
 
+#include "conf/LuaCompat.h"
 extern "C" {
 #include "lua.h"
 #include "lauxlib.h"

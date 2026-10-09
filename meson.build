@@ -104,8 +104,23 @@ else
 endif
 
 libssh2_dep = dependency('libssh2')
+
+#Find system installed Lua on a wider range of distros
+lua_dep = dependency(
+    'lua-5.5',
+    'lua-5.4',
+    'lua-5.3',
+    version: '>=5.3',
+    required: false,
+    allow_fallback: false,
+)
+if lua_dep.found()
+    meson.override_dependency('lua', lua_dep)
+else
+    lua_dep = dependency('lua', version: '>=5.3')
+endif
 lpeg_dep = dependency('lpeg')
-lua_dep = dependency('lua', version: '>=5.4')
+
 scintilla_dep = dependency('scintilla')
 scintillua_dep = dependency('scintillua')
 qt_modules = ['Core', 'Concurrent', 'Core5Compat', 'Gui', 'Network', 'Widgets']
