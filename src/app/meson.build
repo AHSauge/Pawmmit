@@ -104,7 +104,6 @@ pawmmit_module_libs = [
     cred_lib,
     git_lib,
     loglib_lib,
-    cli_lib,
     pawmmitUtil_lib,
     translation_lib,
     platform_lib,

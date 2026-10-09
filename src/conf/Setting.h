@@ -50,8 +50,6 @@ public:
     AutoCollapseDeletedFiles,
     FilemanagerCommand,
     TerminalCommand,
-    TerminalName,
-    TerminalPath,
     AllowSingleInstanceOnly,
     CheckForUpdatesAutomatically,
     InstallUpdatesAutomatically,
