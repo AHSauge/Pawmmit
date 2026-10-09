@@ -153,17 +153,6 @@ elif not is_win and get_option('bundled')
     exe_kwargs += {'install_rpath': '$ORIGIN'}
 endif
 
-pawmmit_exe = executable(
-    'pawmmit',
-    exe_sources,
-    cpp_args: app_public_args,
-    link_whole: pawmmit_module_libs,
-    link_depends: doc_html,
-    install: true,
-    install_dir: app_bindir,
-    kwargs: exe_kwargs,
-)
-
 # macOS bundle scaffolding: Info.plist + icon inside pawmmit.app/Contents.
 if is_mac
     plist_conf = configuration_data()

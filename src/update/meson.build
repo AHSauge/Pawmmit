@@ -1,8 +1,8 @@
 update_moc = qt6.preprocess(
     moc_headers: files(
         'DownloadDialog.h',
-        'UpdateDialog.h',
         'UpToDateDialog.h',
+        'UpdateDialog.h',
         'Updater.h',
     ),
     dependencies: [qt6_dep, pawmmit_common],
@@ -10,12 +10,19 @@ update_moc = qt6.preprocess(
 
 update_src = files(
     'DownloadDialog.cpp',
+    'UpToDateDialog.cpp',
     'UpdateDialog.cpp',
     'Updater.cpp',
-    'UpToDateDialog.cpp',
 )
 
-update_deps = [pawmmit_common, pawmmitUtil_dep, conf_dep, git_dep, cmark_dep, platform_dep]
+update_deps = [
+    pawmmit_common,
+    pawmmitUtil_dep,
+    conf_dep,
+    git_dep,
+    cmark_dep,
+    platform_dep,
+]
 
 if is_mac
     update_src += files('Updater_mac.mm')
@@ -43,12 +50,3 @@ if is_mac
 elif not is_win and get_option('bundled')
     relauncher_kwargs += {'install_rpath': '$ORIGIN'}
 endif
-
-executable(
-    'pawmmit-relauncher',
-    'relauncher.cpp',
-    dependencies: dependency('qt6', modules: ['Core']),
-    install: true,
-    install_dir: app_bindir,
-    kwargs: relauncher_kwargs,
-)

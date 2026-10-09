@@ -94,7 +94,10 @@ lexilla_dep = dependency('lexilla')
 # CMake's own exported target, which libgit2 names libgit2::libgit2package.
 if is_win
     libgit2_dep = dependency(
-        'libgit2', version: '>=1.9', method: 'cmake', modules: ['libgit2::libgit2package'],
+        'libgit2',
+        version: '>=1.9',
+        method: 'cmake',
+        modules: ['libgit2::libgit2package'],
     )
 else
     libgit2_dep = dependency('libgit2', version: '>=1.9')
@@ -168,13 +171,23 @@ endif
 python = find_program('python3', 'python')
 
 version_config = configuration_data()
-version_config.set('CURR_YEAR',
-    run_command(python, '-c', 'import datetime; print(datetime.date.today().year)', check: true).stdout().strip())
+version_config.set(
+    'CURR_YEAR',
+    run_command(
+        python,
+        '-c', 'import datetime; print(datetime.date.today().year)',
+        check: true,
+    ).stdout().strip(),
+)
 version_config.set_quoted('PAWMMIT_BUILD_REVISION', build_revision)
-version_config.set_quoted('PAWMMIT_BUILD_DATE',
-    run_command(python, '-c',
-        'import datetime; print(datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))',
-        check: true).stdout().strip())
+version_config.set_quoted(
+    'PAWMMIT_BUILD_DATE',
+    run_command(
+        python,
+        '-c', 'import datetime; print(datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))',
+        check: true,
+    ).stdout().strip(),
+)
 
 version_h = configure_file(output: 'version.h', configuration: version_config)
 version_dep = declare_dependency(
@@ -192,6 +205,41 @@ configure_file(
 subdir('l10n')
 subdir('src')
 subdir('pack')
+
+#Place all the installable executables in the root build directory
+# This is both more conventient for development and also makes
+# the location representative compared to the installation
+executable(
+    'pawmmit',
+    exe_sources,
+    cpp_args: app_public_args,
+    link_whole: pawmmit_module_libs,
+    link_depends: doc_html,
+    install: true,
+    install_dir: app_bindir,
+    kwargs: exe_kwargs,
+)
+
+# Installed next to the main executable on every platform (Contents/MacOS on
+# macOS) - the app spawns it as a sibling.
+indexer_exe = executable(
+    'pawmmit-indexer',
+    indexer_src,
+    cpp_args: ['-DPAWMMIT_VERSION="' + meson.project_version() + '"'],
+    dependencies: indexer_deps,
+    install: true,
+    install_dir: app_bindir,
+    kwargs: indexer_kwargs,
+)
+
+executable(
+    'pawmmit-relauncher',
+    'src/update/relauncher.cpp',
+    dependencies: dependency('qt6', modules: ['Core']),
+    install: true,
+    install_dir: app_bindir,
+    kwargs: relauncher_kwargs,
+)
 
 if get_option('tests')
     subdir('test')
