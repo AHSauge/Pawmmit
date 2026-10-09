@@ -373,6 +373,68 @@ jobs:
 
   # Runs the packaged app on a fresh runner that never had Qt or the build
   # dependencies installed, so anything the package failed to bundle is missing.
+  # Builds against the oldest supported library versions, all from the system
+  # except Qt; nofallback makes a missing package fail instead of using a wrap.
+  build-minimum:
+    name: Build (minimum versions)
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Set git identity (tests create commits)
+        run: |
+          git config --global user.name "CI"
+          git config --global user.email "ci@example.com"
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install build tools
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install "meson==1.3.0" ninja
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4.3.0
+        timeout-minutes: 10
+        with:
+          version: 6.7.3
+          target: desktop
+          host: linux
+          arch: linux_gcc_64
+          install-deps: true
+          modules: qt5compat
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config xvfb appstream libgit2-dev \
+            libssh2-1-dev libhunspell-dev libcmark-dev cmark liblua5.3-dev
+
+      - name: Configure
+        run: |
+          meson setup build \
+            -Dci_tests=true \
+            --wrap-mode=nofallback \
+            --force-fallback-for=lexilla,scintilla,scintillua,lpeg,zip
+
+      - name: Check Lua version
+        run: |
+          grep -q "Run-time dependency lua-5.3 found: YES" build/meson-logs/meson-log.txt
+
+      - name: Build
+        run: meson compile -C build
+
+      - name: Test
+        run: xvfb-run -a meson test -C build --print-errorlogs
+
+      - name: Publish test log
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          path: build/meson-logs/testlog.txt
+          name: Pawmmit minimum versions test log
+          if-no-files-found: ignore
+
   smoke-test:
     name: Smoke test (${{ matrix.env.name }})
     needs: build
