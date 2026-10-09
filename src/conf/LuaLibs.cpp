@@ -7,6 +7,7 @@
 //
 
 #include "LuaLibs.h"
+#include "LuaCompat.h"
 #include <cstring>
 
 extern "C" {
