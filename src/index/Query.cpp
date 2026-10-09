@@ -289,8 +289,6 @@ QueryRef parse(QList<Lexer::Lexeme> &lexemes, Index::Field start = Index::Any) {
         field = Index::File;
       } else if (key == Index::fieldName(Index::Scope)) {
         field = Index::Scope;
-      } else if (key == Index::fieldName(Index::Context)) {
-        field = Index::Context;
       } else if (key == Index::fieldName(Index::Addition) || key == "added") {
         field = Index::Addition;
       } else if (key == Index::fieldName(Index::Deletion) || key == "deleted") {

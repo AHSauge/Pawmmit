@@ -39,7 +39,6 @@ public:
     Path,
     File,
     Scope,
-    Context,
     Addition,
     Deletion,
     Any,

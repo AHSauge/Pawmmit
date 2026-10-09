@@ -23,7 +23,6 @@ Map::Map(const git::Repository &repo, LexerPool &lexers,
     : mLexers(lexers), mInQueue(inQueue), mOutQueue(outQueue) {
   git::Config config = repo.appConfig();
   mTermLimit = config.value<int>("index.termlimit", mTermLimit);
-  mContextLines = config.value<int>("index.contextlines", mContextLines);
 }
 
 void Map::run() {
@@ -118,9 +117,6 @@ void Map::run() {
           char origin = patch.lineOrigin(hidx, line);
           Index::Field field;
           switch (origin) {
-            case GIT_DIFF_LINE_CONTEXT:
-              field = Index::Context;
-              break;
             case GIT_DIFF_LINE_ADDITION:
               field = Index::Addition;
               break;
