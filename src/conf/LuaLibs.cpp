@@ -10,12 +10,6 @@
 #include "LuaCompat.h"
 #include <cstring>
 
-extern "C" {
-#include "lua.h"
-#include "lauxlib.h"
-#include "lualib.h"
-}
-
 namespace {
 
 int ioOpen(lua_State *L) {

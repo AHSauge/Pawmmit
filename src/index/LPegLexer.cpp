@@ -18,10 +18,8 @@
 #include <QFileInfo>
 #include <QHash>
 
+#include "conf/LuaCompat.h"
 extern "C" {
-#include "lua.h"
-#include "lualib.h"
-#include "lauxlib.h"
 LUALIB_API int luaopen_lpeg(lua_State *L);
 }
 

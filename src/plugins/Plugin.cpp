@@ -22,11 +22,6 @@
 #include <stdexcept>
 
 #include "conf/LuaCompat.h"
-extern "C" {
-#include "lua.h"
-#include "lauxlib.h"
-#include "lualib.h"
-}
 
 namespace {
 
@@ -179,7 +174,8 @@ int optionsDefineInteger(lua_State *L) {
   const char *key = luaL_checkstring(L, 2);
   const char *text = luaL_checkstring(L, 3);
   lua_Integer value = luaL_optinteger(L, 4, 0);
-  plugin(L)->defineOption(key, Plugin::Integer, text, value);
+  plugin(L)->defineOption(key, Plugin::Integer, text,
+                          static_cast<qlonglong>(value));
 
   return 0;
 }
@@ -218,7 +214,8 @@ int optionsDefineList(lua_State *L) {
     lua_pop(L, 1);
   }
 
-  plugin(L)->defineOption(key, Plugin::List, text, index, opts);
+  plugin(L)->defineOption(key, Plugin::List, text,
+                          static_cast<qlonglong>(index), opts);
 
   return 0;
 }

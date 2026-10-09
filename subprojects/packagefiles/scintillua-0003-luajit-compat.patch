@@ -1,0 +1,23 @@
+From: Alf Henrik Sauge <alf.henrik.sauge@gmail.com>
+Subject: [PATCH] Use lua-compat-5.3 when building against LuaJIT
+
+---
+ Scintillua.cxx | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/Scintillua.cxx b/Scintillua.cxx
+--- a/Scintillua.cxx
++++ b/Scintillua.cxx
+@@ -24,6 +24,12 @@
+ #include "lua.h"
+ #include "lualib.h" // LUALIB_API
+ #include "lauxlib.h"
++#if LUA_VERSION_NUM == 501
++#include "compat-5.3.h"
++#define LUA_UTF8LIBNAME "utf8"
++#define luaopen_utf8 luaopen_compat53_utf8
++LUALIB_API int luaopen_utf8(lua_State *L);
++#endif
+ LUALIB_API int luaopen_lpeg(lua_State *L);
+ }
+

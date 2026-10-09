@@ -102,3 +102,9 @@ option(
     value: '',
     description: 'Gitea OAuth application client secret',
 )
+option(
+    'luajit',
+    type: 'feature',
+    value: 'disabled',
+    description: 'Use system LuaJIT 2.1+ over Lua 5.3+',
+)

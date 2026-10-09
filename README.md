@@ -81,6 +81,7 @@ Dependencies
   * hunspell (>= 1.7)
   * cmark (library + the `cmark` command-line tool)
   * lua (>= 5.3)
+    * Optionally LuaJIT (>=2.1) can be used by passing `-Dluajit=enabled` to `meson setup`. lua-compat-5.3 is bundled to provide some of the Lua 5.3 C API.
 * Bundled dependencies:
   * lexilla
   * scintilla

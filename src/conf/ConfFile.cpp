@@ -15,11 +15,7 @@
 #include <QDebug>
 #include <QFileInfo>
 
-extern "C" {
-#include "lua.h"
-#include "lauxlib.h"
-#include "lualib.h"
-}
+#include "LuaCompat.h"
 
 #if defined(Q_OS_MAC)
 #define PLATFORM "mac"
@@ -52,7 +48,7 @@ QVariantMap table(lua_State *L) {
     } else if (lua_isboolean(L, -1)) {
       val = lua_toboolean(L, -1) ? true : false;
     } else if (lua_isinteger(L, -1)) {
-      val = lua_tointeger(L, -1);
+      val = static_cast<qlonglong>(lua_tointeger(L, -1));
     } else if (lua_isstring(L, -1)) {
       val = lua_tostring(L, -1);
     }
