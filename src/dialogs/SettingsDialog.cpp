@@ -19,7 +19,6 @@
 #include "HotkeysPanel.h"
 #include "MiscPanel.h"
 #include "PluginsPanel.h"
-#include "TerminalPanel.h"
 #include "ToolsPanel.h"
 #include "UpdatePanel.h"
 #include "WindowPanel.h"
@@ -215,17 +214,6 @@ SettingsDialog::SettingsDialog(Index index, QWidget *parent)
   hotkeys->setCheckable(true);
 
   stack->addWidget(new HotkeysPanel(this));
-
-#ifdef Q_OS_UNIX
-  // Add terminal panel.
-  QAction *terminal =
-      toolbar->addAction(QIcon(":/terminal.png"), tr("Terminal"));
-  terminal->setData(Terminal);
-  terminal->setActionGroup(actions);
-  terminal->setCheckable(true);
-
-  stack->addWidget(new TerminalPanel(this));
-#endif
 
   // Hook up edit button.
   connect(edit, &QPushButton::clicked, stack, [stack] {

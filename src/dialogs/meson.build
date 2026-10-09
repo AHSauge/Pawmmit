@@ -28,7 +28,6 @@ dialogs_ui = qt6.compile_ui(
         'StartDialog.ui',
         'SubmodulesPanel.ui',
         'TagDialog.ui',
-        'TerminalPanel.ui',
         'ToolsPanel.ui',
         'UpdatePanel.ui',
         'UpdateSubmodulesDialog.ui',
@@ -78,7 +77,6 @@ dialogs_moc = qt6.preprocess(
         'SubmoduleTableModel.h',
         'SubmodulesPanel.h',
         'TagDialog.h',
-        'TerminalPanel.h',
         'ThemeDialog.h',
         'ToolsPanel.h',
         'UpdatePanel.h',
@@ -141,7 +139,6 @@ dialogs_src = [
     'SubmoduleTableModel.cpp',
     'SubmodulesPanel.cpp',
     'TagDialog.cpp',
-    'TerminalPanel.cpp',
     'ThemeDialog.cpp',
     'ToolsPanel.cpp',
     'UpdatePanel.cpp',
@@ -156,12 +153,12 @@ dialogs_lib = static_library(
         pawmmit_common,
         version_dep,
         translation_dep,
-        cli_dep,
         conf_dep,
         cred_dep,
         host_dep,
         index_dep,
-    ])
+    ],
+)
 
 dialogs_dep = declare_dependency(
     link_with: dialogs_lib,

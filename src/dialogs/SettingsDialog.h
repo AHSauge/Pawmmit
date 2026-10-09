@@ -28,8 +28,7 @@ public:
     Update,
     Plugins,
     Misc,
-    Hotkeys,
-    Terminal
+    Hotkeys
   };
 
   SettingsDialog(Index index, QWidget *parent = nullptr);
