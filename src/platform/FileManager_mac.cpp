@@ -11,10 +11,7 @@ QString defaultFileManagerCommand() { return "open \"%1\""; }
 
 bool revealInFileManager(const QString &file, const QString &command) {
   Q_UNUSED(command)
-  return QProcess::startDetached("/usr/bin/osascript",
-                                 {"-e", "tell application \"Finder\"", "-e",
-                                  QString("reveal POSIX file \"%1\"").arg(file),
-                                  "-e", "activate", "-e", "end tell"});
+  return QProcess::startDetached("/usr/bin/open", {"-R", file});
 }
 
 } // namespace platform
