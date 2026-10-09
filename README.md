@@ -58,7 +58,7 @@ Build Environment
   * Windows - MSVC >= 2019 recommended
   * Linux - GCC >= 9 / Clang >= 10 recommended
   * macOS - Xcode >= 12 recommended
-* [Meson](https://mesonbuild.com) >= 1.1
+* [Meson](https://mesonbuild.com) >= 1.3
 * Ninja
 * Python 3
 * For AppImage:
