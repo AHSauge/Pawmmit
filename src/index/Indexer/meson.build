@@ -1,13 +1,13 @@
 indexer_src = files(
-    'main.cpp',
-    'indexer.cpp',
+    'common.cpp',
     'diffgrabber.cpp',
+    'idstorage.cpp',
+    'indexer.cpp',
+    'lexerpool.cpp',
+    'main.cpp',
     'map.cpp',
     'reduce.cpp',
     'resultwriter.cpp',
-    'common.cpp',
-    'lexerpool.cpp',
-    'idstorage.cpp',
 )
 
 indexer_deps = [pawmmit_common, index_dep]
@@ -23,15 +23,3 @@ elif is_mac
 elif get_option('bundled')
     indexer_kwargs += {'install_rpath': '$ORIGIN'}
 endif
-
-# Installed next to the main executable on every platform (Contents/MacOS on
-# macOS) - the app spawns it as a sibling.
-indexer_exe = executable(
-    'pawmmit-indexer',
-    indexer_src,
-    cpp_args: ['-DPAWMMIT_VERSION="' + meson.project_version() + '"'],
-    dependencies: indexer_deps,
-    install: true,
-    install_dir: app_bindir,
-    kwargs: indexer_kwargs,
-)
