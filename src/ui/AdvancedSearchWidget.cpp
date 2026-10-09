@@ -104,9 +104,7 @@ AdvancedSearchWidget::AdvancedSearchWidget(QWidget *parent)
 
   addLine(layout);
 
-  // context, addition, deletion
-  addField(Index::Context, tr("Context:"),
-           tr("Text in the unchanged lines around a change"));
+  // addition, deletion
   addField(Index::Addition, tr("Addition:"), tr("Text in added lines"));
   addField(Index::Deletion, tr("Deletion:"), tr("Text in removed lines"));
 

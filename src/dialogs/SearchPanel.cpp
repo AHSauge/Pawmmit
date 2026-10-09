@@ -45,15 +45,8 @@ SearchPanel::SearchPanel(RepoView *view, QWidget *parent)
     view->repo().appConfig().setValue("index.termlimit", value);
   });
 
-  ui->mContext->setValue(config.value<int>("index.contextlines", 3));
-  connect(ui->mContext, signal, this, [view](int value) {
-    view->repo().appConfig().setValue("index.contextlines", value);
-  });
-
   // Disable the limit controls when indexing is disabled.
-  QList<QWidget *> widgets = {ui->mTerms,         ui->mTermsLabel,
-                              ui->mTermsRowLabel, ui->mContext,
-                              ui->mContextLabel,  ui->mContextRowLabel};
+  QList<QWidget *> widgets = {ui->mTerms, ui->mTermsLabel, ui->mTermsRowLabel};
 
   auto setWidgetsEnabled = [widgets](bool enabled) {
     for (QWidget *widget : widgets)

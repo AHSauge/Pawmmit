@@ -83,40 +83,6 @@
        </item>
       </layout>
      </item>
-     <item row="1" column="0">
-      <widget class="QLabel" name="mContextRowLabel">
-       <property name="text">
-        <string>Diff context:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="1">
-      <layout class="QHBoxLayout" name="contextLayout">
-       <item>
-        <widget class="QSpinBox" name="mContext"/>
-       </item>
-       <item>
-        <widget class="QLabel" name="mContextLabel">
-         <property name="text">
-          <string>lines</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <spacer name="contextSpacer">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-      </layout>
-     </item>
     </layout>
    </item>
    <item>

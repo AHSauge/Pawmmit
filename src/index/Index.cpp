@@ -428,8 +428,6 @@ QByteArray Index::fieldName(Index::Field field) {
       return "file";
     case Index::Scope:
       return "scope";
-    case Index::Context:
-      return "context";
     case Index::Addition:
       return "addition";
     case Index::Deletion:

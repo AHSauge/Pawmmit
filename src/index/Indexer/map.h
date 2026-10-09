@@ -25,7 +25,6 @@ private:
   WorkerQueue<QPair<git::Commit, git::Diff>> &mInQueue;
   WorkerQueue<Intermediate> &mOutQueue;
 
-  int mContextLines = 3;
   quint32 mTermLimit = 1000000;
 };
 
