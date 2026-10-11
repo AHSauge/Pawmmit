@@ -2,6 +2,7 @@
 #define MAP_H
 
 #include <QRunnable>
+#include "FTS.h"
 #include "git/Repository.h"
 #include "../WorkerQueue.h"
 #include "common.h"
@@ -12,18 +13,16 @@ class LexerPool;
 /// This includes running lexing on the diff and commit
 class Map : public QRunnable {
 public:
-  typedef Intermediate result_type;
-
   Map(const git::Repository &repo, LexerPool &lexers,
       WorkerQueue<QPair<git::Commit, git::Diff>> &inQueue,
-      WorkerQueue<Intermediate> &outQueue);
+      WorkerQueue<CommitDocument> &outQueue);
 
   void run() override;
 
 private:
   LexerPool &mLexers;
   WorkerQueue<QPair<git::Commit, git::Diff>> &mInQueue;
-  WorkerQueue<Intermediate> &mOutQueue;
+  WorkerQueue<CommitDocument> &mOutQueue;
 
   quint32 mTermLimit = 1000000;
 };

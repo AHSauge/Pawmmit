@@ -6,7 +6,6 @@ indexer_src = files(
     'lexerpool.cpp',
     'main.cpp',
     'map.cpp',
-    'reduce.cpp',
     'resultwriter.cpp',
 )
 

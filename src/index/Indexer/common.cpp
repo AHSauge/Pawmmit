@@ -1,7 +1,9 @@
 #include "common.h"
+#include "Index.h"
 
-#include <QTime>
 #include <QFile>
+#include <QMutex>
+#include <QTime>
 #include <QString>
 
 std::atomic_bool canceled = false;

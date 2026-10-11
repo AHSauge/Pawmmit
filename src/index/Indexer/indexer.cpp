@@ -77,8 +77,8 @@ void term(int) {
 #endif
 } // namespace
 
-void index(const Lexer::Lexeme &lexeme, Intermediate::FieldMap &fields,
-           quint8 field, quint32 &pos) {
+void index(const Lexer::Lexeme &lexeme, CommitDocument &doc, Index::Field field,
+           Subfield sub) {
   QByteArray text = lexeme.text;
   switch (lexeme.token) {
     // Lex further.
@@ -95,36 +95,14 @@ void index(const Lexer::Lexeme &lexeme, Intermediate::FieldMap &fields,
     case Lexer::Class:
     case Lexer::Type:
     case Lexer::Label: {
-      switch (lexeme.token) {
-        case Lexer::String:
-          field |= Index::String;
-          break;
-        case Lexer::Comment:
-          field |= Index::Comment;
-          break;
-        case Lexer::Nothing:      // fall through
-        case Lexer::Whitespace:   // fall through
-        case Lexer::Number:       // fall through
-        case Lexer::Keyword:      // fall through
-        case Lexer::Identifier:   // fall through
-        case Lexer::Operator:     // fall through
-        case Lexer::Error:        // fall through
-        case Lexer::Preprocessor: // fall through
-        case Lexer::Constant:     // fall through
-        case Lexer::Variable:     // fall through
-        case Lexer::Function:     // fall through
-        case Lexer::Class:        // fall through
-        case Lexer::Type:         // fall through
-        case Lexer::Label:        // fall through
-        case Lexer::Regex:        // fall through
-        case Lexer::Embedded:     // fall through
-          break;
-      }
-
+      if (sub == Subfield::None && lexeme.token == Lexer::String)
+        sub = Subfield::String;
+      else if (sub == Subfield::None && lexeme.token == Lexer::Comment)
+        sub = Subfield::Comment;
       GenericLexer sublexer;
       if (sublexer.lex(text)) {
         while (sublexer.hasNext())
-          index(sublexer.next(), fields, field, pos);
+          index(sublexer.next(), doc, field, sub);
       }
       break;
     }
@@ -134,9 +112,9 @@ void index(const Lexer::Lexeme &lexeme, Intermediate::FieldMap &fields,
     case Lexer::Identifier:
       // Limit term length.
       if (text.length() <= 64) {
-        if (field < Index::Any)
-          field |= Index::Identifier;
-        fields[field][text.toLower()].append(pos++);
+        doc.append(columnFor(field, sub == Subfield::None ? Subfield::Identifier
+                                                          : sub),
+                   normaliseToken(text));
       }
       break;
 
@@ -154,12 +132,7 @@ void index(const Lexer::Lexeme &lexeme, Intermediate::FieldMap &fields,
 
 Indexer::Indexer(Index &index, bool notify, QObject *parent)
     : QThread(parent), mIndex(index), mIds(index),
-      // mIntermediateQueue will be filled by the workers spawned in the run()
-      // method below.
-      mReduce(mIds, mIntermediateQueue,
-              mResults), // Receives intermediate and converts them to results
-      mResultWriter(index, mResults,
-                    notify) { // Receives results and writes them down to file
+      mResultWriter(index, mIntermediateQueue, notify) {
   mWalker = mIndex.repo().walker();
 
 #ifdef Q_OS_UNIX
@@ -202,7 +175,6 @@ void Indexer::run() {
   int numWorkers = QThread::idealThreadCount();
 
   log("start");
-  mReduce.start();
   mResultWriter.start();
   for (int i = 0; i < numWorkers; i++) {
     mWorkers.start(
@@ -245,14 +217,9 @@ void Indexer::finish() {
   mDiffedCommits.stop();
   mWorkers.waitForDone();
 
-  // Next is the intermediate queue and the reduction thread
+  // Next is the intermediate queue and writer thread
   mIntermediateQueue.awaitEmpty();
   mIntermediateQueue.stop();
-  mReduce.wait();
-
-  // Before we finish up with the results queue and writer thread
-  mResults.awaitEmpty();
-  mResults.stop();
   mResultWriter.wait();
 }
 
@@ -277,5 +244,4 @@ void Indexer::cancel() {
   mCommits.stop();
   mDiffedCommits.stop();
   mIntermediateQueue.stop();
-  mResults.stop();
 }

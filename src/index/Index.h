@@ -13,13 +13,11 @@
 #ifndef INDEX_H
 #define INDEX_H
 
-#include "git/Id.h"
 #include "git/Repository.h"
 #include "MmapFileReader.h"
 #include <QList>
 #include <QObject>
 #include <QVector>
-#include <functional>
 
 namespace git {
 class Commit;
@@ -79,7 +77,6 @@ public:
 
   using IdList = QList<git::Id>;
   using Dictionary = QList<Word>;
-  using PostingMap = QMap<QByteArray, QVector<Index::Posting>>;
   using Predicate = std::function<bool(const QByteArray &)>;
 
   Index(const git::Repository &repo, QObject *parent = nullptr);
@@ -93,7 +90,6 @@ public:
   void reset();
   void cleanTemporaryFiles();
   bool remove();
-  bool write(const PostingMap &map);
 
   QList<git::Commit> commits(const QString &filter) const;
   QList<git::Commit> commits(const QList<Posting> &postings) const;
@@ -115,13 +111,8 @@ public:
   static QDir indexDir(const git::Repository &repo);
   static QString lockFile(const git::Repository &repo);
 
-  // vint
-  static void writeVInt(QDataStream &out, quint32 arg);
-
   // positions
   static void readPositions(MmapFileReader &in, QVector<quint32> &positions);
-  static void writePositions(QDataStream &out,
-                             const QVector<quint32> &positions);
 
   // Enable logging. The log is written to the index dir.
   static bool isLoggingEnabled();
@@ -133,7 +124,6 @@ signals:
 private:
   // index version
   quint8 readVersion() const;
-  void writeVersion() const;
 
   QDir indexDir() const;
 

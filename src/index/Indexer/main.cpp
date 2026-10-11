@@ -10,6 +10,7 @@
 // Author: Jason Haslam
 //
 
+#include "common.h"
 #include "indexer.h"
 #include "qtsupport.h"
 #include "conf/Settings.h"

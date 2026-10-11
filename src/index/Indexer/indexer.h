@@ -1,22 +1,22 @@
 #ifndef INDEXER
 #define INDEXER
 
-#include "lexerpool.h"
-#include "git/RevWalk.h"
+#include "FTS.h"
 #include "idstorage.h"
+#include "Index.h"
+#include "lexerpool.h"
 #include "resultwriter.h"
-#include "reduce.h"
+#include "WorkerQueue.h"
+#include "git/Diff.h"
+#include "git/RevWalk.h"
 #include "index/Lexer.h"
 
 #include <QObject>
 #include <QAbstractNativeEventFilter>
 #include <QThreadPool>
 
-class Index;
-class QFile;
-
-void index(const Lexer::Lexeme &lexeme, Intermediate::FieldMap &fields,
-           quint8 field, quint32 &pos);
+void index(const Lexer::Lexeme &lexeme, CommitDocument &doc, Index::Field field,
+           Subfield sub = Subfield::None);
 
 class Indexer : public QThread, public QAbstractNativeEventFilter {
 public:
@@ -37,7 +37,6 @@ private:
   LexerPool mLexers;
 
   // Variables to hold the threads
-  Reduce mReduce;
   QThreadPool mGrabbers;
   QThreadPool mWorkers;
   ResultWriter mResultWriter;
@@ -45,9 +44,8 @@ private:
   WorkerQueue<git::Commit> mCommits = WorkerQueue<git::Commit>(256);
   WorkerQueue<QPair<git::Commit, git::Diff>> mDiffedCommits =
       WorkerQueue<QPair<git::Commit, git::Diff>>(256);
-  WorkerQueue<Intermediate> mIntermediateQueue = WorkerQueue<Intermediate>(256);
-  // NOTE: The posting map is rather large, so it's limited to one item
-  WorkerQueue<Index::PostingMap> mResults = WorkerQueue<Index::PostingMap>(1);
+  WorkerQueue<CommitDocument> mIntermediateQueue =
+      WorkerQueue<CommitDocument>(256);
 };
 
 #endif // INDEXER

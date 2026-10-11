@@ -1,4 +1,5 @@
 index_src = [
+    'FTS.cpp',
     'GenericLexer.cpp',
     'Index.cpp',
     'IndexModel.cpp',
