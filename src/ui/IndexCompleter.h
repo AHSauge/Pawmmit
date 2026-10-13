@@ -14,14 +14,19 @@
 #define INDEXCOMPLETER_H
 
 #include <QCompleter>
+#include <functional>
 
 class MainWindow;
 class QLineEdit;
 
 class IndexCompleter : public QCompleter {
 public:
+  // Returns the suggestions for the word being typed.
+  using Source = std::function<QStringList(const QString &prefix)>;
+
+  // Suggests plain search terms from the current repository's index.
   IndexCompleter(MainWindow *window, QLineEdit *parent);
-  IndexCompleter(QAbstractItemModel *model, QLineEdit *parent);
+  IndexCompleter(const Source &source, QLineEdit *parent);
 
   bool eventFilter(QObject *watched, QEvent *event) override;
   QString pathFromIndex(const QModelIndex &index) const override;

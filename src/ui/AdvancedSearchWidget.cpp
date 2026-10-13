@@ -26,12 +26,12 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QShortcut>
-#include <QStringListModel>
-#include <QtConcurrent>
 
 namespace {
 
 const char *kFieldProp = "field";
+// Only the first suggestions are looked up, since the index can be huge.
+const int kMaxSuggestions = 100;
 const QString kParenFmt = "(%1)";
 const QString kFieldFmt = "%1:%2";
 
@@ -125,19 +125,6 @@ AdvancedSearchWidget::AdvancedSearchWidget(QWidget *parent)
 
   QShortcut *accept = new QShortcut(tr("Return"), this);
   connect(accept, &QShortcut::activated, this, &AdvancedSearchWidget::accept);
-
-  connect(
-      &mFieldMapWatcher,
-      &QFutureWatcher<QMap<Index::Field, QStringList>>::finished, this, [this] {
-        QMap<Index::Field, QStringList> fields = mFieldMapWatcher.result();
-        for (QLineEdit *lineEdit : mLineEdits) {
-          QVariant var = lineEdit->property(kFieldProp);
-          Index::Field field = static_cast<Index::Field>(var.toInt());
-          QAbstractItemModel *model = lineEdit->completer()->model();
-          if (QStringListModel *list = qobject_cast<QStringListModel *>(model))
-            list->setStringList(fields.value(field));
-        }
-      });
 }
 
 void AdvancedSearchWidget::exec(QLineEdit *parent, Index *index) {
@@ -159,23 +146,8 @@ void AdvancedSearchWidget::exec(QLineEdit *parent, Index *index) {
     lineEdit->setText(map.value(field).join(' '));
   }
 
-  // Compute completion data in the background, then apply it on the GUI
-  // thread once the widget's still around to receive it.
-  mFieldMapWatcher.setFuture(
-      QtConcurrent::run([index] { return index->fieldMap(); }));
-
+  mIndex = index;
   show();
-}
-
-void AdvancedSearchWidget::hideEvent(QHideEvent *event) {
-  // Clear completion data.
-  for (QLineEdit *lineEdit : mLineEdits) {
-    QAbstractItemModel *model = lineEdit->completer()->model();
-    if (QStringListModel *list = qobject_cast<QStringListModel *>(model))
-      list->setStringList(QStringList());
-  }
-
-  QWidget::hideEvent(event);
 }
 
 void AdvancedSearchWidget::accept() {
@@ -209,8 +181,13 @@ void AdvancedSearchWidget::addLine(QFormLayout *layout) {
 void AdvancedSearchWidget::addField(int field, const QString &text,
                                     const QString &tooltip) {
   QLineEdit *lineEdit = new QLineEdit(this);
-  QStringListModel *model = new QStringListModel(lineEdit);
-  lineEdit->setCompleter(new IndexCompleter(model, lineEdit));
+  auto source = [this, field](const QString &prefix) {
+    if (!mIndex)
+      return QStringList();
+    return mIndex->suggestions(static_cast<Index::Field>(field), prefix,
+                               kMaxSuggestions);
+  };
+  lineEdit->setCompleter(new IndexCompleter(source, lineEdit));
   addField(lineEdit, lineEdit, field, text, tooltip);
 }
 

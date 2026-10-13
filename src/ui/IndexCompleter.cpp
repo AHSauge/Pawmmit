@@ -15,12 +15,12 @@
 #include "RepoView.h"
 #include "SearchField.h"
 #include "index/Index.h"
-#include <QAbstractListModel>
 #include <QEvent>
 #include <QLineEdit>
 #include <QListView>
 #include <QPushButton>
 #include <QRegularExpression>
+#include <QStringListModel>
 #include <QToolButton>
 
 namespace {
@@ -45,36 +45,8 @@ QString word(const QString &text, int &index) {
   return text.mid(index, text.indexOf(kWsRe, index) - index);
 }
 
-class Model : public QAbstractListModel {
-public:
-  Model(MainWindow *window) : QAbstractListModel(window), mWindow(window) {}
-
-  QVariant data(const QModelIndex &index,
-                int role = Qt::DisplayRole) const override {
-    if (!index.isValid())
-      return QVariant();
-
-    switch (role) {
-      case Qt::EditRole:
-      case Qt::DisplayRole:
-        return dict().at(index.row()).key;
-
-      default:
-        return QVariant();
-    }
-  }
-
-  int rowCount(const QModelIndex &parent = QModelIndex()) const override {
-    return mWindow->count() ? dict().size() : 0;
-  }
-
-private:
-  const Index::Dictionary &dict() const {
-    return mWindow->currentView()->index()->dict();
-  }
-
-  MainWindow *mWindow;
-};
+// Only the first suggestions are looked up, since the index can be huge.
+const int kMaxSuggestions = 100;
 
 class Popup : public QListView {
   Q_OBJECT
@@ -118,18 +90,34 @@ private:
 } // namespace
 
 IndexCompleter::IndexCompleter(MainWindow *window, QLineEdit *parent)
-    : IndexCompleter(new Model(window), parent) {}
+    : IndexCompleter(
+          [window](const QString &prefix) {
+            if (!window->count())
+              return QStringList();
+            Index *index = window->currentView()->index();
+            return index->suggestions(Index::Any, prefix, kMaxSuggestions);
+          },
+          parent) {}
 
-IndexCompleter::IndexCompleter(QAbstractItemModel *model, QLineEdit *parent)
-    : QCompleter(model, parent) {
+IndexCompleter::IndexCompleter(const Source &source, QLineEdit *parent)
+    : QCompleter(parent) {
+  QStringListModel *model = new QStringListModel(this);
+  setModel(model);
   setCaseSensitivity(Qt::CaseInsensitive);
-  setModelSorting(QCompleter::CaseInsensitivelySortedModel);
 
   Popup *popup = new Popup(parent);
   setPopup(popup);
 
   // Watch for popup show events.
   popup->installEventFilter(this);
+
+  // Look up suggestions for the word at the cursor as it's typed. Edits are
+  // signalled before the completer filters the model.
+  connect(parent, &QLineEdit::textEdited, this, [parent, model, source] {
+    int pos = parent->cursorPosition();
+    QString prefix = word(parent->text(), pos);
+    model->setStringList(prefix.isEmpty() ? QStringList() : source(prefix));
+  });
 }
 
 bool IndexCompleter::eventFilter(QObject *watched, QEvent *event) {

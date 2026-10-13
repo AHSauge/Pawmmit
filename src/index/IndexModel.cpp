@@ -62,7 +62,7 @@ QVariant IndexModel::data(const QModelIndex &index, int role) const {
 
 const QMap<Index::Field, QStringList> &IndexModel::map() const {
   if (!mValid) {
-    mMap = mIndex->fieldMap(mPrefix);
+    mMap = mIndex->fieldMap(mPrefix, mLimit);
     mValid = true;
   }
 

@@ -14,13 +14,17 @@
 #define INDEX_H
 
 #include "git/Repository.h"
-#include "MmapFileReader.h"
 #include <QList>
 #include <QObject>
 #include <QVector>
 
 namespace git {
 class Commit;
+}
+class Query;
+
+extern "C" {
+struct sqlite3;
 }
 
 class Index : public QObject {
@@ -53,15 +57,6 @@ public:
     Pathspec
   };
 
-  struct Word {
-    Word(const QByteArray &key, quint32 value = 0) : key(key), value(value) {}
-
-    bool operator<(const Word &rhs) const { return key < rhs.key; }
-
-    QByteArray key;
-    quint32 value;
-  };
-
   struct Term {
     Term(Field field, const QString &text) : field(field), text(text) {}
 
@@ -69,38 +64,33 @@ public:
     QString text;
   };
 
-  struct Posting {
-    quint32 id;
-    quint8 field;
-    QVector<quint32> positions;
-  };
-
-  using IdList = QList<git::Id>;
-  using Dictionary = QList<Word>;
-  using Predicate = std::function<bool(const QByteArray &)>;
-
   Index(const git::Repository &repo, QObject *parent = nullptr);
 
   bool isValid() const;
 
   git::Repository repo() const { return mRepo; }
-  IdList &ids() { return mIds; }
-  Dictionary &dict() { return mDict; }
 
   void reset();
-  void cleanTemporaryFiles();
   bool remove();
 
   QList<git::Commit> commits(const QString &filter) const;
-  QList<git::Commit> commits(const QList<Posting> &postings) const;
+  QList<git::Commit> commits(const Query &query) const;
 
-  QList<Posting> postings(const Term &term, bool positional = false) const;
-  QList<Posting> postings(const Predicate &pred, Field field = Any) const;
+  // Indexed terms matching the GLOB pattern in any of the FTS columns, or in
+  // all columns if none are given, in order.
+  QByteArrayList indexedTerms(const QByteArrayList &columns,
+                              const QByteArray &pattern, int limit) const;
 
-  QMap<Field, QStringList> fieldMap(const QString &prefix = QString()) const;
+  // Indexed values of the field that start with the prefix, for completion.
+  // Plain terms get FTS terms, file names, paths and emails, like plain
+  // searches match them. A negative limit returns all values.
+  QStringList suggestions(Field field, const QString &prefix, int limit) const;
+
+  // Suggestions for each field that has any.
+  QMap<Field, QStringList> fieldMap(const QString &prefix = QString(),
+                                    int limit = -1) const;
 
   // constants
-  static quint8 version();
   static int staleLockTime();
   static QString dateFormat();
 
@@ -110,9 +100,6 @@ public:
   // Get the index directory for the given repository.
   static QDir indexDir(const git::Repository &repo);
   static QString lockFile(const git::Repository &repo);
-
-  // positions
-  static void readPositions(MmapFileReader &in, QVector<quint32> &positions);
 
   // Enable logging. The log is written to the index dir.
   static bool isLoggingEnabled();
@@ -124,10 +111,12 @@ signals:
 private:
   QDir indexDir() const;
 
-  git::Repository mRepo;
-  IdList mIds;
-  Dictionary mDict;
+  // Distinct values of the column that start with the prefix, in order.
+  QByteArrayList startingWith(const QByteArray &table, const QByteArray &column,
+                              const QByteArray &prefix, int limit) const;
 
+  git::Repository mRepo;
+  std::shared_ptr<sqlite3> mDB;
   static bool sLoggingEnabled;
 };
 

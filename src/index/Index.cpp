@@ -12,6 +12,7 @@
 
 #include "FTS.h"
 #include "Index.h"
+#include "IndexDatabase.h"
 #include "GenericLexer.h"
 #include "LPegLexer.h"
 #include "Query.h"
@@ -22,6 +23,7 @@
 #include "git/Reference.h"
 #include "git/RevWalk.h"
 #include "git/Signature.h"
+#include <sqlite3.h>
 #include <QLockFile>
 #include <QSettings>
 #include <QtConcurrent>
@@ -51,64 +53,26 @@ Index::Index(const git::Repository &repo, QObject *parent)
   // Read log setting.
   sLoggingEnabled = QSettings().value(kLogKey).toBool();
 
-  cleanTemporaryFiles();
-
   // TODO: Check version (when we have a newer schema) and TBD migrate
 
   // Read data from disk.
   reset();
 }
 
-bool Index::isValid() const { return indexDir().exists(kIdFile); }
+bool Index::isValid() const { return mDB != nullptr; }
 
 void Index::reset() {
-  mIds.clear();
-  mDict.clear();
+  mDB = index_database::open(mRepo, true);
 
-  git_oid_t id_type = mRepo.oidType();
-  uint8_t id_size = git::Id::getSize(id_type);
-
-  // Read already indexed ids.
-  QDir dir = indexDir();
-  QFile idFile(dir.filePath(kIdFile));
-  if (idFile.open(QIODevice::ReadOnly)) {
-    while (idFile.bytesAvailable() > 0)
-      mIds.append(git::Id(idFile.read(id_size), id_type));
-  }
-
-  // Read dictionary.
-  QFile dictFile(dir.filePath(kDictFile));
-  if (dictFile.open(QIODevice::ReadOnly)) {
-    QDataStream dictIn(&dictFile);
-    while (!dictIn.atEnd()) {
-      quint32 pos;
-      QByteArray word;
-      dictIn >> word >> pos;
-      mDict.append(Word(word, pos));
-    }
-  }
+  // Lists the indexed terms, for expanding wildcards. A temporary table, since
+  // the database itself is opened read-only.
+  if (mDB)
+    sqlite3_exec(mDB.get(),
+                 "CREATE VIRTUAL TABLE temp.fts_vocab USING "
+                 "fts5vocab(main, fts, 'col')",
+                 nullptr, nullptr, nullptr);
 
   emit indexReset();
-}
-
-void Index::cleanTemporaryFiles() {
-  QStringList filters;
-  for (const QString &file : kIndexFiles)
-    filters.append(file + ".*");
-
-  QDir dir = indexDir();
-  QStringList files = dir.entryList(filters, QDir::Files);
-  if (files.isEmpty())
-    return;
-
-  // Try to lock the index for writing.
-  QLockFile lock(lockFile(mRepo));
-  lock.setStaleLockTime(staleLockTime());
-  if (!lock.tryLock(1000))
-    return;
-
-  for (const QString &file : files)
-    dir.remove(file);
 }
 
 bool Index::remove() {
@@ -137,159 +101,212 @@ QList<git::Commit> Index::commits(const QString &filter) const {
   if (!query)
     return QList<git::Commit>();
 
-  // Sort by commit date.
-  QList<git::Commit> commits = query->commits(this);
-  std::sort(commits.begin(), commits.end(),
-            [](const git::Commit &lhs, const git::Commit &rhs) {
-              return (lhs.committer().date() > rhs.committer().date());
-            });
+  return commits(*query);
+}
 
+QList<git::Commit> Index::commits(const Query &query) const {
+  // Keeps the connection open even if reset() replaces it meanwhile.
+  std::shared_ptr<sqlite3> db = mDB;
+  if (!db)
+    return QList<git::Commit>();
+
+  QList<SqlParam> params;
+  QByteArray sql = "SELECT c.oid FROM commits c WHERE " +
+                   query.condition(*this, params) + " ORDER BY c.time DESC";
+
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db.get(), sql.constData(), int(sql.size() + 1), &stmt,
+                         nullptr) != SQLITE_OK) {
+    qWarning() << "Failed to prepare search" << sql << ":"
+               << sqlite3_errmsg(db.get());
+    return QList<git::Commit>();
+  }
+
+  // The parameters outlive the statement, so SQLite needn't copy them.
+  for (int i = 0; i < params.size(); ++i) {
+    const SqlParam &param = params.at(i);
+    if (const qint64 *value = std::get_if<qint64>(&param)) {
+      sqlite3_bind_int64(stmt, i + 1, *value);
+    } else if (const SqlText *text = std::get_if<SqlText>(&param)) {
+      sqlite3_bind_text(stmt, i + 1, text->value.constData(),
+                        text->value.size(), SQLITE_STATIC);
+    } else if (const SqlBlob *blob = std::get_if<SqlBlob>(&param)) {
+      sqlite3_bind_blob(stmt, i + 1, blob->value.constData(),
+                        blob->value.size(), SQLITE_STATIC);
+    }
+  }
+
+  QList<git::Commit> commits;
+  git_oid_t type = mRepo.oidType();
+  int rc;
+  while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+    const char *oid = static_cast<const char *>(sqlite3_column_blob(stmt, 0));
+    int size = sqlite3_column_bytes(stmt, 0);
+    // Commits that are no longer in the repository are skipped.
+    if (git::Commit commit =
+            mRepo.lookupCommit(git::Id(QByteArray(oid, size), type)))
+      commits.append(commit);
+  }
+
+  if (rc != SQLITE_DONE)
+    qWarning() << "Failed to search the index:" << sqlite3_errmsg(db.get());
+  sqlite3_finalize(stmt);
   return commits;
 }
 
-QList<git::Commit> Index::commits(const QList<Posting> &postings) const {
-  // Look up commits.
-  QSet<git::Commit> commits;
-  for (const Posting &posting : postings) {
-    // If we fail this check, then the index is mismatching the repo
-    // The FIXME below might be the cause of that
-    if (posting.id < mIds.size()) {
-      // FIXME: Remove deleted commits on write.
-      if (git::Commit commit = mRepo.lookupCommit(mIds.at(posting.id)))
-        commits.insert(commit);
+QByteArrayList Index::indexedTerms(const QByteArrayList &columns,
+                                   const QByteArray &pattern, int limit) const {
+  std::shared_ptr<sqlite3> db = mDB;
+  if (!db)
+    return QByteArrayList();
+
+  QByteArray sql = "SELECT DISTINCT term FROM temp.fts_vocab WHERE term GLOB ?";
+  QByteArrayList params = {pattern};
+
+  // The literal start of the pattern narrows the range of terms to check.
+  qsizetype literal = 0;
+  while (literal < pattern.size() &&
+         !QByteArrayView("*?[").contains(pattern.at(literal)))
+    ++literal;
+  QByteArray prefix = pattern.left(literal);
+  if (!prefix.isEmpty() && uchar(prefix.back()) < 0xff) {
+    QByteArray end = prefix;
+    end.back() = char(uchar(end.back()) + 1);
+    sql += " AND term >= ? AND term < ?";
+    params << prefix << end;
+  }
+
+  if (!columns.isEmpty()) {
+    sql +=
+        " AND col IN (?" + QByteArray(", ?").repeated(columns.size() - 1) + ')';
+    params.append(columns);
+  }
+
+  sql += " ORDER BY term LIMIT " + QByteArray::number(limit);
+
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db.get(), sql.constData(), int(sql.size() + 1), &stmt,
+                         nullptr) != SQLITE_OK) {
+    qWarning() << "Failed to prepare term lookup:" << sqlite3_errmsg(db.get());
+    return QByteArrayList();
+  }
+
+  for (int i = 0; i < params.size(); ++i)
+    sqlite3_bind_text(stmt, i + 1, params.at(i).constData(),
+                      params.at(i).size(), SQLITE_STATIC);
+
+  QByteArrayList terms;
+  while (sqlite3_step(stmt) == SQLITE_ROW) {
+    const char *term =
+        reinterpret_cast<const char *>(sqlite3_column_text(stmt, 0));
+    terms.append(QByteArray(term, sqlite3_column_bytes(stmt, 0)));
+  }
+  sqlite3_finalize(stmt);
+  return terms;
+}
+
+QStringList Index::suggestions(Field field, const QString &prefix,
+                               int limit) const {
+  QByteArray start = normaliseToken(prefix.toUtf8());
+  QByteArrayList values;
+  switch (field) {
+    case Email:
+      values = startingWith("commits", "email", start, limit);
+      break;
+
+    case Path:
+      values = startingWith("paths", "path", start, limit);
+      break;
+
+    case File:
+      values = startingWith("paths", "file", start, limit);
+      break;
+
+    case Any:
+      values = startingWith("temp.fts_vocab", "term", start, limit) +
+               startingWith("paths", "file", start, limit) +
+               startingWith("paths", "path", start, limit) +
+               startingWith("commits", "email", start, limit);
+      std::sort(values.begin(), values.end());
+      values.erase(std::unique(values.begin(), values.end()), values.end());
+      if (limit >= 0 && values.size() > limit)
+        values.resize(limit);
+      break;
+
+    default: {
+      // Escaped, since the prefix is matched as a GLOB pattern.
+      QByteArray pattern;
+      for (char ch : start)
+        pattern += QByteArrayView("*?[").contains(ch)
+                       ? '[' + QByteArray(1, ch) + ']'
+                       : QByteArray(1, ch);
+      QByteArrayList columns = ftsColumns(field);
+      if (!columns.isEmpty())
+        values = indexedTerms(columns, pattern + '*', limit);
+      break;
     }
   }
 
-  return commits.values();
+  QStringList suggestions;
+  for (const QByteArray &value : values)
+    suggestions.append(QString::fromUtf8(value));
+  return suggestions;
 }
 
-QList<Index::Posting> Index::postings(const Term &term, bool positional) const {
-  Word word(term.text.toLower().toUtf8());
-  Dictionary::const_iterator end = mDict.end();
-  Dictionary::const_iterator it = std::lower_bound(mDict.begin(), end, word);
-  if (it == end || it->key != word.key)
-    return QList<Posting>();
-
-  QDir dir = indexDir();
-  MmapFileReader file(dir.filePath(kPostFile));
-  if (!file.open())
-    return QList<Posting>();
-
-  MmapFileReader proxFile(dir.filePath(kProxFile));
-  if (positional) {
-    if (!proxFile.open())
-      return QList<Posting>();
-  }
-
-  // Skip to the correct entry.
-  file.seek(it->value);
-
-  // Read list.
-  QList<Posting> postings;
-  quint32 postCount = file.readVInt();
-  for (quint32 i = 0; i < postCount; ++i) {
-    quint32 proxPos;
-    Posting posting;
-    posting.id = file.readVInt();
-    file >> posting.field >> proxPos;
-
-    // Filter by field.
-    quint8 field = posting.field & 0x0F;
-    quint8 subfield = posting.field & 0xF0;
-    if (term.field == Any || term.field == field || term.field == subfield) {
-      // Load positions when needed.
-      if (positional) {
-        proxFile.seek(proxPos);
-        readPositions(proxFile, posting.positions);
-      }
-
-      postings.append(posting);
-    }
-  }
-
-  return postings;
-}
-
-QList<Index::Posting> Index::postings(const Predicate &pred,
-                                      Field field) const {
-  QDir dir = indexDir();
-  MmapFileReader file(dir.filePath(kPostFile));
-  if (!file.open())
-    return QList<Posting>();
-
-  QList<Posting> postings;
-  for (const Word &word : mDict) {
-    // Test predicate.
-    if (!pred(word.key))
-      continue;
-
-    // Skip to the correct entry.
-    file.seek(word.value);
-
-    // Read list.
-    quint32 postCount = file.readVInt();
-    for (quint32 i = 0; i < postCount; ++i) {
-      quint32 proxPos;
-      Posting posting;
-      posting.id = file.readVInt();
-      file >> posting.field >> proxPos;
-
-      // Match field.
-      quint8 postField = posting.field & 0x0F;
-      quint8 postSubfield = posting.field & 0xF0;
-      if (field == Any || field == postField || field == postSubfield)
-        postings.append(posting);
-    }
-  }
-
-  return postings;
-}
-
-QMap<Index::Field, QStringList> Index::fieldMap(const QString &prefix) const {
-  QDir dir = indexDir();
-  MmapFileReader file(dir.filePath(kPostFile));
-  if (!file.open())
-    return QMap<Field, QStringList>();
-
-  Dictionary::const_iterator it = mDict.constBegin();
-  Dictionary::const_iterator end = mDict.constEnd();
-  if (!prefix.isEmpty()) {
-    Word word(prefix.toLower().toUtf8());
-    it = std::lower_bound(it, end, word);
-    end = std::find_if(it, end, [word](const Word &arg) {
-      return !arg.key.startsWith(word.key);
-    });
-  }
-
+QMap<Index::Field, QStringList> Index::fieldMap(const QString &prefix,
+                                                int limit) const {
   QMap<Field, QStringList> map;
-  while (it != end) {
-    // Skip to the correct entry.
-    file.seek(it->value);
-
-    // Read list.
-    QString name = it->key;
-    quint32 postCount = file.readVInt();
-    for (quint32 i = 0; i < postCount; ++i) {
-      quint8 field;
-      quint32 proxPos;
-      file.readVInt(); // Discard id.
-      file >> field >> proxPos;
-
-      QStringList &fieldList = map[static_cast<Field>(field & 0x0F)];
-      if (fieldList.isEmpty() || fieldList.last() != name)
-        fieldList.append(name);
-
-      if (quint8 subfield = field & 0xF0) {
-        QStringList &subfieldList = map[static_cast<Field>(subfield)];
-        if (subfieldList.isEmpty() || subfieldList.last() != name)
-          subfieldList.append(name);
-      }
-    }
-
-    ++it;
+  for (Field field : {Author, Email, Message, File, Path, Scope, Addition,
+                      Deletion, Comment, String, Identifier}) {
+    QStringList values = suggestions(field, prefix, limit);
+    if (!values.isEmpty())
+      map.insert(field, values);
   }
 
   return map;
+}
+
+QByteArrayList Index::startingWith(const QByteArray &table,
+                                   const QByteArray &column,
+                                   const QByteArray &prefix, int limit) const {
+  std::shared_ptr<sqlite3> db = mDB;
+  if (!db)
+    return QByteArrayList();
+
+  // A range on the column, so that its index is used.
+  QByteArrayList params;
+  QByteArray sql = "SELECT DISTINCT " + column + " FROM " + table;
+  if (!prefix.isEmpty()) {
+    sql += " WHERE " + column + " >= ?";
+    params.append(prefix);
+    if (uchar(prefix.back()) < 0xff) {
+      QByteArray end = prefix;
+      end.back() = char(uchar(end.back()) + 1);
+      sql += " AND " + column + " < ?";
+      params.append(end);
+    }
+  }
+  sql += " ORDER BY " + column + " LIMIT " + QByteArray::number(limit);
+
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db.get(), sql.constData(), int(sql.size() + 1), &stmt,
+                         nullptr) != SQLITE_OK) {
+    qWarning() << "Failed to prepare suggestions:" << sqlite3_errmsg(db.get());
+    return QByteArrayList();
+  }
+
+  for (int i = 0; i < params.size(); ++i)
+    sqlite3_bind_text(stmt, i + 1, params.at(i).constData(),
+                      params.at(i).size(), SQLITE_STATIC);
+
+  QByteArrayList values;
+  while (sqlite3_step(stmt) == SQLITE_ROW) {
+    const char *value =
+        reinterpret_cast<const char *>(sqlite3_column_text(stmt, 0));
+    values.append(QByteArray(value, sqlite3_column_bytes(stmt, 0)));
+  }
+  sqlite3_finalize(stmt);
+  return values;
 }
 
 int Index::staleLockTime() { return 24 * 60 * 60 * 1000; }
@@ -348,19 +365,6 @@ QDir Index::indexDir(const git::Repository &repo) {
 
 QString Index::lockFile(const git::Repository &repo) {
   return indexDir(repo).filePath(kLockFile);
-}
-
-// Write deltas to minimize bytes per position.
-void Index::readPositions(MmapFileReader &in, QVector<quint32> &positions) {
-  quint32 prev = 0;
-  quint32 count = in.readVInt();
-  positions.reserve(count);
-  for (quint32 i = 0; i < count; ++i) {
-    // Convert to absolute from delta.
-    quint32 position = prev + in.readVInt();
-    positions.append(position);
-    prev = position;
-  }
 }
 
 bool Index::isLoggingEnabled() {

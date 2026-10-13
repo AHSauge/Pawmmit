@@ -7,7 +7,6 @@ index_src = [
     'IndexWriter.cpp',
     'Lexer.cpp',
     'LPegLexer.cpp',
-    'MmapFileReader.cpp',
     'Query.cpp',
 ]
 

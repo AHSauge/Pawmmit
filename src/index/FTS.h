@@ -52,5 +52,6 @@ struct CommitDocument {
 
 FTSColumn columnFor(Index::Field field, Subfield sub);
 QByteArray normaliseToken(QByteArrayView token);
+QByteArrayList ftsColumns(Index::Field field);
 
 #endif

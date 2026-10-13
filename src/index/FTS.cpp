@@ -70,3 +70,47 @@ QByteArray normaliseToken(QByteArrayView token) {
     return token.toByteArray().toLower();
   return QString::fromUtf8(token).toCaseFolded().toUtf8();
 }
+
+QByteArrayList ftsColumns(Index::Field field) {
+  auto matches = [](auto predicate) {
+    QByteArrayList columns;
+    for (const char *name : kFTSColumnNames)
+      if (predicate(QByteArray(name)))
+        columns.append(name);
+    return columns;
+  };
+
+  switch (field) {
+    case Index::Author:
+      return {kFTSColumnNames[size_t(FTSColumn::Author)]};
+
+    case Index::Message:
+      return matches(
+          [](const QByteArray &n) { return n.startsWith("message_"); });
+
+    case Index::Scope:
+      return matches(
+          [](const QByteArray &n) { return n.startsWith("scope_"); });
+
+    case Index::Addition:
+      return matches(
+          [](const QByteArray &n) { return n.startsWith("addition_"); });
+
+    case Index::Deletion:
+      return matches(
+          [](const QByteArray &n) { return n.startsWith("deletion_"); });
+
+    case Index::Comment:
+      return matches(
+          [](const QByteArray &n) { return n.endsWith("_comment"); });
+
+    case Index::String:
+      return matches([](const QByteArray &n) { return n.endsWith("_string"); });
+
+    case Index::Identifier:
+      return matches([](const QByteArray &n) { return n.endsWith("_ident"); });
+
+    default:
+      return {};
+  }
+}
