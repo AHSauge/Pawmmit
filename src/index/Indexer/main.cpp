@@ -132,7 +132,8 @@ int main(int argc, char *argv[]) {
   app.installNativeEventFilter(&indexer);
   QObject::connect(
       &indexer, &QThread::finished, &app,
-      [&app] { app.exit(canceled ? 1 : 0); }, Qt::QueuedConnection);
+      [&app, &indexer] { app.exit(canceled || indexer.failed() ? 1 : 0); },
+      Qt::QueuedConnection);
   indexer.start();
   return app.exec();
 }

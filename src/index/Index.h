@@ -122,9 +122,6 @@ signals:
   void indexReset();
 
 private:
-  // index version
-  quint8 readVersion() const;
-
   QDir indexDir() const;
 
   git::Repository mRepo;

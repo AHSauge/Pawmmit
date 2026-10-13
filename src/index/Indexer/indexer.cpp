@@ -131,8 +131,9 @@ void index(const Lexer::Lexeme &lexeme, CommitDocument &doc, Index::Field field,
 }
 
 Indexer::Indexer(Index &index, bool notify, QObject *parent)
-    : QThread(parent), mIndex(index), mIds(index),
-      mResultWriter(index, mIntermediateQueue, notify) {
+    : QThread(parent), mIndex(index), mIds(index.repo()),
+      mResultWriter(index.repo(), mIntermediateQueue, notify),
+      mCheckpointer(index.repo()) {
   mWalker = mIndex.repo().walker();
 
 #ifdef Q_OS_UNIX
@@ -161,8 +162,8 @@ Indexer::Indexer(Index &index, bool notify, QObject *parent)
 void Indexer::run() {
   // The distribution of threads is as follows
   // This thread iterates over mWalker
-  // 1x thread runs the Reduction class
   // 1x thread runs the ResultWriter
+  // 1x thread runs the Checkpointer
   // Up-to 4 threads running a DiffGrabber. Even three seems to oversature
   // libgit2. On top of this, one worker is spawned per cpu thread
   // NOTE: This will always overcommit by up-to 7 threads. This is
@@ -174,8 +175,16 @@ void Indexer::run() {
   int numGabbers = std::min(4, std::max(1, QThread::idealThreadCount() / 2));
   int numWorkers = QThread::idealThreadCount();
 
+  // Without a usable database the results would have nowhere to go.
+  if (!mResultWriter.isValid()) {
+    log("failed to set up the index database");
+    mFailed = true;
+    return;
+  }
+
   log("start");
   mResultWriter.start();
+  mCheckpointer.start();
   for (int i = 0; i < numWorkers; i++) {
     mWorkers.start(
         new Map(mIndex.repo(), mLexers, mDiffedCommits, mIntermediateQueue));
@@ -221,6 +230,10 @@ void Indexer::finish() {
   mIntermediateQueue.awaitEmpty();
   mIntermediateQueue.stop();
   mResultWriter.wait();
+
+  // The checkpointer goes last, so its final checkpoint covers every write
+  mCheckpointer.stop();
+  mCheckpointer.wait();
 }
 
 bool Indexer::nativeEventFilter(const QByteArray &type, void *message,

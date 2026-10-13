@@ -10,6 +10,7 @@
 // Author: Jason Haslam
 //
 
+#include "FTS.h"
 #include "Index.h"
 #include "GenericLexer.h"
 #include "LPegLexer.h"
@@ -52,9 +53,7 @@ Index::Index(const git::Repository &repo, QObject *parent)
 
   cleanTemporaryFiles();
 
-  // Check version.
-  if (readVersion() < version())
-    remove();
+  // TODO: Check version (when we have a newer schema) and TBD migrate
 
   // Read data from disk.
   reset();
@@ -293,8 +292,6 @@ QMap<Index::Field, QStringList> Index::fieldMap(const QString &prefix) const {
   return map;
 }
 
-quint8 Index::version() { return 3; }
-
 int Index::staleLockTime() { return 24 * 60 * 60 * 1000; }
 
 QString Index::dateFormat() { return "yyyy/MM/dd"; }
@@ -351,16 +348,6 @@ QDir Index::indexDir(const git::Repository &repo) {
 
 QString Index::lockFile(const git::Repository &repo) {
   return indexDir(repo).filePath(kLockFile);
-}
-
-quint8 Index::readVersion() const {
-  QFile file(indexDir().filePath(kVersionFile));
-  if (!file.open(QFile::ReadOnly))
-    return 0;
-
-  quint8 version = 0;
-  QDataStream(&file) >> version;
-  return version;
 }
 
 // Write deltas to minimize bytes per position.

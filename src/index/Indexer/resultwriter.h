@@ -6,7 +6,7 @@
 #define RESULTWRITER_H
 
 #include "FTS.h"
-#include "index/Index.h"
+#include "index/IndexWriter.h"
 #include "index/WorkerQueue.h"
 #include <QThread>
 
@@ -14,12 +14,15 @@
 /// @note Only instantiate one instance of this class!
 class ResultWriter : public QThread {
 public:
-  ResultWriter(Index &index, WorkerQueue<CommitDocument> &results, bool notify)
-      : mNotify(notify), mIndex(index), mResults(results) {}
+  ResultWriter(const git::Repository &repo,
+               WorkerQueue<CommitDocument> &results, bool notify)
+      : mNotify(notify), mIndex(repo), mResults(results) {}
+
+  bool isValid() const { return mIndex.isValid(); }
 
 private:
   bool mNotify;
-  Index &mIndex;
+  IndexWriter mIndex;
   WorkerQueue<CommitDocument> &mResults;
 
   void run() override;

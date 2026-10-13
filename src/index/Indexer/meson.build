@@ -1,4 +1,5 @@
 indexer_src = files(
+    'checkpointer.cpp',
     'common.cpp',
     'diffgrabber.cpp',
     'idstorage.cpp',
