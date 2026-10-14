@@ -4,11 +4,11 @@
 #include "checkpointer.h"
 #include "FTS.h"
 #include "idstorage.h"
-#include "Index.h"
 #include "lexerpool.h"
 #include "resultwriter.h"
 #include "WorkerQueue.h"
 #include "git/Diff.h"
+#include "git/Repository.h"
 #include "git/RevWalk.h"
 #include "index/Lexer.h"
 
@@ -21,7 +21,7 @@ void index(const Lexer::Lexeme &lexeme, CommitDocument &doc, Index::Field field,
 
 class Indexer : public QThread, public QAbstractNativeEventFilter {
 public:
-  Indexer(Index &index, bool notify, QObject *parent = nullptr);
+  Indexer(git::Repository &repo, bool notify, QObject *parent = nullptr);
 
   void run() override;
   bool nativeEventFilter(const QByteArray &type, void *message,
@@ -34,7 +34,7 @@ private:
   void finish();
   void cancel();
 
-  Index &mIndex;
+  const git::Repository mRepo;
   bool mFailed = false;
 
   IdStorage mIds;

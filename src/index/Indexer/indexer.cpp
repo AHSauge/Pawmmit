@@ -130,11 +130,10 @@ void index(const Lexer::Lexeme &lexeme, CommitDocument &doc, Index::Field field,
   }
 }
 
-Indexer::Indexer(Index &index, bool notify, QObject *parent)
-    : QThread(parent), mIndex(index), mIds(index.repo()),
-      mResultWriter(index.repo(), mIntermediateQueue, notify),
-      mCheckpointer(index.repo()) {
-  mWalker = mIndex.repo().walker();
+Indexer::Indexer(git::Repository &repo, bool notify, QObject *parent)
+    : QThread(parent), mRepo(repo), mIds(repo),
+      mResultWriter(repo, mIntermediateQueue, notify), mCheckpointer(repo) {
+  mWalker = repo.walker();
 
 #ifdef Q_OS_UNIX
   if (!socketpair(AF_UNIX, SOCK_STREAM, 0, fds)) {
@@ -186,8 +185,7 @@ void Indexer::run() {
   mResultWriter.start();
   mCheckpointer.start();
   for (int i = 0; i < numWorkers; i++) {
-    mWorkers.start(
-        new Map(mIndex.repo(), mLexers, mDiffedCommits, mIntermediateQueue));
+    mWorkers.start(new Map(mRepo, mLexers, mDiffedCommits, mIntermediateQueue));
   }
   for (int i = 0; i < numGabbers; i++) {
     mGrabbers.start(new DiffGrabber(mCommits, mDiffedCommits));

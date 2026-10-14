@@ -127,8 +127,7 @@ int main(int argc, char *argv[]) {
     return 0;
 
   // Start the indexer.
-  Index index(repo);
-  Indexer indexer(index, parser.isSet("notify"));
+  Indexer indexer(repo, parser.isSet("notify"));
   app.installNativeEventFilter(&indexer);
   QObject::connect(
       &indexer, &QThread::finished, &app,
