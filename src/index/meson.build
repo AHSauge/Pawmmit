@@ -26,7 +26,7 @@ index_lib = static_library(
 index_dep = declare_dependency(
     link_with: index_lib,
     include_directories: include_directories('.'),
-    dependencies: [conf_dep, git_dep, lpeg_dep],
+    dependencies: [conf_dep, git_dep, lpeg_dep, sqlite_dep],
 )
 
 executable('lexer_test', 'lexer_test.cpp', dependencies: [pawmmit_common, index_dep])
