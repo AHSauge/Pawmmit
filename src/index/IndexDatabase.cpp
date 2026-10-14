@@ -13,7 +13,7 @@
 static const QString kIndexDB = "index.db";
 static const QString kIndexSHM = kIndexDB + "-shm";
 static const QString kIndexWAL = kIndexDB + "-wal";
-const QStringList kIndexFiles = {kIndexWAL, kIndexSHM, kIndexDB};
+static const QStringList kIndexFiles = {kIndexWAL, kIndexSHM, kIndexDB};
 static const QString kLockFile = "lock";
 constexpr int kStaleLockTime = 24 * 60 * 60 * 1000;
 
