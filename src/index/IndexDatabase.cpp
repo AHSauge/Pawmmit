@@ -26,6 +26,11 @@ std::shared_ptr<sqlite3> open(const git::Repository &repo, bool readOnly) {
   QString path = Index::indexDir(repo).filePath(kIndexDB);
   QByteArray dbPath = path.toUtf8();
 
+  // Read-only connections can't create the database, and until the indexer
+  // has, there's simply nothing indexed yet.
+  if (readOnly && !QFile::exists(path))
+    return nullptr;
+
   // The GUI shares its read-only connection between threads.
   int flags = readOnly ? (SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX)
                        : (SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE);

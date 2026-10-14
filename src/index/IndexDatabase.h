@@ -18,7 +18,8 @@ class Repository;
 class QLockFile;
 
 namespace index_database {
-// Returns nullptr if the database couldn't be opened.
+// Returns nullptr if the database couldn't be opened, or if a read-only
+// connection is requested before the database exists.
 std::shared_ptr<sqlite3> open(const git::Repository &repo, bool readOnly);
 
 /// @brief Attempts to lock the database for write/erase operations
