@@ -52,6 +52,22 @@ QByteArray ftsQuote(const QByteArray &term) {
   return '"' + QByteArray(term).replace('"', "\"\"") + '"';
 }
 
+// The normalised words of a search term, split the same way as indexed text.
+QByteArrayList termWords(const QString &text) {
+  QByteArray utf8 = text.toUtf8();
+  QByteArrayList words =
+      isAscii(utf8) ? QByteArrayList{utf8} : segmentWords(utf8);
+  for (QByteArray &word : words)
+    word = normaliseToken(word);
+  return words;
+}
+
+// Quotes a search term for FTS5. A term the segmenter splits into several
+// words, like Chinese text, becomes a phrase so the words must be adjacent.
+QByteArray ftsTerm(const QString &text) {
+  return ftsQuote(termWords(text).join(kTokenSeparator));
+}
+
 // Restricts an FTS5 expression to the columns of the field.
 QByteArray ftsFilter(Index::Field field, const QByteArray &expression) {
   QByteArrayList columns = ftsColumns(field);
@@ -121,7 +137,7 @@ public:
   }
 
   QByteArray ftsExpression() const override {
-    return ftsFilter(mTerm.field, ftsQuote(token()));
+    return ftsFilter(mTerm.field, ftsTerm(mTerm.text));
   }
 
   QByteArray condition(const Index &index,
@@ -168,7 +184,7 @@ private:
   // index. Each alternative appends its parameters in the order it's listed.
   QByteArray anyCondition(const Index &index, QList<SqlParam> &params) const {
     QByteArray term = token();
-    QByteArrayList alternatives = {ftsCondition(ftsQuote(term), params)};
+    QByteArrayList alternatives = {ftsCondition(ftsTerm(mTerm.text), params)};
 
     params.append(SqlText{term});
     alternatives.append("c.email = ?");
@@ -253,7 +269,7 @@ public:
   bool isFts() const override { return TermQuery::isFts() && isPrefix(); }
 
   QByteArray ftsExpression() const override {
-    return ftsFilter(mTerm.field, ftsQuote(token().chopped(1)) + '*');
+    return ftsFilter(mTerm.field, ftsTerm(mTerm.text.chopped(1)) + '*');
   }
 
   QByteArray condition(const Index &index,
@@ -351,7 +367,7 @@ public:
   QByteArray ftsExpression() const override {
     QByteArrayList tokens;
     for (const Index::Term &term : mTerms)
-      tokens.append(normaliseToken(term.text.toUtf8()));
+      tokens.append(termWords(term.text));
     return ftsFilter(mTerms.first().field,
                      ftsQuote(tokens.join(kTokenSeparator)));
   }
@@ -533,6 +549,7 @@ QueryRef parse(QList<Lexer::Lexeme> &lexemes, Index::Field start = Index::Any) {
       unquoted.chop(1);
 
       GenericLexer lexer;
+      lexer.setSegmenting(false);
       if (lexer.lex(unquoted)) {
         QList<Index::Term> terms;
         while (lexer.hasNext()) {
@@ -593,7 +610,10 @@ QByteArray Query::condition(const Index &index, QList<SqlParam> &params) const {
 QueryRef Query::parseQuery(const QString &query) {
   // Parse into list of terms.
   // Handle key:() and key:"" with embedded spaces.
+  // Terms stay whole here, and are split when the SQL is built, since emails
+  // and paths are matched whole.
   GenericLexer lexer;
+  lexer.setSegmenting(false);
   QList<Lexer::Lexeme> lexemes;
   if (lexer.lex(query.toUtf8())) {
     while (lexer.hasNext())

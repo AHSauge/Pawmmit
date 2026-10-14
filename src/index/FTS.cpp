@@ -3,7 +3,9 @@
 //
 
 #include "FTS.h"
+#include <QTextBoundaryFinder>
 #include <algorithm>
+#include <utility>
 
 void CommitDocument::append(FTSColumn column, QByteArrayView token) {
   QByteArray &buf = columns[size_t(column)];
@@ -63,12 +65,62 @@ FTSColumn columnFor(Index::Field field, Subfield sub) {
   }
 }
 
+bool isAscii(QByteArrayView text) {
+  return std::all_of(text.begin(), text.end(),
+                     [](char c) { return uchar(c) < 0x80; });
+}
+
 QByteArray normaliseToken(QByteArrayView token) {
-  bool ascii = std::all_of(token.begin(), token.end(),
-                           [](char c) { return uchar(c) < 0x80; });
-  if (ascii || token.isValidUtf8() == false)
+  if (isAscii(token) || token.isValidUtf8() == false)
     return token.toByteArray().toLower();
-  return QString::fromUtf8(token).toCaseFolded().toUtf8();
+
+  // NFKC matches text that only differs in its encoding, like a decomposed "å"
+  // or full-width "ＡＢＣ". It runs before folding, since it can produce upper
+  // case letters, and again after, since folding can undo it.
+  return QString::fromUtf8(token)
+      .normalized(QString::NormalizationForm_KC)
+      .toCaseFolded()
+      .normalized(QString::NormalizationForm_KC)
+      .toUtf8();
+}
+
+QByteArrayList segmentWords(QByteArrayView text) {
+  QByteArrayList words;
+
+  // Bytes that aren't UTF-8, like Latin-1, can't be segmented. Keep the ASCII
+  // words between them, as they were before.
+  if (!text.isValidUtf8()) {
+    QByteArray word;
+    for (char ch : text) {
+      if (uchar(ch) < 0x80 && (QChar::isLetterOrNumber(uchar(ch)) || ch == '_'))
+        word += ch;
+      else if (!word.isEmpty())
+        words.append(std::exchange(word, QByteArray()));
+    }
+    if (!word.isEmpty())
+      words.append(word);
+    return words;
+  }
+
+  QString string = QString::fromUtf8(text);
+  QTextBoundaryFinder finder(QTextBoundaryFinder::Word, string);
+  qsizetype start = 0;
+  for (qsizetype end = finder.toNextBoundary(); end >= 0;
+       end = finder.toNextBoundary()) {
+    // Han text only has break opportunities rather than words, so keep every
+    // segment that starts with a letter or number. Letters outside the BMP
+    // are surrogate pairs.
+    if (end > start) {
+      char32_t first = string.at(start).unicode();
+      if (QChar::isHighSurrogate(first) && start + 1 < end)
+        first = QChar::surrogateToUcs4(string.at(start), string.at(start + 1));
+      if (QChar::isLetterOrNumber(first))
+        words.append(string.sliced(start, end - start).toUtf8());
+    }
+    start = end;
+  }
+
+  return words;
 }
 
 QByteArrayList ftsColumns(Index::Field field) {

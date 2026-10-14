@@ -109,14 +109,21 @@ void index(const Lexer::Lexeme &lexeme, CommitDocument &doc, Index::Field field,
 
     // Add directly.
     case Lexer::Keyword:
-    case Lexer::Identifier:
-      // Limit term length.
-      if (text.length() <= 64) {
-        doc.append(columnFor(field, sub == Subfield::None ? Subfield::Identifier
-                                                          : sub),
-                   normaliseToken(text));
+    case Lexer::Identifier: {
+      FTSColumn column =
+          columnFor(field, sub == Subfield::None ? Subfield::Identifier : sub);
+
+      // Language lexers return non-ASCII identifiers whole, so split them the
+      // way search terms are split.
+      QByteArrayList words =
+          isAscii(text) ? QByteArrayList{text} : segmentWords(text);
+      for (const QByteArray &word : words) {
+        // Limit term length.
+        if (word.length() <= 64)
+          doc.append(column, normaliseToken(word));
       }
       break;
+    }
 
     // Ignore everything else.
     case Lexer::Nothing:    // fall through

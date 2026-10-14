@@ -54,7 +54,14 @@ struct CommitDocument {
 };
 
 FTSColumn columnFor(Index::Field field, Subfield sub);
+bool isAscii(QByteArrayView text);
 QByteArray normaliseToken(QByteArrayView token);
 QByteArrayList ftsColumns(Index::Field field);
+
+/// @brief Splits text into words by Unicode's rules, for indexing and searching
+/// @param text UTF-8 text. Invalid UTF-8 only yields its ASCII words.
+/// @return The words. Chinese and Japanese text, written without spaces, comes
+/// back one character per word.
+QByteArrayList segmentWords(QByteArrayView text);
 
 #endif

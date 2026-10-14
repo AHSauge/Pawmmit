@@ -11,6 +11,7 @@
 #include "git/Index.h"
 #include "git/Signature.h"
 #include "index/Index.h"
+#include "index/FTS.h"
 #include "index/IndexDatabase.h"
 #include "index/Query.h"
 #include "dialogs/SearchPanel.h"
@@ -34,6 +35,8 @@ private slots:
   void removeButton();
   void olderSchema();
   void newerSchema();
+  void nonAscii();
+  void thai();
 
 private:
   void runIndexer(git::Repository &repo, int exitCode = 0);
@@ -42,6 +45,7 @@ private:
                          const QByteArray &content, const QString &message,
                          const git::Signature &author);
   QList<git::Commit> search(const Index &index, const QString &query);
+  QStringList summaries(const Index &index, const QString &query);
 };
 
 void TestSearchIndex::multiLineComment() {
@@ -290,6 +294,73 @@ void TestSearchIndex::newerSchema() {
   QCOMPARE(commits, 1);
 }
 
+void TestSearchIndex::nonAscii() {
+  Test::ScratchRepository scratch;
+  git::Repository repo = scratch;
+  int day = 0;
+  auto commit = [&](const QString &path, const QByteArray &content,
+                    const QString &message) {
+    QDateTime date(QDate(2024, 1, 1).addDays(day++), QTime(12, 0),
+                   QTimeZone::utc());
+    return commitFile(repo, path, content, message,
+                      repo.signature("A", "a@example.com", date))
+        .isValid();
+  };
+
+  QVERIFY(commit("a.txt", "a\n", "Ødegård fikset feilen"));
+  QVERIFY(commit("b.txt", "b\n", "修复了搜索索引的错误"));
+  QVERIFY(commit("c.txt", "c\n", "搜狗的索引"));
+  QVERIFY(commit("d.txt", "d\n", "Say “hello” to the café"));
+  QVERIFY(commit("e.cpp", "int x; // Æsir\n", "Add e"));
+  QVERIFY(commit("f.txt", "f\n", "Add ＡＢＣ and ℌorse"));
+  runIndexer(repo);
+
+  Index index(repo);
+  QCOMPARE(summaries(index, "ødegård"), QStringList({"Ødegård fikset feilen"}));
+  QCOMPARE(summaries(index, "ØDEGÅRD"), QStringList({"Ødegård fikset feilen"}));
+
+  // Decomposed, as macOS stores some text, with a combining ring above.
+  QCOMPARE(summaries(index, "Ødega\u030Ard"),
+           QStringList({"Ødegård fikset feilen"}));
+
+  // Han text is indexed per character and searched as a phrase, so the
+  // characters must be adjacent.
+  QCOMPARE(summaries(index, "msg:搜索"), QStringList({"修复了搜索索引的错误"}));
+  QCOMPARE(summaries(index, "搜狗"), QStringList({"搜狗的索引"}));
+  QCOMPARE(summaries(index, "索引").size(), 2);
+
+  // Punctuation outside ASCII separates words, and accented words stay whole.
+  QCOMPARE(summaries(index, "hello"), QStringList({"Say “hello” to the café"}));
+  QCOMPARE(summaries(index, "Café"), QStringList({"Say “hello” to the café"}));
+  QCOMPARE(summaries(index, "caf"), QStringList());
+
+  // Compatibility forms match their plain letters, including ones that NFKC
+  // turns into upper case.
+  QCOMPARE(summaries(index, "abc"), QStringList({"Add ＡＢＣ and ℌorse"}));
+  QCOMPARE(summaries(index, "horse"), QStringList({"Add ＡＢＣ and ℌorse"}));
+
+  // Comments are lexed again with the generic lexer.
+  QCOMPARE(summaries(index, "comment:æsir"), QStringList({"Add e"}));
+}
+
+void TestSearchIndex::thai() {
+  // Thai has no spaces, so it needs Qt to have a dictionary, like libthai.
+  if (segmentWords("แก้ไขดัชนีการค้นหา").size() < 2)
+    QSKIP("Qt can't split Thai text into words here");
+
+  Test::ScratchRepository scratch;
+  git::Repository repo = scratch;
+  QVERIFY(commitFile(repo, "a.txt", "a\n", "แก้ไขดัชนีการค้นหา",
+                     repo.signature("A", "a@example.com",
+                                    QDateTime::currentDateTime()))
+              .isValid());
+  runIndexer(repo);
+
+  Index index(repo);
+  QCOMPARE(summaries(index, "ดัชนี"), QStringList({"แก้ไขดัชนีการค้นหา"}));
+  QCOMPARE(summaries(index, "ดัช"), QStringList());
+}
+
 void TestSearchIndex::setSchemaVersion(git::Repository &repo, int version) {
   std::shared_ptr<sqlite3> db = index_database::open(repo, false);
   QVERIFY(db);
@@ -329,6 +400,14 @@ QList<git::Commit> TestSearchIndex::search(const Index &index,
                                            const QString &query) {
   QueryRef ref = Query::parseQuery(query);
   return ref ? ref->commits(&index) : QList<git::Commit>();
+}
+
+QStringList TestSearchIndex::summaries(const Index &index,
+                                       const QString &query) {
+  QStringList result;
+  for (const git::Commit &commit : search(index, query))
+    result.append(commit.summary());
+  return result;
 }
 
 TEST_MAIN(TestSearchIndex)
