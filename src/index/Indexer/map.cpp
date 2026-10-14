@@ -1,5 +1,11 @@
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+
+#include "common.h"
 #include "map.h"
 #include "lexerpool.h"
+#include "conf/Settings.h"
 #include "git/Index.h"
 #include "git/Patch.h"
 #include "git/Config.h"

@@ -12,25 +12,15 @@
 
 #include "common.h"
 #include "indexer.h"
-#include "qtsupport.h"
 #include "conf/Settings.h"
-#include "git/Config.h"
 #include "git/Index.h"
-#include "git/Patch.h"
 #include "git/Repository.h"
-#include "git/RevWalk.h"
-#include "git/Signature.h"
+#include "index/Index.h"
 #include "index/IndexDatabase.h"
 #include <QCommandLineParser>
 #include <QCoreApplication>
-#include <QDataStream>
-#include <QDateTime>
-#include <QFutureWatcher>
+#include <QFile>
 #include <QLockFile>
-#include <QMap>
-#include <QRegularExpression>
-#include <QTextStream>
-#include <QtConcurrent>
 #ifndef Q_OS_WIN
 #include <sys/resource.h>
 #else

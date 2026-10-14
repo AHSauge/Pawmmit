@@ -1,11 +1,17 @@
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+
 #ifndef MAP_H
 #define MAP_H
 
 #include <QRunnable>
 #include "FTS.h"
+#include "git/Commit.h"
+#include "git/Diff.h"
 #include "git/Repository.h"
 #include "../WorkerQueue.h"
-#include "common.h"
+#include <QPair>
 
 class LexerPool;
 

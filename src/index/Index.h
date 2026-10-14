@@ -14,9 +14,13 @@
 #define INDEX_H
 
 #include "git/Repository.h"
+#include <QByteArrayList>
+#include <QDir>
 #include <QList>
+#include <QMap>
 #include <QObject>
-#include <QVector>
+#include <QPair>
+#include <QStringList>
 
 namespace git {
 class Commit;

@@ -1,12 +1,18 @@
-#ifndef INDEXER
-#define INDEXER
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+
+#ifndef INDEXER_H
+#define INDEXER_H
 
 #include "checkpointer.h"
 #include "FTS.h"
 #include "idstorage.h"
+#include "Index.h"
 #include "lexerpool.h"
 #include "resultwriter.h"
 #include "WorkerQueue.h"
+#include "git/Commit.h"
 #include "git/Diff.h"
 #include "git/Repository.h"
 #include "git/RevWalk.h"
@@ -14,6 +20,8 @@
 
 #include <QObject>
 #include <QAbstractNativeEventFilter>
+#include <QPair>
+#include <QThread>
 #include <QThreadPool>
 
 void index(const Lexer::Lexeme &lexeme, CommitDocument &doc, Index::Field field,
@@ -54,4 +62,4 @@ private:
       WorkerQueue<CommitDocument>(1024);
 };
 
-#endif // INDEXER
+#endif // INDEXER_H

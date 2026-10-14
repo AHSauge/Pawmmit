@@ -13,6 +13,9 @@
 #ifndef WORKERQUEUE_H
 #define WORKERQUEUE_H
 
+#include <atomic>
+#include <limits>
+#include <optional>
 #include <QObject>
 #include <QMutex>
 #include <QMutexLocker>

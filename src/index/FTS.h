@@ -8,6 +8,9 @@
 #include "Index.h"
 #include "git/Id.h"
 #include <array>
+#include <cstddef>
+#include <QByteArrayList>
+#include <QByteArrayView>
 
 /// @brief Token separator for the indexer
 constexpr char kTokenSeparator = ' ';
