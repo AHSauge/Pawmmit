@@ -91,7 +91,6 @@ public:
                                     int limit = -1) const;
 
   // constants
-  static int staleLockTime();
   static QString dateFormat();
 
   // Get the canonical name for the given field.
@@ -99,7 +98,6 @@ public:
 
   // Get the index directory for the given repository.
   static QDir indexDir(const git::Repository &repo);
-  static QString lockFile(const git::Repository &repo);
 
   // Enable logging. The log is written to the index dir.
   static bool isLoggingEnabled();

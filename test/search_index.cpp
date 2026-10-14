@@ -12,7 +12,11 @@
 #include "git/Signature.h"
 #include "index/Index.h"
 #include "index/Query.h"
+#include "dialogs/SearchPanel.h"
 #include "ui/IndexCompleter.h"
+#include "ui/MainWindow.h"
+#include "ui/RepoView.h"
+#include <QPushButton>
 #include <QLineEdit>
 #include <QProcess>
 #include <QTimeZone>
@@ -24,6 +28,8 @@ private slots:
   void multiLineComment();
   void queries();
   void completer();
+  void remove();
+  void removeButton();
 
 private:
   void runIndexer(git::Repository &repo);
@@ -183,6 +189,49 @@ void TestSearchIndex::completer() {
   QTest::keyClicks(&lineEdit, "b");
   QCOMPARE(completer->completionCount(), 1);
   QCOMPARE(completer->currentCompletion(), QString("foo zebra"));
+}
+
+void TestSearchIndex::remove() {
+  Test::ScratchRepository scratch;
+  git::Repository repo = scratch;
+  QVERIFY(commitFile(repo, "a.txt", "zebra\n", "Add a",
+                     repo.signature("A", "a@example.com",
+                                    QDateTime::currentDateTime()))
+              .isValid());
+  runIndexer(repo);
+
+  QDir dir = Index::indexDir(repo);
+  Index index(repo);
+  QVERIFY(index.isValid());
+  qInfo() << "before:" << dir.entryList(QDir::Files);
+
+  QVERIFY(index.remove());
+  qInfo() << "after:" << dir.entryList(QDir::Files);
+  QVERIFY(!dir.exists("index.db"));
+  QVERIFY(!index.isValid());
+}
+
+void TestSearchIndex::removeButton() {
+  Test::ScratchRepository scratch;
+  git::Repository repo = scratch;
+  QVERIFY(commitFile(repo, "a.txt", "zebra\n", "Add a",
+                     repo.signature("A", "a@example.com",
+                                    QDateTime::currentDateTime()))
+              .isValid());
+  runIndexer(repo);
+
+  // The same steps as clicking Remove in the search settings.
+  QDir dir = Index::indexDir(repo);
+  MainWindow window(repo);
+  RepoView *view = window.currentView();
+  QVERIFY(view->index()->isValid());
+  SearchPanel panel(view);
+  QPushButton *button = panel.findChild<QPushButton *>("mRemove");
+  QVERIFY(button && button->isEnabled());
+  qInfo() << "before:" << dir.entryList(QDir::Files);
+  button->click();
+  qInfo() << "after:" << dir.entryList(QDir::Files);
+  QVERIFY(!dir.exists("index.db"));
 }
 
 void TestSearchIndex::runIndexer(git::Repository &repo) {

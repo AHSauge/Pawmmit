@@ -20,6 +20,7 @@
 #include "git/Repository.h"
 #include "git/RevWalk.h"
 #include "git/Signature.h"
+#include "index/IndexDatabase.h"
 #include <QCommandLineParser>
 #include <QCoreApplication>
 #include <QDataStream>
@@ -121,9 +122,8 @@ int main(int argc, char *argv[]) {
   }
 
   // Try to lock the index for writing.
-  QLockFile lock(Index::lockFile(repo));
-  lock.setStaleLockTime(Index::staleLockTime());
-  if (!lock.tryLock())
+  auto lock = index_database::lock(repo);
+  if (lock == nullptr)
     return 0;
 
   // Start the indexer.

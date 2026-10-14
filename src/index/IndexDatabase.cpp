@@ -7,9 +7,15 @@
 #include "IndexDatabase.h"
 #include <sqlite3.h>
 #include <QFile>
+#include <QLockFile>
 #include <QString>
 
 static const QString kIndexDB = "index.db";
+static const QString kIndexSHM = kIndexDB + "-shm";
+static const QString kIndexWAL = kIndexDB + "-wal";
+const QStringList kIndexFiles = {kIndexWAL, kIndexSHM, kIndexDB};
+static const QString kLockFile = "lock";
+constexpr int kStaleLockTime = 24 * 60 * 60 * 1000;
 
 static bool registerTokeniser(sqlite3 *db);
 
@@ -42,6 +48,27 @@ std::shared_ptr<sqlite3> open(const git::Repository &repo, bool readOnly) {
 
   return std::shared_ptr<sqlite3>(db, sqlite3_close_v2);
 }
+
+std::unique_ptr<QLockFile> lock(const git::Repository &repo, int timeout) {
+  auto lock =
+      std::make_unique<QLockFile>(Index::indexDir(repo).filePath(kLockFile));
+  lock->setStaleLockTime(kStaleLockTime);
+  return lock->tryLock(timeout) ? std::move(lock) : nullptr;
+}
+
+bool remove(const git::Repository &repo) {
+  auto fileLock = lock(repo);
+  if (fileLock == nullptr)
+    return false;
+
+  QDir dir = Index::indexDir(repo);
+  for (const QString &file : kIndexFiles) {
+    if (dir.exists(file) && dir.remove(file) == false)
+      return false;
+  }
+  return true;
+}
+
 } // namespace index_database
 
 static int tokeniserCreate(void *, const char **, int, Fts5Tokenizer **out) {

@@ -35,14 +35,6 @@ namespace {
 const QString kLogKey = "debug/indexer";
 
 const QString kIndexDir = "index";
-const QString kIdFile = "ids";
-const QString kDictFile = "dict";
-const QString kPostFile = "post";
-const QString kProxFile = "prox";
-const QString kLockFile = "lock";
-const QString kVersionFile = "version";
-
-const QStringList kIndexFiles = {kIdFile, kDictFile, kPostFile, kProxFile};
 
 } // namespace
 
@@ -76,20 +68,13 @@ void Index::reset() {
 }
 
 bool Index::remove() {
-  // Try to lock the index for writing.
-  QLockFile lock(lockFile(mRepo));
-  lock.setStaleLockTime(staleLockTime());
-  if (!lock.tryLock())
+  mDB.reset();
+  if (index_database::remove(mRepo)) {
+    reset();
+    return true;
+  } else {
     return false;
-
-  QDir dir = indexDir();
-  for (const QString &file : kIndexFiles) {
-    if (!dir.remove(file))
-      return false;
   }
-
-  reset();
-  return true;
 }
 
 QList<git::Commit> Index::commits(const QString &filter) const {
@@ -309,8 +294,6 @@ QByteArrayList Index::startingWith(const QByteArray &table,
   return values;
 }
 
-int Index::staleLockTime() { return 24 * 60 * 60 * 1000; }
-
 QString Index::dateFormat() { return "yyyy/MM/dd"; }
 
 QByteArray Index::fieldName(Index::Field field) {
@@ -361,10 +344,6 @@ QDir Index::indexDir(const git::Repository &repo) {
   dir.mkpath(kIndexDir);
   dir.cd(kIndexDir);
   return dir;
-}
-
-QString Index::lockFile(const git::Repository &repo) {
-  return indexDir(repo).filePath(kLockFile);
 }
 
 bool Index::isLoggingEnabled() {
