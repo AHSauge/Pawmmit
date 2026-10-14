@@ -137,7 +137,7 @@ void index(const Lexer::Lexeme &lexeme, CommitDocument &doc, Index::Field field,
   }
 }
 
-Indexer::Indexer(git::Repository &repo, bool notify, QObject *parent)
+Indexer::Indexer(const git::Repository &repo, bool notify, QObject *parent)
     : QThread(parent), mRepo(repo), mIds(repo),
       mResultWriter(repo, mIntermediateQueue, notify), mCheckpointer(repo) {
   mWalker = repo.walker();

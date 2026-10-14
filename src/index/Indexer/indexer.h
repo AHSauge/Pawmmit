@@ -29,7 +29,7 @@ void index(const Lexer::Lexeme &lexeme, CommitDocument &doc, Index::Field field,
 
 class Indexer : public QThread, public QAbstractNativeEventFilter {
 public:
-  Indexer(git::Repository &repo, bool notify, QObject *parent = nullptr);
+  Indexer(const git::Repository &repo, bool notify, QObject *parent = nullptr);
 
   void run() override;
   bool nativeEventFilter(const QByteArray &type, void *message,
