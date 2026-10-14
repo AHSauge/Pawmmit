@@ -13,6 +13,7 @@ project(
         'warning_level=1',
         'b_ndebug=if-release',
         'lua:default_library=static',
+        'sqlite3:default_library=static',
         'cpp_eh=s',
     ],
 )
