@@ -18,7 +18,7 @@ class Repository;
 class QLockFile;
 
 namespace index_database {
-// Must match PRAGMA user_version in schema.sql. Indexes with any other version
+// Must match PRAGMA user_version in schema.sql. Indexes with an older version
 // are rebuilt from scratch rather than migrated.
 constexpr int kSchemaVersion = 1;
 

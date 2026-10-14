@@ -31,7 +31,6 @@ std::shared_ptr<sqlite3> open(const git::Repository &repo, bool readOnly) {
   if (readOnly && !QFile::exists(path))
     return nullptr;
 
-  // The GUI shares its read-only connection between threads.
   int flags = readOnly ? (SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX)
                        : (SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE);
   if (sqlite3_open_v2(dbPath.constData(), &db, flags, nullptr) != SQLITE_OK) {
