@@ -20,6 +20,7 @@ public:
   IdStorage(const git::Repository &repo);
 
   bool contains(const git::Id &id) const;
+  const QSet<git::Id> &ids() const { return mIds; }
 
 private:
   QSet<git::Id> mIds;

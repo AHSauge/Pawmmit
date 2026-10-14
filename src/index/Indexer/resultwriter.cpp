@@ -54,3 +54,12 @@ void ResultWriter::run() {
   // Keep what was written, also when canceled.
   flush();
 }
+
+void ResultWriter::remove(const QSet<git::Id> &ids) {
+  if (ids.isEmpty())
+    return;
+
+  log(QString("removing %1 unreachable commits").arg(ids.size()));
+  if (mIndex.remove(ids) && mNotify)
+    QTextStream(stdout) << "write" << Qt::endl;
+}

@@ -198,9 +198,14 @@ void Indexer::run() {
     mGrabbers.start(new DiffGrabber(mCommits, mDiffedCommits));
   }
 
+  // Indexed commits that the walk doesn't reach are no longer in the
+  // repository.
+  QSet<git::Id> unreachable = mIds.ids();
   git::Commit commit = mWalker.next();
 
   while (!canceled && commit.isValid()) {
+    unreachable.remove(commit.id());
+
     // Don't index merge commits.
     if (!commit.isMerge() && !mIds.contains(commit.id())) {
       mCommits.enqueue(std::move(commit));
@@ -208,10 +213,14 @@ void Indexer::run() {
     commit = mWalker.next();
   }
 
-  finish();
+  // Only a complete walk shows which commits are gone.
+  if (canceled || !mWalker.isFinished())
+    unreachable.clear();
+
+  finish(unreachable);
 }
 
-void Indexer::finish() {
+void Indexer::finish(const QSet<git::Id> &unreachable) {
   log("finish");
 
   // NOTE: This requires a staged, sequenced shutdown, otherwise data is
@@ -235,6 +244,10 @@ void Indexer::finish() {
   mIntermediateQueue.awaitEmpty();
   mIntermediateQueue.stop();
   mResultWriter.wait();
+
+  // Removed before the final checkpoint, so that it covers the removal too.
+  if (!canceled)
+    mResultWriter.remove(unreachable);
 
   // The checkpointer goes last, so its final checkpoint covers every write
   mCheckpointer.stop();

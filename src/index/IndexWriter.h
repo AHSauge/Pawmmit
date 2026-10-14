@@ -5,8 +5,10 @@
 #ifndef INDEXWRITER_H
 #define INDEXWRITER_H
 
+#include "git/Id.h"
 #include <QByteArrayList>
 #include <QHash>
+#include <QSet>
 #include <QtGlobal>
 #include <memory>
 
@@ -39,6 +41,12 @@ public:
   // Group writes into one transaction, since each transaction syncs to disk.
   bool beginBatch();
   bool commitBatch();
+
+  /// @brief Removes commits and the paths only they touched, in one
+  /// transaction. Call it outside of a batch.
+  /// @param ids Commits that are no longer in the repository
+  /// @return False if nothing was removed, because of an error
+  bool remove(const QSet<git::Id> &ids);
 
 private:
   // Returns the path's id, inserting the path if it's new, or -1 on failure.

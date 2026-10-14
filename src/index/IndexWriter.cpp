@@ -253,6 +253,68 @@ bool IndexWriter::commitBatch() {
   return true;
 }
 
+bool IndexWriter::remove(const QSet<git::Id> &ids) {
+  if (ids.isEmpty())
+    return true;
+
+  // Prepared here, since this runs at most once per indexer run.
+  sqlite3 *db = mDB.get();
+  sqlite3_stmt *commit = nullptr, *fts = nullptr, *paths = nullptr;
+  auto finish = [&](bool ok) {
+    if (!ok)
+      qWarning() << "Failed to remove commits from the index:"
+                 << sqlite3_errmsg(db);
+    sqlite3_finalize(commit);
+    sqlite3_finalize(fts);
+    sqlite3_finalize(paths);
+    sqlite3_exec(db, ok ? "COMMIT" : "ROLLBACK", nullptr, nullptr, nullptr);
+    return ok;
+  };
+
+  if (sqlite3_exec(db, "BEGIN IMMEDIATE", nullptr, nullptr, nullptr) !=
+      SQLITE_OK)
+    return finish(false);
+
+  if (sqlite3_prepare_v2(db, "DELETE FROM commits WHERE oid = ?1 RETURNING id",
+                         -1, &commit, nullptr) != SQLITE_OK ||
+      sqlite3_prepare_v2(db, "DELETE FROM fts WHERE rowid = ?1", -1, &fts,
+                         nullptr) != SQLITE_OK ||
+      sqlite3_prepare_v2(db, "DELETE FROM commits_paths WHERE commit_id = ?1",
+                         -1, &paths, nullptr) != SQLITE_OK)
+    return finish(false);
+
+  for (const git::Id &id : ids) {
+    sqlite3_bind_blob(commit, 1, id.toByteArray().constData(), id.getSize(),
+                      SQLITE_TRANSIENT);
+    int rc = sqlite3_step(commit);
+    sqlite3_int64 row =
+        (rc == SQLITE_ROW) ? sqlite3_column_int64(commit, 0) : -1;
+    sqlite3_reset(commit);
+    if (rc != SQLITE_ROW && rc != SQLITE_DONE)
+      return finish(false);
+    if (row < 0)
+      continue;
+
+    for (sqlite3_stmt *stmt : {fts, paths}) {
+      sqlite3_bind_int64(stmt, 1, row);
+      rc = sqlite3_step(stmt);
+      sqlite3_reset(stmt);
+      if (rc != SQLITE_DONE)
+        return finish(false);
+    }
+  }
+
+  // Paths that no remaining commit touches. Cached ids may be among them.
+  if (sqlite3_exec(db,
+                   "DELETE FROM paths WHERE NOT EXISTS (SELECT 1 FROM "
+                   "commits_paths cp WHERE cp.path_id = paths.id)",
+                   nullptr, nullptr, nullptr) != SQLITE_OK)
+    return finish(false);
+  mPathIds.clear();
+
+  return finish(true);
+}
+
 // Creates the schema when the database is new, i.e. user_version is still 0.
 static bool createSchema(sqlite3 *db) {
   char *err = nullptr;

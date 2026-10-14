@@ -39,7 +39,7 @@ public:
   bool failed() const { return mFailed; }
 
 private:
-  void finish();
+  void finish(const QSet<git::Id> &unreachable);
   void cancel();
 
   const git::Repository mRepo;

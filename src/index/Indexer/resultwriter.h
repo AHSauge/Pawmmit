@@ -20,6 +20,10 @@ public:
 
   bool isValid() const { return mIndex.isValid(); }
 
+  // Removes commits that are no longer in the repository. Call it once the
+  // thread has finished.
+  void remove(const QSet<git::Id> &ids);
+
 private:
   bool mNotify;
   IndexWriter mIndex;

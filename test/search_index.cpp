@@ -37,6 +37,7 @@ private slots:
   void newerSchema();
   void nonAscii();
   void thai();
+  void unreachable();
 
 private:
   void runIndexer(git::Repository &repo, int exitCode = 0);
@@ -359,6 +360,43 @@ void TestSearchIndex::thai() {
   Index index(repo);
   QCOMPARE(summaries(index, "ดัชนี"), QStringList({"แก้ไขดัชนีการค้นหา"}));
   QCOMPARE(summaries(index, "ดัช"), QStringList());
+}
+
+void TestSearchIndex::unreachable() {
+  Test::ScratchRepository scratch;
+  git::Repository repo = scratch;
+  git::Signature author =
+      repo.signature("A", "a@example.com", QDateTime::currentDateTime());
+  git::Commit kept = commitFile(repo, "kept.txt", "zebra\n", "Keep", author);
+  QVERIFY(kept.isValid());
+  QVERIFY(
+      commitFile(repo, "dropped.txt", "quokka\n", "Drop", author).isValid());
+  runIndexer(repo);
+  QCOMPARE(summaries(Index(repo), "quokka"), QStringList({"Drop"}));
+
+  // Moving the branch back leaves the second commit unreachable.
+  QVERIFY(repo.head().setTarget(kept, "reset").isValid());
+  runIndexer(repo);
+
+  Index index(repo);
+  QCOMPARE(summaries(index, "quokka"), QStringList());
+  QCOMPARE(summaries(index, "zebra"), QStringList({"Keep"}));
+
+  // Its rows are gone too, including the path only it touched.
+  std::shared_ptr<sqlite3> db = index_database::open(repo, true);
+  QVERIFY(db);
+  auto count = [&](const char *sql) {
+    sqlite3_stmt *stmt = nullptr;
+    sqlite3_prepare_v2(db.get(), sql, -1, &stmt, nullptr);
+    int n =
+        (sqlite3_step(stmt) == SQLITE_ROW) ? sqlite3_column_int(stmt, 0) : -1;
+    sqlite3_finalize(stmt);
+    return n;
+  };
+  QCOMPARE(count("SELECT count(*) FROM commits"), 1);
+  QCOMPARE(count("SELECT count(*) FROM fts_docsize"), 1);
+  QCOMPARE(count("SELECT count(*) FROM commits_paths"), 1);
+  QCOMPARE(count("SELECT count(*) FROM paths WHERE path = 'dropped.txt'"), 0);
 }
 
 void TestSearchIndex::setSchemaVersion(git::Repository &repo, int version) {
