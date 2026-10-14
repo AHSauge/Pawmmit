@@ -10,25 +10,17 @@
 // Author: Jason Haslam
 //
 
+#include "common.h"
 #include "indexer.h"
-#include "qtsupport.h"
 #include "conf/Settings.h"
-#include "git/Config.h"
 #include "git/Index.h"
-#include "git/Patch.h"
 #include "git/Repository.h"
-#include "git/RevWalk.h"
-#include "git/Signature.h"
+#include "index/Index.h"
+#include "index/IndexDatabase.h"
 #include <QCommandLineParser>
 #include <QCoreApplication>
-#include <QDataStream>
-#include <QDateTime>
-#include <QFutureWatcher>
+#include <QFile>
 #include <QLockFile>
-#include <QMap>
-#include <QRegularExpression>
-#include <QTextStream>
-#include <QtConcurrent>
 #ifndef Q_OS_WIN
 #include <sys/resource.h>
 #else
@@ -120,18 +112,17 @@ int main(int argc, char *argv[]) {
   }
 
   // Try to lock the index for writing.
-  QLockFile lock(Index::lockFile(repo));
-  lock.setStaleLockTime(Index::staleLockTime());
-  if (!lock.tryLock())
+  auto lock = index_database::lock(repo);
+  if (lock == nullptr)
     return 0;
 
   // Start the indexer.
-  Index index(repo);
-  Indexer indexer(index, parser.isSet("notify"));
+  Indexer indexer(repo, parser.isSet("notify"));
   app.installNativeEventFilter(&indexer);
   QObject::connect(
       &indexer, &QThread::finished, &app,
-      [&app] { app.exit(canceled ? 1 : 0); }, Qt::QueuedConnection);
+      [&app, &indexer] { app.exit(canceled || indexer.failed() ? 1 : 0); },
+      Qt::QueuedConnection);
   indexer.start();
   return app.exec();
 }

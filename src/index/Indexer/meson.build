@@ -1,4 +1,5 @@
 indexer_src = files(
+    'checkpointer.cpp',
     'common.cpp',
     'diffgrabber.cpp',
     'idstorage.cpp',
@@ -6,7 +7,6 @@ indexer_src = files(
     'lexerpool.cpp',
     'main.cpp',
     'map.cpp',
-    'reduce.cpp',
     'resultwriter.cpp',
 )
 

@@ -38,10 +38,15 @@ public:
   // Return the next commit that matches the given pathspec.
   Commit next(const QString &pathspec = QString()) const;
 
+  // True once next() has returned every commit, rather than stopping early on
+  // an error.
+  bool isFinished() const { return mFinished; }
+
 protected:
   RevWalk(git_revwalk *walker);
 
   std::shared_ptr<git_revwalk> d;
+  mutable bool mFinished = false;
 
   friend class Commit;
   friend class Reference;

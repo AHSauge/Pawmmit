@@ -1,4 +1,9 @@
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+
 #include "lexerpool.h"
+#include "conf/Settings.h"
 #include "index/LPegLexer.h"
 
 LexerPool::LexerPool() : mHome(Settings::lexerDir().path().toUtf8()) {}

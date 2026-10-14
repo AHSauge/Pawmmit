@@ -15,7 +15,6 @@
 
 #include "index/Index.h"
 #include <QComboBox>
-#include <QFutureWatcher>
 #include <QWidget>
 
 class QFormLayout;
@@ -32,9 +31,6 @@ public:
 signals:
   void accepted(const QString &query);
 
-protected:
-  void hideEvent(QHideEvent *event) override;
-
 private:
   void accept();
 
@@ -45,7 +41,8 @@ private:
                 const QString &text, const QString &tooltip);
 
   QList<QLineEdit *> mLineEdits;
-  QFutureWatcher<QMap<Index::Field, QStringList>> mFieldMapWatcher;
+  // The index of the repository being searched, for suggestions.
+  Index *mIndex = nullptr;
 };
 
 #endif

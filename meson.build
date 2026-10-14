@@ -13,6 +13,7 @@ project(
         'warning_level=1',
         'b_ndebug=if-release',
         'lua:default_library=static',
+        'sqlite3:default_library=static',
         'cpp_eh=s',
     ],
 )
@@ -87,6 +88,7 @@ endif
 cmark_dep = dependency('libcmark')
 hunspell_dep = dependency('hunspell', version: '>=1.7')
 lexilla_dep = dependency('lexilla')
+sqlite_dep = dependency('sqlite3', version: '>=3.43')
 
 # System-only: Meson's CMake bridge can't reconstruct libgit2's own build.
 # Windows/macOS get it via vcpkg/Homebrew (see build.yml); Flatpak builds it

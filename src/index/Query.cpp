@@ -11,13 +11,91 @@
 //
 
 #include "Query.h"
+#include "FTS.h"
 #include "GenericLexer.h"
+#include "git/Commit.h"
 #include <QDate>
-#include <QMap>
-#include <QSet>
-#include <QRegularExpression>
+#include <QTimeZone>
 
 namespace {
+
+// Matches nothing, for queries that can't match any commit.
+const QByteArray kNoMatch = "0";
+
+// Selects the commits that touch a path matching the condition on p.
+const QByteArray kPathCommits =
+    "c.id IN (SELECT cp.commit_id FROM commits_paths cp "
+    "JOIN paths p ON p.id = cp.path_id WHERE ";
+
+// Caps how many indexed terms a wildcard expands to.
+const int kMaxWildcardTerms = 1000;
+
+bool isFtsField(Index::Field field) {
+  switch (field) {
+    case Index::Any:
+    case Index::Author:
+    case Index::Message:
+    case Index::Scope:
+    case Index::Addition:
+    case Index::Deletion:
+    case Index::Comment:
+    case Index::String:
+    case Index::Identifier:
+      return true;
+    default:
+      return false;
+  }
+}
+
+// Quotes a term so that FTS5 treats it as text rather than syntax.
+QByteArray ftsQuote(const QByteArray &term) {
+  return '"' + QByteArray(term).replace('"', "\"\"") + '"';
+}
+
+// The normalised words of a search term, split the same way as indexed text.
+QByteArrayList termWords(const QString &text) {
+  QByteArray utf8 = text.toUtf8();
+  QByteArrayList words =
+      isAscii(utf8) ? QByteArrayList{utf8} : segmentWords(utf8);
+  for (QByteArray &word : words)
+    word = normaliseToken(word);
+  return words;
+}
+
+// Quotes a search term for FTS5. A term the segmenter splits into several
+// words, like Chinese text, becomes a phrase so the words must be adjacent.
+QByteArray ftsTerm(const QString &text) {
+  return ftsQuote(termWords(text).join(kTokenSeparator));
+}
+
+// Restricts an FTS5 expression to the columns of the field.
+QByteArray ftsFilter(Index::Field field, const QByteArray &expression) {
+  QByteArrayList columns = ftsColumns(field);
+  if (columns.isEmpty())
+    return expression;
+  return '{' + columns.join(' ') + "} : " + expression;
+}
+
+// Committer dates are compared in the committer's own time zone, so a day
+// starts at midnight UTC in local time, which is time + tz_offset.
+qint64 dayStart(const QDate &date) {
+  return date.startOfDay(QTimeZone::utc()).toSecsSinceEpoch();
+}
+
+// Git abbreviates commit ids to at least this many hex digits.
+const int kMinIdDigits = 7;
+
+// Selects the commits matching the FTS5 expression.
+QByteArray ftsCondition(const QByteArray &expression, QList<SqlParam> &params) {
+  params.append(SqlText{expression});
+  return "c.id IN (SELECT rowid FROM fts WHERE fts MATCH ?)";
+}
+
+// The upper bound of a range that contains all strings with the prefix.
+QByteArray prefixEnd(QByteArray prefix) {
+  prefix.back() = char(uchar(prefix.back()) + 1);
+  return prefix;
+}
 
 class StarredQuery : public Query {
 public:
@@ -25,8 +103,20 @@ public:
 
   QList<Index::Term> terms() const override { return QList<Index::Term>(); }
 
-  QList<git::Commit> commits(const Index *index) const override {
-    return index->repo().starredCommits();
+  QByteArray condition(const Index &index,
+                       QList<SqlParam> &params) const override {
+    QByteArrayList placeholders;
+    for (const git::Commit &commit : index.repo().starredCommits()) {
+      // A deep copy, since toByteArray() only wraps the id's own storage.
+      git::Id id = commit.id();
+      params.append(
+          SqlBlob{QByteArray(id.toByteArray().constData(), id.getSize())});
+      placeholders.append("?");
+    }
+
+    if (placeholders.isEmpty())
+      return kNoMatch;
+    return "c.oid IN (" + placeholders.join(", ") + ')';
   }
 };
 
@@ -40,50 +130,135 @@ public:
 
   QList<Index::Term> terms() const override { return {mTerm}; }
 
-  QList<git::Commit> commits(const Index *index) const override {
-    return index->commits(index->postings(mTerm));
+  // Plain terms also match data outside the FTS table, so they can't be
+  // combined into a single MATCH.
+  bool isFts() const override {
+    return mTerm.field != Index::Any && isFtsField(mTerm.field);
+  }
+
+  QByteArray ftsExpression() const override {
+    return ftsFilter(mTerm.field, ftsTerm(mTerm.text));
+  }
+
+  QByteArray condition(const Index &index,
+                       QList<SqlParam> &params) const override {
+    QByteArray result;
+    switch (mTerm.field) {
+      case Index::Email:
+        params.append(SqlText{token()});
+        return "c.email = ?";
+
+      case Index::Path:
+        params.append(SqlText{token()});
+        return kPathCommits + "p.path = ?)";
+
+      case Index::File:
+        params.append(SqlText{token()});
+        return kPathCommits + "p.file = ?)";
+
+      case Index::Id:
+        result = idCondition(index, 1, params);
+        break;
+
+      case Index::Date:
+        result = dateCondition(params);
+        break;
+
+      case Index::Any:
+        return anyCondition(index, params);
+
+      default:
+        return Query::condition(index, params);
+    }
+
+    return result.isEmpty() ? kNoMatch : result;
   }
 
 protected:
+  QByteArray token() const { return normaliseToken(mTerm.text.toUtf8()); }
+
   Index::Term mTerm;
+
+private:
+  // Plain terms match any of a commit's data, like they did with the old
+  // index. Each alternative appends its parameters in the order it's listed.
+  QByteArray anyCondition(const Index &index, QList<SqlParam> &params) const {
+    QByteArray term = token();
+    QByteArrayList alternatives = {ftsCondition(ftsTerm(mTerm.text), params)};
+
+    params.append(SqlText{term});
+    alternatives.append("c.email = ?");
+
+    params.append(SqlText{term});
+    params.append(SqlText{term});
+    alternatives.append(kPathCommits + "p.path = ? OR p.file = ?)");
+
+    // Short words like "add" are valid hex, so a plain term needs as many
+    // digits as git abbreviates ids to before it's matched against them.
+    QByteArray id = idCondition(index, kMinIdDigits, params);
+    if (!id.isEmpty())
+      alternatives.append(id);
+
+    QByteArray date = dateCondition(params);
+    if (!date.isEmpty())
+      alternatives.append(date);
+
+    return '(' + alternatives.join(") OR (") + ')';
+  }
+
+  // Matches commits whose id starts with the hex digits, or returns nothing
+  // if the term isn't a valid id prefix.
+  QByteArray idCondition(const Index &index, int minDigits,
+                         QList<SqlParam> &params) const {
+    QByteArray prefix = mTerm.text.toLatin1().toLower();
+    int digits = git::Id::getSize(index.repo().oidType()) * 2;
+    bool hex = std::all_of(prefix.begin(), prefix.end(), [](char ch) {
+      return (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f');
+    });
+    if (prefix.size() < minDigits || prefix.size() > digits || !hex)
+      return QByteArray();
+
+    QByteArray first = prefix.leftJustified(digits, '0');
+    QByteArray last = prefix.leftJustified(digits, 'f');
+    params.append(SqlBlob{QByteArray::fromHex(first)});
+    params.append(SqlBlob{QByteArray::fromHex(last)});
+    return "c.oid BETWEEN ? AND ?";
+  }
+
+  // Matches commits made on the day, or returns nothing if the term isn't a
+  // date.
+  QByteArray dateCondition(QList<SqlParam> &params) const {
+    QDate date = QDate::fromString(mTerm.text, Index::dateFormat());
+    if (!date.isValid())
+      return QByteArray();
+
+    params.append(dayStart(date));
+    params.append(dayStart(date.addDays(1)));
+    return "c.time + c.tz_offset >= ? AND c.time + c.tz_offset < ?";
+  }
 };
 
 class DateRangeQuery : public TermQuery {
 public:
   DateRangeQuery(const Index::Term &term) : TermQuery(term) {}
 
-  QList<git::Commit> commits(const Index *index) const override {
-    Index::Field field = mTerm.field;
-    if (field != Index::Before && field != Index::After)
-      return QList<git::Commit>();
-
+  QByteArray condition(const Index &index,
+                       QList<SqlParam> &params) const override {
     QDate date = QDate::fromString(mTerm.text, Index::dateFormat());
     if (!date.isValid())
-      return QList<git::Commit>();
+      return kNoMatch;
 
-    Index::Predicate pred = [field, date](const QByteArray &word) -> bool {
-      // Skip words that don't look like dates.
-      if (!word.startsWith("19") && !word.startsWith("20"))
-        return false;
-
-      // Convert to date.
-      QDate tmp = QDate::fromString(word, Index::dateFormat());
-      if (!tmp.isValid())
-        return false;
-
-      // Compare dates.
-      switch (field) {
-        case Index::Before:
-          return (tmp < date);
-        case Index::After:
-          return (tmp > date);
-        default:
-          Q_ASSERT(false);
-          return false;
-      }
-    };
-
-    return index->commits(index->postings(pred, Index::Date));
+    // Neither bound includes the given day itself.
+    switch (mTerm.field) {
+      case Index::Before:
+        params.append(dayStart(date));
+        return "c.time + c.tz_offset < ?";
+      case Index::After:
+        params.append(dayStart(date.addDays(1)));
+        return "c.time + c.tz_offset >= ?";
+      default:
+        return kNoMatch;
+    }
   }
 };
 
@@ -91,14 +266,84 @@ class WildcardQuery : public TermQuery {
 public:
   WildcardQuery(const Index::Term &term) : TermQuery(term) {}
 
-  QList<git::Commit> commits(const Index *index) const override {
-    QRegularExpression re{
-        QRegularExpression::fromWildcard(mTerm.text, Qt::CaseInsensitive)};
-    Index::Predicate pred = [re](const QByteArray &word) {
-      return re.match(word).hasMatch();
-    };
+  bool isFts() const override { return TermQuery::isFts() && isPrefix(); }
 
-    return index->commits(index->postings(pred, mTerm.field));
+  QByteArray ftsExpression() const override {
+    return ftsFilter(mTerm.field, ftsTerm(mTerm.text.chopped(1)) + '*');
+  }
+
+  QByteArray condition(const Index &index,
+                       QList<SqlParam> &params) const override {
+    if (isFts())
+      return Query::condition(index, params);
+
+    // Wildcards use the same syntax as GLOB.
+    switch (mTerm.field) {
+      case Index::Email:
+        params.append(SqlText{token()});
+        return "c.email GLOB ?";
+
+      case Index::Path:
+        params.append(SqlText{token()});
+        return kPathCommits + "p.path GLOB ?)";
+
+      case Index::File:
+        params.append(SqlText{token()});
+        return kPathCommits + "p.file GLOB ?)";
+
+      default:
+        break;
+    }
+
+    if (!isFtsField(mTerm.field))
+      return kNoMatch;
+
+    QByteArrayList alternatives;
+    QByteArray fts = ftsWildcard(index, params);
+    if (!fts.isEmpty())
+      alternatives.append(fts);
+
+    // Plain wildcards also match emails, paths and file names.
+    if (mTerm.field == Index::Any) {
+      QByteArray pattern = token();
+      params.append(SqlText{pattern});
+      alternatives.append("c.email GLOB ?");
+
+      params.append(SqlText{pattern});
+      params.append(SqlText{pattern});
+      alternatives.append(kPathCommits + "p.path GLOB ? OR p.file GLOB ?)");
+    }
+
+    if (alternatives.isEmpty())
+      return kNoMatch;
+    return '(' + alternatives.join(") OR (") + ')';
+  }
+
+private:
+  // A single trailing * is a prefix query, which FTS5 handles itself.
+  bool isPrefix() const {
+    QByteArray pattern = token();
+    return pattern.size() > 1 && pattern.indexOf('*') == pattern.size() - 1 &&
+           !pattern.contains('?') && !pattern.contains('[');
+  }
+
+  // Matches the pattern against the FTS columns, or returns nothing if no
+  // indexed term matches it.
+  QByteArray ftsWildcard(const Index &index, QList<SqlParam> &params) const {
+    if (isPrefix())
+      return ftsCondition(ftsExpression(), params);
+
+    // Other patterns are expanded into the matching indexed terms.
+    QByteArrayList terms =
+        index.indexedTerms(ftsColumns(mTerm.field), token(), kMaxWildcardTerms);
+    if (terms.isEmpty())
+      return QByteArray();
+
+    QByteArrayList quoted;
+    for (const QByteArray &term : terms)
+      quoted.append(ftsQuote(term));
+    return ftsCondition(ftsFilter(mTerm.field, '(' + quoted.join(" OR ") + ')'),
+                        params);
   }
 };
 
@@ -116,49 +361,15 @@ public:
 
   QList<Index::Term> terms() const override { return mTerms; }
 
-  QList<git::Commit> commits(const Index *index) const override {
-    if (mTerms.isEmpty())
-      return QList<git::Commit>();
+  bool isFts() const override { return isFtsField(mTerms.first().field); }
 
-    // Start with the commits that match the first term.
-    bool multiple = (mTerms.size() > 1);
-    QList<Index::Posting> postings = index->postings(mTerms.first(), multiple);
-    if (!multiple)
-      return index->commits(postings);
-
-    // Remove commits that don't match subsequent terms.
-    int offset = 1;
-    for (int i = 1; i < mTerms.size(); ++i) {
-      const Index::Term &term = mTerms.at(i);
-      QMap<quint32, QMap<quint8, QSet<quint32>>> ids;
-      for (const Index::Posting &posting : index->postings(term, true)) {
-        for (quint32 pos : posting.positions)
-          ids[posting.id][posting.field].insert(pos);
-      }
-
-      QMutableListIterator<Index::Posting> it(postings);
-      while (it.hasNext()) {
-        const Index::Posting &posting = it.next();
-        if (!ids.contains(posting.id)) {
-          it.remove();
-        } else {
-          bool found = false;
-          for (quint32 pos : posting.positions) {
-            if (ids[posting.id][posting.field].contains(pos + offset)) {
-              found = true;
-              break;
-            }
-          }
-
-          if (!found)
-            it.remove();
-        }
-      }
-
-      ++offset;
-    }
-
-    return index->commits(postings);
+  // The tokeniser splits the quoted text into a phrase of tokens.
+  QByteArray ftsExpression() const override {
+    QByteArrayList tokens;
+    for (const Index::Term &term : mTerms)
+      tokens.append(termWords(term.text));
+    return ftsFilter(mTerms.first().field,
+                     ftsQuote(tokens.join(kTokenSeparator)));
   }
 
 private:
@@ -181,31 +392,27 @@ public:
     return mLhs->terms() + mRhs->terms();
   }
 
-  QList<git::Commit> commits(const Index *index) const override {
-    // Start with the commits that match the left hand side.
-    QList<git::Commit> rhs = mRhs->commits(index);
-    QList<git::Commit> commits = mLhs->commits(index);
-    if (mKind == And) {
-      // Remove commits that don't match the right hand side.
-      QSet<git::Commit> set(rhs.begin(), rhs.end());
-      QMutableListIterator<git::Commit> it(commits);
-      while (it.hasNext()) {
-        if (!set.contains(it.next()))
-          it.remove();
-      }
-    } else {
-      // Add commits that aren't already in the result set.
-      QSet<git::Commit> set(commits.begin(), commits.end());
-      for (const git::Commit &commit : rhs) {
-        if (!set.contains(commit))
-          commits.append(commit);
-      }
-    }
+  bool isFts() const override { return mLhs->isFts() && mRhs->isFts(); }
 
-    return commits;
+  QByteArray ftsExpression() const override {
+    return '(' + mLhs->ftsExpression() + ')' + op() + '(' +
+           mRhs->ftsExpression() + ')';
+  }
+
+  QByteArray condition(const Index &index,
+                       QList<SqlParam> &params) const override {
+    if (isFts())
+      return Query::condition(index, params);
+
+    // The left side goes first, so the parameters stay in order.
+    QByteArray lhs = mLhs->condition(index, params);
+    QByteArray rhs = mRhs->condition(index, params);
+    return '(' + lhs + ')' + op() + '(' + rhs + ')';
   }
 
 private:
+  QByteArray op() const { return (mKind == And) ? " AND " : " OR "; }
+
   Kind mKind;
   QueryRef mLhs;
   QueryRef mRhs;
@@ -215,16 +422,15 @@ class PathspecQuery : public TermQuery {
 public:
   PathspecQuery(const Index::Term &term) : TermQuery(term) {}
 
-  QList<git::Commit> commits(const Index *index) const override {
-    QByteArray term = mTerm.text.toUtf8();
-    QByteArray prefix = term.endsWith('/') ? term : term + '/';
-    QRegularExpression re{
-        QRegularExpression::fromWildcard(mTerm.text, Qt::CaseInsensitive)};
-    Index::Predicate pred = [prefix, re](const QByteArray &word) {
-      return word.startsWith(prefix) || re.match(word).hasMatch();
-    };
-
-    return index->commits(index->postings(pred, Index::Path));
+  // Matches everything below a directory, or paths matching a wildcard.
+  QByteArray condition(const Index &index,
+                       QList<SqlParam> &params) const override {
+    QByteArray pattern = token();
+    QByteArray prefix = pattern.endsWith('/') ? pattern : pattern + '/';
+    params.append(SqlText{prefix});
+    params.append(SqlText{prefixEnd(prefix)});
+    params.append(SqlText{pattern});
+    return kPathCommits + "(p.path >= ? AND p.path < ?) OR p.path GLOB ?)";
   }
 };
 
@@ -237,6 +443,10 @@ QByteArray getOperators(Index::Field field) {
       // Accept a limited set of special characters for emails
     case Index::Email:
       return ".+@";
+
+    // Plain terms also match emails, so keep addresses whole
+    case Index::Any:
+      return "/.*?@";
 
     default:
       return "/.*?";
@@ -339,6 +549,7 @@ QueryRef parse(QList<Lexer::Lexeme> &lexemes, Index::Field start = Index::Any) {
       unquoted.chop(1);
 
       GenericLexer lexer;
+      lexer.setSegmenting(false);
       if (lexer.lex(unquoted)) {
         QList<Index::Term> terms;
         while (lexer.hasNext()) {
@@ -388,10 +599,21 @@ QueryRef parse(QList<Lexer::Lexeme> &lexemes, Index::Field start = Index::Any) {
 
 } // namespace
 
+QByteArray Query::condition(const Index &index, QList<SqlParam> &params) const {
+  Q_UNUSED(index)
+
+  if (!isFts())
+    return kNoMatch;
+  return ftsCondition(ftsExpression(), params);
+}
+
 QueryRef Query::parseQuery(const QString &query) {
   // Parse into list of terms.
   // Handle key:() and key:"" with embedded spaces.
+  // Terms stay whole here, and are split when the SQL is built, since emails
+  // and paths are matched whole.
   GenericLexer lexer;
+  lexer.setSegmenting(false);
   QList<Lexer::Lexeme> lexemes;
   if (lexer.lex(query.toUtf8())) {
     while (lexer.hasNext())

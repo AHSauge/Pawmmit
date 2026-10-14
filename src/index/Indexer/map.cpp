@@ -1,5 +1,11 @@
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+
+#include "common.h"
 #include "map.h"
 #include "lexerpool.h"
+#include "conf/Settings.h"
 #include "git/Index.h"
 #include "git/Patch.h"
 #include "git/Config.h"
@@ -19,7 +25,7 @@ const int kMaxRunLines = 128;
 
 Map::Map(const git::Repository &repo, LexerPool &lexers,
          WorkerQueue<QPair<git::Commit, git::Diff>> &inQueue,
-         WorkerQueue<Intermediate> &outQueue)
+         WorkerQueue<CommitDocument> &outQueue)
     : mLexers(lexers), mInQueue(inQueue), mOutQueue(outQueue) {
   git::Config config = repo.appConfig();
   mTermLimit = config.value<int>("index.termlimit", mTermLimit);
@@ -34,45 +40,40 @@ void Map::run() {
 
     log("map: %1", commit.id());
 
-    quint32 filePos = 0;
-    quint32 hunkPos = 0;
-
-    Intermediate result;
+    CommitDocument result;
     result.id = commit.id();
 
-    // Index id.
-    result.fields[Index::Id][commit.id().toString().toUtf8()].append(0);
-
     // Index committer date.
-    QDateTime time = commit.committer().date();
-    QByteArray date = time.date().toString(Index::dateFormat()).toUtf8();
-    result.fields[Index::Date][date].append(0);
+    git_time when = commit.committer().gitDate();
+    result.time = when.time;
+    result.tzOffset = when.offset * 60;
 
     // Index author name and email.
     git::Signature author = commit.author();
-    QByteArray email = author.email().toUtf8().toLower();
-    result.fields[Index::Email][email].append(0);
+    QByteArray email = normaliseToken(author.email().toUtf8());
+    result.email = email;
 
-    quint32 namePos = 0;
-    for (const QString &name : author.name().split(kWsRe)) {
-      QByteArray key = name.toUtf8().toLower();
-      result.fields[Index::Author][key].append(namePos++);
+    for (const QString &name : author.name().split(kWsRe, Qt::SkipEmptyParts)) {
+      result.append(FTSColumn::Author, normaliseToken(name.toUtf8()));
     }
 
     // Index message.
     GenericLexer generic;
-    quint32 messagePos = 0;
     generic.lex(commit.message().toUtf8());
     while (generic.hasNext())
-      index(generic.next(), result.fields, Index::Message, messagePos);
+      index(generic.next(), result, Index::Message);
 
     // Index diff.
-    quint32 diffPos = 0;
     int patches = diff.count();
     for (int pidx = 0; pidx < patches; ++pidx) {
       // Truncate commits after term limit.
-      if (canceled || diffPos > mTermLimit)
+      if (canceled || result.tokenCount > mTermLimit)
         break;
+
+      // Index file name and path.
+      auto filename = diff.name(pidx).toUtf8();
+      log(QString("\tFilepath: %1").arg(filename));
+      result.paths.append(normaliseToken(filename));
 
       // Skip binary deltas.
       if (diff.isBinary(pidx))
@@ -83,26 +84,20 @@ void Map::run() {
       if (!patch.isValid())
         continue;
 
-      // Index file name and path.
-      QFileInfo info(patch.name().toLower());
-      log(QString("\tFilepath: %1").arg(info.filePath()));
-      result.fields[Index::Path][info.filePath().toUtf8()].append(filePos);
-      result.fields[Index::File][info.fileName().toUtf8()].append(filePos++);
-
       // Look up lexer.
       QByteArray name = Settings::instance()->lexer(patch.name()).toUtf8();
       Lexer *lexer = (name == "null") ? &generic : mLexers.acquire(name);
 
       int hunks = patch.count();
       for (int hidx = 0; hidx < hunks; ++hidx) {
-        if (canceled || diffPos > mTermLimit)
+        if (canceled || result.tokenCount > mTermLimit)
           break;
 
         // Index hunk header.
         QByteArray header = patch.header(hidx);
         if (lexer->lex(header)) {
           while (lexer->hasNext())
-            index(lexer->next(), result.fields, Index::Scope, hunkPos);
+            index(lexer->next(), result, Index::Scope);
         }
 
         // Index content. Consecutive lines with the same origin are lexed
@@ -111,7 +106,7 @@ void Map::run() {
         int lines = patch.lineCount(hidx);
         int line = 0;
         while (line < lines) {
-          if (canceled || diffPos > mTermLimit)
+          if (canceled || result.tokenCount > mTermLimit)
             break;
 
           char origin = patch.lineOrigin(hidx, line);
@@ -137,7 +132,7 @@ void Map::run() {
 
           if (lexer->lex(text)) {
             while (!canceled && lexer->hasNext())
-              index(lexer->next(), result.fields, field, diffPos);
+              index(lexer->next(), result, field);
           }
         }
       }

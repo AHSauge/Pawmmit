@@ -1,25 +1,28 @@
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+
 #ifndef IDSTORAGE_H
 #define IDSTORAGE_H
 
 #include "git/Id.h"
 
-#include <QReadWriteLock>
 #include <QSet>
 
-class Index;
+namespace git {
+class Repository;
+}
 
-/// @brief Overlay over Index::ids() in order to allow multi-threading and
-/// unnecessary copying of the list
+/// @brief Commit IDs that are already in the the index database
+/// @note Only read after construction, so it needs no locking
 class IdStorage {
 public:
-  IdStorage(Index &index);
+  IdStorage(const git::Repository &repo);
 
-  bool contains(const git::Id &id);
-  qsizetype append(const git::Id &id);
+  bool contains(const git::Id &id) const;
+  const QSet<git::Id> &ids() const { return mIds; }
 
 private:
-  QReadWriteLock mLock;
-  Index &mIndex;
   QSet<git::Id> mIds;
 };
 

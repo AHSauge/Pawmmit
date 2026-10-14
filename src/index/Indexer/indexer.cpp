@@ -77,8 +77,8 @@ void term(int) {
 #endif
 } // namespace
 
-void index(const Lexer::Lexeme &lexeme, Intermediate::FieldMap &fields,
-           quint8 field, quint32 &pos) {
+void index(const Lexer::Lexeme &lexeme, CommitDocument &doc, Index::Field field,
+           Subfield sub) {
   QByteArray text = lexeme.text;
   switch (lexeme.token) {
     // Lex further.
@@ -95,50 +95,35 @@ void index(const Lexer::Lexeme &lexeme, Intermediate::FieldMap &fields,
     case Lexer::Class:
     case Lexer::Type:
     case Lexer::Label: {
-      switch (lexeme.token) {
-        case Lexer::String:
-          field |= Index::String;
-          break;
-        case Lexer::Comment:
-          field |= Index::Comment;
-          break;
-        case Lexer::Nothing:      // fall through
-        case Lexer::Whitespace:   // fall through
-        case Lexer::Number:       // fall through
-        case Lexer::Keyword:      // fall through
-        case Lexer::Identifier:   // fall through
-        case Lexer::Operator:     // fall through
-        case Lexer::Error:        // fall through
-        case Lexer::Preprocessor: // fall through
-        case Lexer::Constant:     // fall through
-        case Lexer::Variable:     // fall through
-        case Lexer::Function:     // fall through
-        case Lexer::Class:        // fall through
-        case Lexer::Type:         // fall through
-        case Lexer::Label:        // fall through
-        case Lexer::Regex:        // fall through
-        case Lexer::Embedded:     // fall through
-          break;
-      }
-
+      if (sub == Subfield::None && lexeme.token == Lexer::String)
+        sub = Subfield::String;
+      else if (sub == Subfield::None && lexeme.token == Lexer::Comment)
+        sub = Subfield::Comment;
       GenericLexer sublexer;
       if (sublexer.lex(text)) {
         while (sublexer.hasNext())
-          index(sublexer.next(), fields, field, pos);
+          index(sublexer.next(), doc, field, sub);
       }
       break;
     }
 
     // Add directly.
     case Lexer::Keyword:
-    case Lexer::Identifier:
-      // Limit term length.
-      if (text.length() <= 64) {
-        if (field < Index::Any)
-          field |= Index::Identifier;
-        fields[field][text.toLower()].append(pos++);
+    case Lexer::Identifier: {
+      FTSColumn column =
+          columnFor(field, sub == Subfield::None ? Subfield::Identifier : sub);
+
+      // Language lexers return non-ASCII identifiers whole, so split them the
+      // way search terms are split.
+      QByteArrayList words =
+          isAscii(text) ? QByteArrayList{text} : segmentWords(text);
+      for (const QByteArray &word : words) {
+        // Limit term length.
+        if (word.length() <= 64)
+          doc.append(column, normaliseToken(word));
       }
       break;
+    }
 
     // Ignore everything else.
     case Lexer::Nothing:    // fall through
@@ -152,15 +137,10 @@ void index(const Lexer::Lexeme &lexeme, Intermediate::FieldMap &fields,
   }
 }
 
-Indexer::Indexer(Index &index, bool notify, QObject *parent)
-    : QThread(parent), mIndex(index), mIds(index),
-      // mIntermediateQueue will be filled by the workers spawned in the run()
-      // method below.
-      mReduce(mIds, mIntermediateQueue,
-              mResults), // Receives intermediate and converts them to results
-      mResultWriter(index, mResults,
-                    notify) { // Receives results and writes them down to file
-  mWalker = mIndex.repo().walker();
+Indexer::Indexer(const git::Repository &repo, bool notify, QObject *parent)
+    : QThread(parent), mRepo(repo), mIds(repo),
+      mResultWriter(repo, mIntermediateQueue, notify), mCheckpointer(repo) {
+  mWalker = repo.walker();
 
 #ifdef Q_OS_UNIX
   if (!socketpair(AF_UNIX, SOCK_STREAM, 0, fds)) {
@@ -188,8 +168,8 @@ Indexer::Indexer(Index &index, bool notify, QObject *parent)
 void Indexer::run() {
   // The distribution of threads is as follows
   // This thread iterates over mWalker
-  // 1x thread runs the Reduction class
   // 1x thread runs the ResultWriter
+  // 1x thread runs the Checkpointer
   // Up-to 4 threads running a DiffGrabber. Even three seems to oversature
   // libgit2. On top of this, one worker is spawned per cpu thread
   // NOTE: This will always overcommit by up-to 7 threads. This is
@@ -201,20 +181,31 @@ void Indexer::run() {
   int numGabbers = std::min(4, std::max(1, QThread::idealThreadCount() / 2));
   int numWorkers = QThread::idealThreadCount();
 
+  // Without a usable database the results would have nowhere to go.
+  if (!mResultWriter.isValid()) {
+    log("failed to set up the index database");
+    mFailed = true;
+    return;
+  }
+
   log("start");
-  mReduce.start();
   mResultWriter.start();
+  mCheckpointer.start();
   for (int i = 0; i < numWorkers; i++) {
-    mWorkers.start(
-        new Map(mIndex.repo(), mLexers, mDiffedCommits, mIntermediateQueue));
+    mWorkers.start(new Map(mRepo, mLexers, mDiffedCommits, mIntermediateQueue));
   }
   for (int i = 0; i < numGabbers; i++) {
     mGrabbers.start(new DiffGrabber(mCommits, mDiffedCommits));
   }
 
+  // Indexed commits that the walk doesn't reach are no longer in the
+  // repository.
+  QSet<git::Id> unreachable = mIds.ids();
   git::Commit commit = mWalker.next();
 
   while (!canceled && commit.isValid()) {
+    unreachable.remove(commit.id());
+
     // Don't index merge commits.
     if (!commit.isMerge() && !mIds.contains(commit.id())) {
       mCommits.enqueue(std::move(commit));
@@ -222,10 +213,14 @@ void Indexer::run() {
     commit = mWalker.next();
   }
 
-  finish();
+  // Only a complete walk shows which commits are gone.
+  if (canceled || !mWalker.isFinished())
+    unreachable.clear();
+
+  finish(unreachable);
 }
 
-void Indexer::finish() {
+void Indexer::finish(const QSet<git::Id> &unreachable) {
   log("finish");
 
   // NOTE: This requires a staged, sequenced shutdown, otherwise data is
@@ -245,15 +240,18 @@ void Indexer::finish() {
   mDiffedCommits.stop();
   mWorkers.waitForDone();
 
-  // Next is the intermediate queue and the reduction thread
+  // Next is the intermediate queue and writer thread
   mIntermediateQueue.awaitEmpty();
   mIntermediateQueue.stop();
-  mReduce.wait();
-
-  // Before we finish up with the results queue and writer thread
-  mResults.awaitEmpty();
-  mResults.stop();
   mResultWriter.wait();
+
+  // Removed before the final checkpoint, so that it covers the removal too.
+  if (!canceled)
+    mResultWriter.remove(unreachable);
+
+  // The checkpointer goes last, so its final checkpoint covers every write
+  mCheckpointer.stop();
+  mCheckpointer.wait();
 }
 
 bool Indexer::nativeEventFilter(const QByteArray &type, void *message,
@@ -277,5 +275,4 @@ void Indexer::cancel() {
   mCommits.stop();
   mDiffedCommits.stop();
   mIntermediateQueue.stop();
-  mResults.stop();
 }

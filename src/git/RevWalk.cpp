@@ -66,10 +66,14 @@ Commit RevWalk::next(const QString &path) const {
   }
 
   git_oid id;
-  while (!git_revwalk_next(&id, d.get())) {
+  int error;
+  while (!(error = git_revwalk_next(&id, d.get()))) {
     git_commit *commit = nullptr;
-    git_commit_lookup(&commit, git_revwalk_repository(d.get()), &id);
-    Q_ASSERT(commit);
+    if (git_commit_lookup(&commit, git_revwalk_repository(d.get()), &id)) {
+      // A commit that can't be read ends the walk early.
+      mFinished = false;
+      return Commit();
+    }
 
     if (path.isEmpty())
       return Commit(commit);
@@ -127,6 +131,7 @@ Commit RevWalk::next(const QString &path) const {
     git_commit_free(commit);
   }
 
+  mFinished = (error == GIT_ITEROVER);
   return Commit();
 }
 

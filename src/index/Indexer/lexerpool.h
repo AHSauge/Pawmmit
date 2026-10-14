@@ -1,9 +1,8 @@
 #ifndef LEXERPOOL_H
 #define LEXERPOOL_H
 
-#include <conf/Settings.h>
-
 #include <QByteArray>
+#include <QMultiMap>
 #include <QMutex>
 
 class Lexer;
