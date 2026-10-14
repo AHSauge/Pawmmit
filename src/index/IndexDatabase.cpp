@@ -13,7 +13,18 @@
 static const QString kIndexDB = "index.db";
 static const QString kIndexSHM = kIndexDB + "-shm";
 static const QString kIndexWAL = kIndexDB + "-wal";
-static const QStringList kIndexFiles = {kIndexWAL, kIndexSHM, kIndexDB};
+
+// Files for the old, custom index format
+static const QString kIdFile = "ids";
+static const QString kDictFile = "dict";
+static const QString kPostFile = "post";
+static const QString kProxFile = "prox";
+static const QString kVersionFile = "version";
+
+// NOTE: Old index files are included here so they get removed
+static const QStringList kIndexFiles = {kIdFile,   kDictFile,    kPostFile,
+                                        kProxFile, kVersionFile, kIndexWAL,
+                                        kIndexSHM, kIndexDB};
 static const QString kLockFile = "lock";
 constexpr int kStaleLockTime = 24 * 60 * 60 * 1000;
 
