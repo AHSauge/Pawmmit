@@ -345,9 +345,10 @@ void TestSearchIndex::nonAscii() {
 }
 
 void TestSearchIndex::thai() {
-  // Thai has no spaces, so it needs Qt to have a dictionary, like libthai.
-  if (segmentWords("แก้ไขดัชนีการค้นหา").size() < 2)
-    QSKIP("Qt can't split Thai text into words here");
+  // Thai has no spaces, so words need Qt to have a dictionary, like libthai.
+  // Without one, text is split into smaller units and fragments match too.
+  if (segmentWords("แก้ไขดัชนี") != QByteArrayList({"แก้ไข", "ดัชนี"}))
+    QSKIP("Qt has no dictionary for splitting Thai text into words here");
 
   Test::ScratchRepository scratch;
   git::Repository repo = scratch;
