@@ -11,6 +11,7 @@
 #include "git/Index.h"
 #include "git/Signature.h"
 #include "index/Index.h"
+#include "index/IndexDatabase.h"
 #include "index/Query.h"
 #include "dialogs/SearchPanel.h"
 #include "ui/IndexCompleter.h"
@@ -19,6 +20,7 @@
 #include <QPushButton>
 #include <QLineEdit>
 #include <QProcess>
+#include <sqlite3.h>
 #include <QTimeZone>
 
 class TestSearchIndex : public QObject {
@@ -30,9 +32,12 @@ private slots:
   void completer();
   void remove();
   void removeButton();
+  void olderSchema();
+  void newerSchema();
 
 private:
-  void runIndexer(git::Repository &repo);
+  void runIndexer(git::Repository &repo, int exitCode = 0);
+  void setSchemaVersion(git::Repository &repo, int version);
   git::Commit commitFile(git::Repository &repo, const QString &path,
                          const QByteArray &content, const QString &message,
                          const git::Signature &author);
@@ -234,14 +239,73 @@ void TestSearchIndex::removeButton() {
   QVERIFY(!dir.exists("index.db"));
 }
 
-void TestSearchIndex::runIndexer(git::Repository &repo) {
+void TestSearchIndex::olderSchema() {
+  if (index_database::kSchemaVersion < 2)
+    QSKIP("There's no older schema version yet");
+
+  Test::ScratchRepository scratch;
+  git::Repository repo = scratch;
+  QVERIFY(commitFile(repo, "a.txt", "zebra\n", "Add a",
+                     repo.signature("A", "a@example.com",
+                                    QDateTime::currentDateTime()))
+              .isValid());
+  runIndexer(repo);
+  setSchemaVersion(repo, index_database::kSchemaVersion - 1);
+
+  // Readers ignore it, and the indexer rebuilds it.
+  QVERIFY(!Index(repo).isValid());
+  runIndexer(repo);
+
+  Index index(repo);
+  QVERIFY(index.isValid());
+  QCOMPARE(search(index, "zebra").size(), 1);
+}
+
+void TestSearchIndex::newerSchema() {
+  Test::ScratchRepository scratch;
+  git::Repository repo = scratch;
+  QVERIFY(commitFile(repo, "a.txt", "zebra\n", "Add a",
+                     repo.signature("A", "a@example.com",
+                                    QDateTime::currentDateTime()))
+              .isValid());
+  runIndexer(repo);
+  int newer = index_database::kSchemaVersion + 1;
+  setSchemaVersion(repo, newer);
+
+  // Readers ignore it, and the indexer refuses to touch it.
+  QVERIFY(!Index(repo).isValid());
+  runIndexer(repo, 1);
+
+  std::shared_ptr<sqlite3> db = index_database::open(repo, false);
+  QVERIFY(db);
+  QCOMPARE(index_database::schemaVersion(db.get()), newer);
+
+  sqlite3_stmt *stmt = nullptr;
+  QCOMPARE(sqlite3_prepare_v2(db.get(), "SELECT count(*) FROM commits", -1,
+                              &stmt, nullptr),
+           SQLITE_OK);
+  QCOMPARE(sqlite3_step(stmt), SQLITE_ROW);
+  int commits = sqlite3_column_int(stmt, 0);
+  sqlite3_finalize(stmt);
+  QCOMPARE(commits, 1);
+}
+
+void TestSearchIndex::setSchemaVersion(git::Repository &repo, int version) {
+  std::shared_ptr<sqlite3> db = index_database::open(repo, false);
+  QVERIFY(db);
+  QByteArray sql = "PRAGMA user_version = " + QByteArray::number(version);
+  QCOMPARE(sqlite3_exec(db.get(), sql.constData(), nullptr, nullptr, nullptr),
+           SQLITE_OK);
+}
+
+void TestSearchIndex::runIndexer(git::Repository &repo, int exitCode) {
   // Forward the indexer's errors so that failures show up in the test log.
   QProcess indexer;
   indexer.setProcessChannelMode(QProcess::ForwardedErrorChannel);
   indexer.start(INDEXER_PATH, {repo.workdir().path()});
   QVERIFY(indexer.waitForFinished(60000));
   QCOMPARE(indexer.exitStatus(), QProcess::NormalExit);
-  QCOMPARE(indexer.exitCode(), 0);
+  QCOMPARE(indexer.exitCode(), exitCode);
 }
 
 git::Commit TestSearchIndex::commitFile(git::Repository &repo,

@@ -51,7 +51,25 @@ std::shared_ptr<sqlite3> open(const git::Repository &repo, bool readOnly) {
 
   sqlite3_busy_timeout(db, 5000);
 
+  // Only the current schema can be read. Anything else is about to be
+  // created or rebuilt by the indexer.
+  if (readOnly && schemaVersion(db) != kSchemaVersion) {
+    sqlite3_close_v2(db);
+    return nullptr;
+  }
+
   return std::shared_ptr<sqlite3>(db, sqlite3_close_v2);
+}
+
+int schemaVersion(sqlite3 *db) {
+  int version = -1;
+  sqlite3_stmt *stmt = nullptr;
+  if (sqlite3_prepare_v2(db, "PRAGMA user_version", -1, &stmt, nullptr) ==
+          SQLITE_OK &&
+      sqlite3_step(stmt) == SQLITE_ROW)
+    version = sqlite3_column_int(stmt, 0);
+  sqlite3_finalize(stmt);
+  return version;
 }
 
 std::unique_ptr<QLockFile> lock(const git::Repository &repo, int timeout) {
@@ -66,6 +84,10 @@ bool remove(const git::Repository &repo) {
   if (fileLock == nullptr)
     return false;
 
+  return removeFiles(repo);
+}
+
+bool removeFiles(const git::Repository &repo) {
   QDir dir = Index::indexDir(repo);
   for (const QString &file : kIndexFiles) {
     if (dir.exists(file) && dir.remove(file) == false)

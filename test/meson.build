@@ -99,9 +99,11 @@ foreach name : tests
     # The search index test runs the real indexer executable.
     test_args = app_public_args
     test_depends = [qm_files]
+    test_deps = [testlib_dep] + pawmmit_link_deps
     if name == 'search_index'
         test_args += '-DINDEXER_PATH="' + indexer_exe.full_path().replace('\\', '/') + '"'
         test_depends += indexer_exe
+        test_deps += sqlite_dep
     endif
 
     exe = executable(
@@ -109,7 +111,7 @@ foreach name : tests
         sources,
         cpp_args: test_args,
         link_whole: pawmmit_module_libs,
-        dependencies: [testlib_dep] + pawmmit_link_deps,
+        dependencies: test_deps,
         build_rpath: qt_build_rpath,
         build_by_default: false,
     )

@@ -20,6 +20,32 @@ IndexWriter::IndexWriter(const git::Repository &repo) {
   if (!mDB)
     return;
 
+  // An index from a newer Pawmmit is left alone, since that version would
+  // otherwise rebuild it right back.
+  int version = index_database::schemaVersion(mDB.get());
+  if (version > index_database::kSchemaVersion) {
+    qWarning().nospace()
+        << "Index was written by a newer version of Pawmmit (schema version "
+        << version << ")";
+    return;
+  }
+
+  // An older index is rebuilt from scratch rather than migrated. The indexer
+  // holds the lock, so the files can be deleted.
+  if (version > 0 && version < index_database::kSchemaVersion) {
+    qInfo() << "Rebuilding index with schema version" << version << "as"
+            << index_database::kSchemaVersion;
+    mDB.reset();
+    if (!index_database::removeFiles(repo)) {
+      qWarning() << "Failed to remove the outdated index";
+      return;
+    }
+
+    mDB = index_database::open(repo, false);
+    if (!mDB)
+      return;
+  }
+
   // WAL lets readers work during writes, and NORMAL only syncs at
   // checkpoints.
   sqlite3_exec(mDB.get(), "PRAGMA journal_mode = WAL", nullptr, nullptr,
@@ -238,15 +264,7 @@ static bool createSchema(sqlite3 *db) {
   }
 
   // Checked under the write lock so concurrent processes create it only once.
-  int version = 0;
-  sqlite3_stmt *stmt = nullptr;
-  if (sqlite3_prepare_v2(db, "PRAGMA user_version", -1, &stmt, nullptr) ==
-          SQLITE_OK &&
-      sqlite3_step(stmt) == SQLITE_ROW)
-    version = sqlite3_column_int(stmt, 0);
-  sqlite3_finalize(stmt);
-
-  if (version == 0) {
+  if (index_database::schemaVersion(db) == 0) {
     Q_INIT_RESOURCE(index);
     QFile file(":/index/schema.sql");
     if (!file.open(QIODevice::ReadOnly)) {
@@ -263,6 +281,15 @@ static bool createSchema(sqlite3 *db) {
       sqlite3_exec(db, "ROLLBACK", nullptr, nullptr, nullptr);
       return false;
     }
+  }
+
+  // Also catches schema.sql and kSchemaVersion getting out of step.
+  int version = index_database::schemaVersion(db);
+  if (version != index_database::kSchemaVersion) {
+    qWarning() << "Index schema has version" << version << "instead of"
+               << index_database::kSchemaVersion;
+    sqlite3_exec(db, "ROLLBACK", nullptr, nullptr, nullptr);
+    return false;
   }
 
   return sqlite3_exec(db, "COMMIT", nullptr, nullptr, nullptr) == SQLITE_OK;
