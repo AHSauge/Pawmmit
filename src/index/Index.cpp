@@ -68,13 +68,11 @@ void Index::reset() {
 }
 
 bool Index::remove() {
+  bool removed;
   mDB.reset();
-  if (index_database::remove(mRepo)) {
-    reset();
-    return true;
-  } else {
-    return false;
-  }
+  removed = index_database::remove(mRepo);
+  reset();
+  return removed;
 }
 
 QList<git::Commit> Index::commits(const QString &filter) const {
