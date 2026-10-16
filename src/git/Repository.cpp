@@ -520,7 +520,7 @@ Branch Repository::createBranch(const QString &name, const Commit &target,
 
 QList<TagRef> Repository::tags() const {
   git_reference_iterator *it = nullptr;
-  if (git_reference_iterator_new(&it, d->repo))
+  if (git_reference_iterator_glob_new(&it, d->repo, "refs/tags/*"))
     return QList<TagRef>();
 
   QList<TagRef> refs;
@@ -537,9 +537,7 @@ QList<TagRef> Repository::tags() const {
 }
 
 TagRef Repository::lookupTag(const QString &name) const {
-  return lookupRef(QString("refs/tags/%1")
-                       .arg(name)); // TODO: check if possible to use
-                                    // GIT_REFS_TAGS_DIR instead of refs/tags
+  return lookupRef(QString("refs/tags/%1").arg(name));
 }
 
 QStringList Repository::existingTags() const {
