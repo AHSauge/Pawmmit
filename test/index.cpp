@@ -50,6 +50,7 @@ private slots:
   void stagedStateIgnoresFileModeWhenDisabled();
   void stagedStateFromStatus();
   void stageNestedRepository();
+  void unstageExactPaths();
   void cleanupTestCase();
 
 private:
@@ -321,6 +322,26 @@ void TestIndex::stageNestedRepository() {
   QVERIFY(index.isTracked("nested/a.txt"));
   QVERIFY(index.isTracked("nested/sub/b.txt"));
   QVERIFY(!index.isTracked("nested/.git/HEAD"));
+}
+
+void TestIndex::unstageExactPaths() {
+  ScratchRepository repo;
+  QDir workdir = repo->workdir();
+  QVERIFY(writeFile(workdir, "f[1]", "a\n"));
+  QVERIFY(writeFile(workdir, "f1", "a\n"));
+  repo->index().setStaged({"f[1]", "f1"}, true);
+  QVERIFY(repo->commit("Add files").isValid());
+
+  QVERIFY(writeFile(workdir, "f[1]", "b\n"));
+  QVERIFY(writeFile(workdir, "f1", "b\n"));
+  QVERIFY(writeFile(workdir, "new", "b\n"));
+  repo->index().setStaged({"f[1]", "f1", "new"}, true);
+
+  // Paths are exact; "f[1]" must not act as a pattern matching "f1".
+  repo->index().setStaged({"f[1]", "new"}, false);
+  QCOMPARE(repo->index().isStaged("f[1]"), git::Index::Unstaged);
+  QCOMPARE(repo->index().isStaged("f1"), git::Index::Staged);
+  QVERIFY(!repo->index().isTracked("new"));
 }
 
 void TestIndex::cleanupTestCase() { mWindow->close(); }

@@ -23,10 +23,13 @@
 #include "git2/ignore.h"
 #include "git2/refs.h"
 #include "git2/repository.h"
+#include "git2/revparse.h"
+#include "git2/reset.h"
 #include "git2/status.h"
 #include "git2/tree.h"
 #include "git2/attr.h"
 #include <QDateTime>
+#include <algorithm>
 #include <QDir>
 #include <QFileInfo>
 
@@ -49,6 +52,18 @@ void countDirectoryEntries(const QString &file, int &count) {
     if (count < 0)
       return;
   }
+}
+
+// Escapes a path so libgit2 matches it exactly rather than as a pattern.
+QString escapePathspec(const QString &path) {
+  QString escaped = path.startsWith('!') ? "\\" : "";
+  for (QChar c : path) {
+    if (c == '*' || c == '?' || c == '[' || c == '\\')
+      escaped += '\\';
+    escaped += c;
+  }
+
+  return escaped;
 }
 
 } // namespace
@@ -165,65 +180,23 @@ Index::StagedState Index::isStaged(const QString &path) const {
 }
 
 void Index::setStaged(const QStringList &files, bool staged, bool yieldFocus) {
+  if (!staged) {
+    unstage(files, yieldFocus);
+    return;
+  }
+
   bool dirAdded = false;
   QStringList changedFiles;
   Repository repo(git_index_owner(d->index));
   RepositoryNotifier *notifier = repo.notifier();
   for (const QString &file : files) {
     QByteArray path = file.toUtf8();
-
-    // Get the id and mode of the file in the HEAD commit.
-    Id fileId;
-    bool fileExists = false;
-    uint32_t fileMode = GIT_FILEMODE_UNREADABLE;
-    if (staged) {
-      fileExists = repo.workdir().exists(file);
-    } else {
-      // Lookup HEAD commit.
-      fileId = headId(file, &fileMode);
-      fileExists = !fileId.isNull();
-    }
+    bool fileExists = repo.workdir().exists(file);
 
     // submodule
     if (Submodule submodule = repo.lookupSubmodule(file)) {
-      if (staged) {
-        if (git_submodule_add_to_index(submodule, false))
-          continue;
-      } else {
-        if (fileExists) {
-          // Reset to HEAD id.
-          Id headId = submodule.headId();
-
-          git_index_entry entry;
-          memset(&entry, 0, sizeof(git_index_entry));
-
-          entry.path = path;
-          entry.mode = fileMode;
-          git_oid_cpy(&entry.id, headId);
-
-          // Set timestamps.
-          Repository smRepo = submodule.open();
-          if (!smRepo.isValid())
-            continue;
-
-          Commit smHead = smRepo.lookupCommit(headId);
-          if (!smHead.isValid())
-            continue;
-
-          git_time_t time = smHead.committer().date().toSecsSinceEpoch();
-          entry.ctime.seconds = time;
-          entry.ctime.nanoseconds = 0;
-          entry.mtime.seconds = time;
-          entry.mtime.nanoseconds = 0;
-
-          if (git_index_add(d->index, &entry))
-            continue;
-        } else {
-          // Remove from index.
-          if (git_index_remove_bypath(d->index, path))
-            continue;
-        }
-      }
+      if (git_submodule_add_to_index(submodule, false))
+        continue;
 
       repo.invalidateSubmoduleCache();
       changedFiles.append(file);
@@ -231,85 +204,61 @@ void Index::setStaged(const QStringList &files, bool staged, bool yieldFocus) {
     }
 
     // regular file
-    if (staged) {
-      if (fileExists) {
-        QDir dir = repo.workdir();
-        QFileInfo info(dir.filePath(file));
-        if (!info.isSymLink() && info.isDir()) {
-          int count = 0;
-          bool allow = true;
-          countDirectoryEntries(info.filePath(), count);
-          emit notifier->directoryAboutToBeStaged(file, count, allow);
-          bool added = (allow && addDirectory(dir, file));
+    if (fileExists) {
+      QDir dir = repo.workdir();
+      QFileInfo info(dir.filePath(file));
+      if (!info.isSymLink() && info.isDir()) {
+        int count = 0;
+        bool allow = true;
+        countDirectoryEntries(info.filePath(), count);
+        emit notifier->directoryAboutToBeStaged(file, count, allow);
+        bool added = (allow && addDirectory(dir, file));
 
-          if (!added)
-            continue;
+        if (!added)
+          continue;
 
-          dirAdded = true;
-
-        } else {
-          bool allow = false;
-          if (repo.lfsIsInitialized()) {
-            const auto value = repo.attributeValue("filter", file);
-            if (value == "lfs") {
-              allow = true;
-            }
-          }
-          int size = QFileInfo(repo.workdir(), file).size();
-          if (size <= 10000000) // 10MB
-            allow = true;
-          else if (!allow) {
-            allow = true;
-            emit notifier->largeFileAboutToBeStaged(file, size, allow);
-          }
-
-          if (!allow)
-            continue;
-
-          // Staging a conflicted file marks it resolved, markers or not.
-          const git_index_entry *ancestor, *ours, *theirs;
-          if (!git_index_conflict_get(&ancestor, &ours, &theirs, d->index,
-                                      path) &&
-              hasConflictMarkers(repo.workdir().filePath(file))) {
-            emit notifier->conflictMarkersAboutToBeStaged(file, allow);
-            if (!allow)
-              continue;
-          }
-
-          if (git_index_add_bypath(d->index, path)) {
-            emit notifier->indexStageError(file);
-            continue;
-          }
-        }
+        dirAdded = true;
 
       } else {
-        // Remove from index.
-        if (git_index_remove_bypath(d->index, path)) {
+        bool allow = false;
+        if (repo.lfsIsInitialized()) {
+          const auto value = repo.attributeValue("filter", file);
+          if (value == "lfs") {
+            allow = true;
+          }
+        }
+        int size = QFileInfo(repo.workdir(), file).size();
+        if (size <= 10000000) // 10MB
+          allow = true;
+        else if (!allow) {
+          allow = true;
+          emit notifier->largeFileAboutToBeStaged(file, size, allow);
+        }
+
+        if (!allow)
+          continue;
+
+        // Staging a conflicted file marks it resolved, markers or not.
+        const git_index_entry *ancestor, *ours, *theirs;
+        if (!git_index_conflict_get(&ancestor, &ours, &theirs, d->index,
+                                    path) &&
+            hasConflictMarkers(repo.workdir().filePath(file))) {
+          emit notifier->conflictMarkersAboutToBeStaged(file, allow);
+          if (!allow)
+            continue;
+        }
+
+        if (git_index_add_bypath(d->index, path)) {
           emit notifier->indexStageError(file);
           continue;
         }
       }
 
     } else {
-      if (fileExists) {
-        // Reset to HEAD tree entry.
-        git_index_entry entry;
-        memset(&entry, 0, sizeof(git_index_entry));
-
-        entry.path = path;
-        entry.mode = fileMode;
-        git_oid_cpy(&entry.id, fileId);
-
-        if (git_index_add(d->index, &entry)) {
-          emit notifier->indexStageError(file);
-          continue;
-        }
-      } else {
-        // Remove from index.
-        if (git_index_remove_bypath(d->index, path)) {
-          emit notifier->indexStageError(file);
-          continue;
-        }
+      // Remove from index.
+      if (git_index_remove_bypath(d->index, path)) {
+        emit notifier->indexStageError(file);
+        continue;
       }
     }
 
@@ -325,6 +274,42 @@ void Index::setStaged(const QStringList &files, bool staged, bool yieldFocus) {
 
   if (dirAdded)
     emit notifier->directoryStaged();
+}
+
+void Index::unstage(const QStringList &files, bool yieldFocus) {
+  if (files.isEmpty())
+    return;
+
+  QList<QByteArray> storage;
+  QVector<char *> paths;
+  for (const QString &file : files) {
+    storage.append(escapePathspec(file).toUtf8());
+    paths.append(storage.last().data());
+  }
+
+  // Without a HEAD commit, unstaging removes the paths from the index.
+  Repository repo(git_index_owner(d->index));
+  git_object *head = nullptr;
+  git_revparse_single(&head, repo, "HEAD");
+
+  git_strarray array = {paths.data(), static_cast<size_t>(paths.size())};
+  int error = git_reset_default(repo, head, &array);
+  git_object_free(head);
+  if (error) {
+    for (const QString &file : files)
+      emit repo.notifier()->indexStageError(file);
+    return;
+  }
+
+  for (const QString &file : files)
+    d->stagedCache.remove(file);
+
+  if (std::any_of(files.begin(), files.end(), [&repo](const QString &file) {
+        return repo.lookupSubmodule(file).isValid();
+      }))
+    repo.invalidateSubmoduleCache();
+
+  emit repo.notifier()->indexChanged(files, yieldFocus);
 }
 
 void Index::add(const QString &path, const QByteArray &buffer) {
