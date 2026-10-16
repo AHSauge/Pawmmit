@@ -13,6 +13,7 @@
 #include "git/Reference.h"
 #include "git/Diff.h"
 #include "git/Commit.h"
+#include "git/Config.h"
 #include "git/Tree.h"
 
 #define INIT_REPO(repoPath)                                                    \
@@ -987,6 +988,9 @@ void TestEditorLineInfo::sameContentAddLine() {
 
 void TestEditorLineInfo::discardCompleteDeletedContent() {
   INIT_REPO("19_discardCompleteDeletedContent.zip")
+  // Discarding writes what a checkout would, so keep the machine's
+  // core.autocrlf (on by default on Windows) out of the expected content.
+  mRepo.gitConfig().setValue("core.autocrlf", false);
   QVERIFY(diff.count() > 0);
   git::Patch patch = diff.patch(0);
   // no staged lines yet, so no staged patch
