@@ -873,7 +873,8 @@ void FileWidget::discardHunk() {
     QByteArray hunk_content;
     if (mHunks[i] == hunk) {
       hunk_content = mHunks[i]->hunk();
-      buffer = mPatch.apply(i, hunk_content, fileContent);
+      buffer =
+          mPatch.apply(i, hunk_content, fileContent, repo.filters(name, blob));
     }
   }
 
