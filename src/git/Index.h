@@ -19,6 +19,9 @@
 #include <QSet>
 #include <QStringList>
 #include <memory>
+#include <optional>
+
+struct git_diff;
 
 namespace git {
 
@@ -92,6 +95,9 @@ private:
   Id indexId(const QString &path, uint32_t *mode = nullptr) const;
   std::optional<Id> workdirId(const QString &path,
                               uint32_t *mode = nullptr) const;
+
+  // Fills the staged state cache from the two halves of a status diff.
+  void cacheStagedStates(git_diff *headToIndex, git_diff *indexToWorkdir) const;
 
   std::shared_ptr<Data> d;
 

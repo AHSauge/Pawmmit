@@ -12,6 +12,7 @@
 
 #include "qtsupport.h"
 #include "Test.h"
+#include "git/Config.h"
 #include "ui/DoubleTreeWidget.h"
 #include "ui/MainWindow.h"
 #include "ui/RepoView.h"
@@ -45,6 +46,9 @@ private slots:
   void stageAddition();
   void stageDeletion();
   void stageDirectory();
+  void stagedState();
+  void stagedStateIgnoresFileModeWhenDisabled();
+  void stagedStateFromStatus();
   void cleanupTestCase();
 
 private:
@@ -206,6 +210,93 @@ void TestIndex::stageDirectory() {
       stagedModel->index(0, 0, stagedIndex).data(Qt::CheckStateRole).toBool());
   QVERIFY(
       stagedModel->index(1, 0, stagedIndex).data(Qt::CheckStateRole).toBool());
+}
+
+static bool writeFile(const QDir &dir, const QString &name,
+                      const QByteArray &data) {
+  QFile file(dir.filePath(name));
+  return file.open(QFile::WriteOnly) && file.write(data) == data.size();
+}
+
+void TestIndex::stagedState() {
+  ScratchRepository repo;
+  QDir workdir = repo->workdir();
+  QVERIFY(writeFile(workdir, "a", "a\n"));
+  QVERIFY(writeFile(workdir, "b", "b\n"));
+  repo->index().setStaged({"a", "b"}, true);
+  QVERIFY(repo->commit("Add files").isValid());
+
+  QVERIFY(writeFile(workdir, "untracked", "new\n"));
+  QCOMPARE(repo->index().isStaged("untracked"), git::Index::Unstaged);
+
+  QVERIFY(writeFile(workdir, "a", "a changed\n"));
+  QCOMPARE(repo->index().isStaged("a"), git::Index::Unstaged);
+
+  repo->index().setStaged({"a"}, true);
+  QCOMPARE(repo->index().isStaged("a"), git::Index::Staged);
+
+  QVERIFY(writeFile(workdir, "a", "a changed again\n"));
+  QCOMPARE(repo->index().isStaged("a"), git::Index::PartiallyStaged);
+
+  QVERIFY(workdir.remove("b"));
+  QCOMPARE(repo->index().isStaged("b"), git::Index::Unstaged);
+
+  repo->index().setStaged({"b"}, true);
+  QCOMPARE(repo->index().isStaged("b"), git::Index::Staged);
+}
+
+void TestIndex::stagedStateIgnoresFileModeWhenDisabled() {
+#ifdef Q_OS_WIN
+  QSKIP("Windows has no executable bit");
+#endif
+  ScratchRepository scratch;
+  QDir workdir = scratch->workdir();
+  QVERIFY(writeFile(workdir, "script", "echo\n"));
+  scratch->index().setStaged({"script"}, true);
+  QVERIFY(scratch->commit("Add script").isValid());
+  scratch->gitConfig().setValue("core.filemode", false);
+
+  // Reopen so the repository picks up the changed setting.
+  git::Repository repo = git::Repository::open(workdir.path());
+  QVERIFY(repo.isValid());
+
+  QFile script(workdir.filePath("script"));
+  QVERIFY(script.setPermissions(script.permissions() | QFile::ExeOwner));
+  QVERIFY(writeFile(workdir, "script", "echo changed\n"));
+  repo.index().setStaged({"script"}, true);
+  QCOMPARE(repo.index().isStaged("script"), git::Index::Staged);
+
+  git::Index index = repo.status(repo.index(), nullptr, false).index();
+  QCOMPARE(index.isStaged("script"), git::Index::Staged);
+}
+
+void TestIndex::stagedStateFromStatus() {
+  ScratchRepository repo;
+  QDir workdir = repo->workdir();
+  QVERIFY(writeFile(workdir, "a", "a\n"));
+  QVERIFY(writeFile(workdir, "b", "b\n"));
+  QVERIFY(writeFile(workdir, "c", "c\n"));
+  repo->index().setStaged({"a", "b", "c"}, true);
+  QVERIFY(repo->commit("Add files").isValid());
+
+  QVERIFY(writeFile(workdir, "untracked", "new\n"));
+  QVERIFY(writeFile(workdir, "a", "a changed\n"));
+  QVERIFY(writeFile(workdir, "b", "b changed\n"));
+  repo->index().setStaged({"b"}, true);
+  QVERIFY(writeFile(workdir, "c", "c changed\n"));
+  repo->index().setStaged({"c"}, true);
+  QVERIFY(writeFile(workdir, "c", "c changed again\n"));
+
+  git::Index index = repo->status(repo->index(), nullptr, false).index();
+  QCOMPARE(index.isStaged("untracked"), git::Index::Unstaged);
+  QCOMPARE(index.isStaged("a"), git::Index::Unstaged);
+  QCOMPARE(index.isStaged("b"), git::Index::Staged);
+  QCOMPARE(index.isStaged("c"), git::Index::PartiallyStaged);
+
+  // The states are a snapshot of the status, not recomputed per query.
+  repo->index().setStaged({"c"}, true);
+  QCOMPARE(index.isStaged("c"), git::Index::PartiallyStaged);
+  QCOMPARE(repo->index().isStaged("c"), git::Index::Staged);
 }
 
 void TestIndex::cleanupTestCase() { mWindow->close(); }

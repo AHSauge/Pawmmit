@@ -12,12 +12,14 @@
 
 #include "Index.h"
 #include "Commit.h"
+#include "Config.h"
 #include "Reference.h"
 #include "Repository.h"
 #include "Signature.h"
 #include "Submodule.h"
 #include "Tree.h"
 #include "git2/commit.h"
+#include "git2/diff.h"
 #include "git2/ignore.h"
 #include "git2/refs.h"
 #include "git2/repository.h"
@@ -473,9 +475,50 @@ std::optional<Id> Index::workdirId(const QString &path, uint32_t *mode) const {
 #endif
     if (info.isSymLink())
       *mode = GIT_FILEMODE_LINK;
+
+    // Without core.fileMode, git keeps the executable bit from the index.
+    const git_index_entry *entry = this->entry(path);
+    if (entry && *mode != GIT_FILEMODE_LINK &&
+        entry->mode != GIT_FILEMODE_LINK &&
+        !repo.gitConfig().value<bool>("core.filemode", true))
+      *mode = entry->mode;
   }
 
   return id;
+}
+
+void Index::cacheStagedStates(git_diff *headToIndex,
+                              git_diff *indexToWorkdir) const {
+  // Submodules are left to isStaged(), which detects dirty ones.
+  auto isSubmodule = [](const git_diff_delta *delta) {
+    return delta->old_file.mode == GIT_FILEMODE_COMMIT ||
+           delta->new_file.mode == GIT_FILEMODE_COMMIT;
+  };
+
+  QSet<QString> staged;
+  size_t count = git_diff_num_deltas(headToIndex);
+  for (size_t i = 0; i < count; ++i) {
+    const git_diff_delta *delta = git_diff_get_delta(headToIndex, i);
+    if (!isSubmodule(delta))
+      staged.insert(QString::fromUtf8(delta->new_file.path));
+  }
+
+  count = git_diff_num_deltas(indexToWorkdir);
+  for (size_t i = 0; i < count; ++i) {
+    const git_diff_delta *delta = git_diff_get_delta(indexToWorkdir, i);
+    if (isSubmodule(delta))
+      continue;
+
+    QString path = QString::fromUtf8(delta->new_file.path);
+    bool isStaged = staged.remove(path);
+    if (delta->status == GIT_DELTA_CONFLICTED)
+      d->stagedCache.insert(path, Conflicted);
+    else
+      d->stagedCache.insert(path, isStaged ? PartiallyStaged : Unstaged);
+  }
+
+  for (const QString &path : staged)
+    d->stagedCache.insert(path, Staged);
 }
 
 } // namespace git

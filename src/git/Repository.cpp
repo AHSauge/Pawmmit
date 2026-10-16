@@ -322,6 +322,10 @@ Diff Repository::status(const Index &index, Diff::Callbacks *callbacks,
   if (!diff.isValid() || !workdir.isValid())
     return Diff();
 
+  // Merging loses which side a change is on, so record it first.
+  if (index.isValid())
+    index.cacheStagedStates(diff, workdir);
+
   diff.merge(workdir);
   diff.setIndex(index);
 
