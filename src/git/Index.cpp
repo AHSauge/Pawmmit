@@ -236,17 +236,11 @@ void Index::setStaged(const QStringList &files, bool staged, bool yieldFocus) {
         QDir dir = repo.workdir();
         QFileInfo info(dir.filePath(file));
         if (!info.isSymLink() && info.isDir()) {
-          // FIXME: This is a workaround.
-          QString current = QDir::currentPath();
-          QDir::setCurrent(dir.path());
-
           int count = 0;
           bool allow = true;
-          countDirectoryEntries(file, count);
+          countDirectoryEntries(info.filePath(), count);
           emit notifier->directoryAboutToBeStaged(file, count, allow);
-          bool added = (allow && addDirectory(file));
-
-          QDir::setCurrent(current);
+          bool added = (allow && addDirectory(dir, file));
 
           if (!added)
             continue;
@@ -396,14 +390,14 @@ const git_index_entry *Index::entry(const QString &path, int stage) const {
   return git_index_get_bypath(d->index, path.toUtf8(), stage);
 }
 
-bool Index::addDirectory(const QString &file) const {
+bool Index::addDirectory(const QDir &workdir, const QString &file) const {
   QDir dir(file);
   git_repository *repo = git_index_owner(d->index);
   auto filters = QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot;
-  for (const QString &entry : dir.entryList(filters)) {
+  for (const QString &entry : QDir(workdir.filePath(file)).entryList(filters)) {
     QString file = dir.filePath(entry);
-    if (QFileInfo(file).isDir()) {
-      if (!addDirectory(file))
+    if (QFileInfo(workdir.filePath(file)).isDir()) {
+      if (!addDirectory(workdir, file))
         return false;
       continue;
     }

@@ -49,6 +49,7 @@ private slots:
   void stagedState();
   void stagedStateIgnoresFileModeWhenDisabled();
   void stagedStateFromStatus();
+  void stageNestedRepository();
   void cleanupTestCase();
 
 private:
@@ -297,6 +298,29 @@ void TestIndex::stagedStateFromStatus() {
   repo->index().setStaged({"c"}, true);
   QCOMPARE(index.isStaged("c"), git::Index::PartiallyStaged);
   QCOMPARE(repo->index().isStaged("c"), git::Index::Staged);
+}
+
+void TestIndex::stageNestedRepository() {
+  ScratchRepository repo;
+  QDir workdir = repo->workdir();
+  QVERIFY(git::Repository::init(workdir.filePath("nested")).isValid());
+  QVERIFY(workdir.mkpath("nested/sub"));
+  QVERIFY(writeFile(workdir, "nested/a.txt", "a\n"));
+  QVERIFY(writeFile(workdir, "nested/sub/b.txt", "b\n"));
+
+  // The status lists a nested repository as a single directory entry.
+  git::Diff status = repo->status(repo->index(), nullptr, false);
+  QCOMPARE(status.count(), 1);
+  QCOMPARE(status.name(0), QString("nested/"));
+
+  QString cwd = QDir::currentPath();
+  git::Index index = repo->index();
+  index.setStaged({status.name(0)}, true);
+  QCOMPARE(QDir::currentPath(), cwd);
+
+  QVERIFY(index.isTracked("nested/a.txt"));
+  QVERIFY(index.isTracked("nested/sub/b.txt"));
+  QVERIFY(!index.isTracked("nested/.git/HEAD"));
 }
 
 void TestIndex::cleanupTestCase() { mWindow->close(); }

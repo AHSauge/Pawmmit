@@ -21,6 +21,7 @@
 #include <memory>
 #include <optional>
 
+class QDir;
 struct git_diff;
 
 namespace git {
@@ -89,7 +90,7 @@ private:
 
   const git_index_entry *entry(const QString &path, int stage = 0) const;
 
-  bool addDirectory(const QString &path) const;
+  bool addDirectory(const QDir &workdir, const QString &path) const;
 
   Id headId(const QString &path, uint32_t *mode = nullptr) const;
   Id indexId(const QString &path, uint32_t *mode = nullptr) const;
