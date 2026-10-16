@@ -97,8 +97,7 @@ void TestStateBanner::statusBarExplainsTheUpstream() {
   QVERIFY(branch.isValid() && upstream.isValid());
   branch.setUpstream(upstream);
 
-  int ahead = branch.difference(upstream);
-  int behind = upstream.difference(branch);
+  auto [ahead, behind] = branch.difference(upstream);
   QVERIFY(ahead + behind > 0);
 
   emit mRepo.notifier()->referenceUpdated(mRepo.head());

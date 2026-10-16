@@ -612,31 +612,21 @@ void MainWindow::updateInterface() {
   if (mClosing)
     return;
 
-  int ahead = 0;
-  int behind = 0;
-  if (RepoView *view = currentView()) {
-    if (git::Branch head = view->repo().head()) {
-      if (git::Branch upstream = head.upstream()) {
-        ahead = head.difference(upstream);
-        behind = upstream.difference(head);
-      }
-    }
-  }
-
+  auto [ahead, behind] = difference(currentView());
   updateWindowTitle(ahead, behind);
   mToolBar->updateButtons(ahead, behind);
 }
 
-QString MainWindow::commitsToPush(int count) {
+QString MainWindow::commitsToPush(size_t count) {
   return tr("%n commit(s) to push", nullptr, count);
 }
 
-QString MainWindow::commitsToPull(int count) {
+QString MainWindow::commitsToPull(size_t count) {
   return tr("%n commit(s) to pull", nullptr, count);
 }
 
-void MainWindow::updateStatusBar(const git::Repository &repo, int ahead,
-                                 int behind) {
+void MainWindow::updateStatusBar(const git::Repository &repo, size_t ahead,
+                                 size_t behind) {
   QString branch, branchTip, upstream, upstreamTip, sync, syncTip;
 
   if (repo.isValid()) {
@@ -692,7 +682,26 @@ void MainWindow::updateStatusBar(const git::Repository &repo, int ahead,
   show(mSyncLabel, mSyncSeparator, sync, syncTip);
 }
 
-void MainWindow::updateWindowTitle(int ahead, int behind) {
+std::pair<size_t, size_t> MainWindow::difference(RepoView *view) {
+  if (view) {
+    git::Repository repo = view->repo();
+    git::Reference head = repo.head();
+
+    if (git::Branch branch = head) {
+      if (git::Branch upstream = branch.upstream()) {
+        return branch.difference(upstream);
+      }
+    }
+  }
+  return {0, 0};
+}
+
+void MainWindow::updateWindowTitle() {
+  auto [ahead, behind] = difference(currentView());
+  updateWindowTitle(ahead, behind);
+}
+
+void MainWindow::updateWindowTitle(size_t ahead, size_t behind) {
   RepoView *view = currentView();
   if (!view) {
     setWindowTitle(QCoreApplication::applicationName() + BUILD_DESCRIPTION);
@@ -712,11 +721,6 @@ void MainWindow::updateWindowTitle(int ahead, int behind) {
   // Add remote tracking information.
   if (git::Branch branch = head) {
     if (git::Branch upstream = branch.upstream()) {
-      if (ahead < 0)
-        ahead = branch.difference(upstream);
-      if (behind < 0)
-        behind = upstream.difference(branch);
-
       QStringList parts;
       if (ahead > 0)
         parts.append(commitsToPush(ahead));

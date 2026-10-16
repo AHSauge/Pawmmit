@@ -22,6 +22,7 @@
 #include "git2/annotated_commit.h"
 #include "git2/config.h"
 #include "git2/diff.h"
+#include "git2/graph.h"
 #include "git2/refs.h"
 #include "git2/revert.h"
 #include "git2/commit.h"
@@ -93,10 +94,12 @@ QString Commit::description() const {
   Commit commit = walk.next();
   while (commit.isValid()) {
     auto it = candidates.constFind(commit.id());
-    if (it != candidates.constEnd())
-      return QString("%1 +%2").arg(it->name()).arg(difference(commit));
-    else
+    if (it != candidates.constEnd()) {
+      size_t ahead = difference(commit).first;
+      return QString("%1 +%2").arg(it->name()).arg(ahead);
+    } else {
       commit = walk.next();
+    }
   }
   return QString();
 }
@@ -237,20 +240,25 @@ RevWalk Commit::walker(int sort, bool firstCommitOnly) const {
   return walker;
 }
 
-int Commit::difference(const Commit &commit) const {
-  // Check for the same commit.
+std::pair<size_t, size_t> Commit::difference(const Commit &commit) const {
+  size_t ahead = 0, behind = 0;
+  int result = git_graph_ahead_behind(
+      &ahead, &behind, git_object_owner(d.get()), id(), commit.id());
+  if (result == 0)
+    return std::make_pair(ahead, behind);
+  else
+    return {0, 0};
+}
+
+bool Commit::isAncestorOf(const Commit &commit) const {
+  if (!isValid() || !commit.isValid())
+    return false;
+
   if (id() == commit.id())
-    return 0;
+    return true;
 
-  RevWalk walk = walker();
-  if (!walk.isValid() || !walk.hide(commit))
-    return 0;
-
-  int result = 0;
-  while (walk.next().isValid())
-    ++result;
-
-  return result;
+  return git_graph_descendant_of(git_object_owner(d.get()), commit.id(),
+                                 id()) == 1;
 }
 
 bool Commit::revert() const {
@@ -363,36 +371,8 @@ QString Commit::substituteEmoji(const QString &text) const {
 void Commit::setEmojiFile(const QString &file) { sEmojiFile = file; }
 
 Blob Commit::blob(const QString &file) const {
-  git::Blob blob;
-
-  if (!isValid())
-    return blob;
-
-  // searching for the correct blob
-  auto list = file.split("/");
-  bool found = false;
-  auto t = tree();
-  if (!t.isValid())
-    return blob;
-
-  for (int path_depth = 0; path_depth < list.count(); path_depth++) {
-    auto element = list[path_depth];
-    found = false;
-    for (int i = 0; i < t.count(); ++i) {
-      auto n = t.name(i);
-      if (n == element) {
-        if (path_depth >= list.count() - 1)
-          blob = t.object(i);
-        else
-          t = t.object(i);
-        found = true;
-        break;
-      }
-    }
-    if (!found)
-      break;
-  }
-  return blob;
+  Tree tree = this->tree();
+  return tree.isValid() ? repo().lookupBlob(tree.id(file)) : Blob();
 }
 
 } // namespace git

@@ -44,6 +44,7 @@ private:
 
   git_oid d;
 
+  friend class Commit;
   friend class Index;
   friend class Repository;
 };

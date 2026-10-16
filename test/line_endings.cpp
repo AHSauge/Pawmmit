@@ -13,6 +13,7 @@
 #include "Test.h"
 #include "ui/CommitList.h"
 #include "ui/DetailView.h"
+#include "ui/DiffView/HunkWidget.h"
 #include "ui/DoubleTreeWidget.h"
 #include "ui/MainWindow.h"
 #include "ui/RepoView.h"
@@ -33,6 +34,7 @@ private slots:
   void commitFile();
   void overwriteFile();
   void testLineEndings();
+  void discardHunkKeepsCrlf();
   void cleanupTestCase();
 
 private:
@@ -112,6 +114,55 @@ void TestLineEndings::testLineEndings() {
 
   CommitList *commitList = mRepoView->findChild<CommitList *>();
   QVERIFY(!commitList->status().isValid());
+}
+
+void TestLineEndings::discardHunkKeepsCrlf() {
+  ScratchRepository repo;
+  QDir workdir = repo->workdir();
+
+  auto lines = [](const QList<int> &changed) {
+    QByteArray text;
+    for (int i = 1; i <= 20; ++i)
+      text += QByteArray("line ") + QByteArray::number(i) +
+              (changed.contains(i) ? " changed" : "") + "\r\n";
+    return text;
+  };
+
+  auto write = [&workdir](const QString &name, const QByteArray &data) {
+    QFile file(workdir.filePath(name));
+    return file.open(QFile::WriteOnly) && file.write(data) == data.size();
+  };
+
+  QVERIFY(write(".gitattributes", "file.txt text eol=crlf\n"));
+  QVERIFY(write("file.txt", lines({})));
+  repo->index().setStaged({".gitattributes", "file.txt"}, true);
+  QVERIFY(repo->commit("Add CRLF file").isValid());
+
+  // Two changes far enough apart to form separate hunks.
+  QVERIFY(write("file.txt", lines({2, 19})));
+
+  MainWindow window(repo);
+  window.show();
+  QVERIFY(qWaitForWindowActive(&window));
+  RepoView *view = window.currentView();
+  refresh(view);
+
+  auto files =
+      view->findChild<DoubleTreeWidget *>()->findChild<TreeView *>("Unstaged");
+  QVERIFY(files);
+  files->selectionModel()->select(files->model()->index(0, 0),
+                                  QItemSelectionModel::Select);
+
+  QList<HunkWidget *> hunks;
+  QTRY_VERIFY((hunks = view->findChildren<HunkWidget *>()).size() == 2);
+
+  // Discard the first hunk; the change on line 19 stays.
+  HunkWidget *first = hunks.first();
+  first->discardSelected(0, first->editor()->lineCount());
+
+  QFile file(workdir.filePath("file.txt"));
+  QVERIFY(file.open(QFile::ReadOnly));
+  QCOMPARE(file.readAll(), lines({19}));
 }
 
 void TestLineEndings::cleanupTestCase() {
