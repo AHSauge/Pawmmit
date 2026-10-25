@@ -600,6 +600,7 @@ RevWalk Repository::walker(int sort) const {
 
   RevWalk walker(revwalk);
   git_revwalk_sorting(revwalk, sort);
+  git_revwalk_push_head(revwalk);
   git_revwalk_push_glob(revwalk, "*");
   return walker;
 }
