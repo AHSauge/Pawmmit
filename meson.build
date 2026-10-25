@@ -54,9 +54,6 @@ endif
 if get_option('enable_update_over_gui')
     _defs += '-DENABLE_UPDATE_OVER_GUI'
 endif
-if get_option('enable_sha256')
-    _defs += '-DGIT_EXPERIMENTAL_SHA256'
-endif
 
 # cmake and/or Qt in cmake seems to inject these defines in that we depend on
 if is_win
