@@ -15,9 +15,6 @@
 #include "app/Application.h"
 #include "conf/Settings.h"
 #include "editor/TextEditor.h"
-#include "git/Commit.h"
-#include "git/Repository.h"
-#include "git/RevWalk.h"
 #include "git/Signature.h"
 #include <QDateTime>
 #include <QMouseEvent>
@@ -63,15 +60,22 @@ void BlameMargin::startBlame(const QString &name) {
   mTimer.start(50);
 }
 
-void BlameMargin::setBlame(const git::Repository &repo,
-                           const git::Blame &blame) {
-  if (Settings::instance()
-          ->value(Setting::Id::ShowHeatmapInBlameMargin)
-          .toBool()) {
-    git::Commit first = repo.walker(GIT_SORT_TIME | GIT_SORT_REVERSE).next();
-    git::Commit last = repo.walker(GIT_SORT_TIME).next();
-    mMinTime = first ? first.committer().date().toSecsSinceEpoch() : -1;
-    mMaxTime = last ? last.committer().date().toSecsSinceEpoch() : -1;
+void BlameMargin::setBlame(const git::Blame &blame) {
+  mMinTime = -1;
+  mMaxTime = -1;
+  if (blame.isValid() && Settings::instance()
+                             ->value(Setting::Id::ShowHeatmapInBlameMargin)
+                             .toBool()) {
+    for (int i = 0; i < blame.count(); ++i) {
+      if (!blame.isCommitted(i))
+        continue;
+
+      int time = blame.signature(i).date().toSecsSinceEpoch();
+      if (mMinTime < 0 || time < mMinTime)
+        mMinTime = time;
+      if (mMaxTime < 0 || time > mMaxTime)
+        mMaxTime = time;
+    }
   }
 
   mTimer.stop();

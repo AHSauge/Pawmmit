@@ -94,7 +94,7 @@ BlameEditor::BlameEditor(const git::Repository &repo, QWidget *parent)
     QFuture<git::Blame> future = mBlame.future();
     if (future.resultCount() > 0) {
       git::Blame blame = future.result();
-      mMargin->setBlame(mRepo, blame);
+      mMargin->setBlame(blame);
       mMargin->setVisible(blame.isValid());
     }
   });
