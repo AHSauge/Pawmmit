@@ -20,10 +20,6 @@
 
 class TextEditor;
 
-namespace git {
-class Repository;
-}
-
 class BlameMargin : public QWidget {
   Q_OBJECT
 
@@ -31,7 +27,7 @@ public:
   BlameMargin(TextEditor *editor, QWidget *parent = nullptr);
 
   void startBlame(const QString &name);
-  void setBlame(const git::Repository &repo, const git::Blame &blame);
+  void setBlame(const git::Blame &blame);
   void clear();
 
   QSize minimumSizeHint() const override;

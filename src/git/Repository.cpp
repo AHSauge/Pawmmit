@@ -600,9 +600,8 @@ RevWalk Repository::walker(int sort) const {
 
   RevWalk walker(revwalk);
   git_revwalk_sorting(revwalk, sort);
-  for (const Reference &ref : refs())
-    git_revwalk_push_ref(revwalk, ref.qualifiedName().toUtf8());
-
+  git_revwalk_push_head(revwalk);
+  git_revwalk_push_glob(revwalk, "*");
   return walker;
 }
 
