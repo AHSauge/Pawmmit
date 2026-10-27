@@ -53,6 +53,13 @@ option(
 )
 
 option(
+    'bundle_libgit2',
+    type: 'feature',
+    value: 'auto',
+    description: 'Bundle libgit2 with performance patches (auto: only if no system libgit2 is found)',
+)
+
+option(
     'debug_output',
     type: 'boolean',
     value: true,
