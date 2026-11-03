@@ -50,11 +50,14 @@ public:
 
 private:
   // Returns the path's id, inserting the path if it's new, or -1 on failure.
-  // Newly inserted paths are added to inserted.
-  qint64 pathId(const QByteArray &path, QByteArrayList &inserted);
+  qint64 pathId(const QByteArray &path);
+
+  void rollbackBatch();
 
   std::shared_ptr<sqlite3> mDB = nullptr;
   bool mValid = false;
+  // Set when a write fails, so the rest of the batch is dropped too.
+  bool mBatchFailed = false;
   sqlite3_stmt *mInsertCommit = nullptr;
   sqlite3_stmt *mInsertFTS = nullptr;
   sqlite3_stmt *mFindPath = nullptr;

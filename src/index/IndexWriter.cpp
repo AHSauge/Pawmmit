@@ -82,17 +82,18 @@ IndexWriter::IndexWriter(const git::Repository &repo) {
   if (!createSchema(mDB.get()))
     return;
 
+  // RETURNING runs as a trigger, whose statement savepoint makes FTS5 flush
+  // its pending terms to disk, so ids come from sqlite3_last_insert_rowid().
   QByteArray commitSQL = "INSERT INTO commits(oid, time, tz_offset, email) "
                          "VALUES(?1, ?2, ?3, ?4) "
-                         "ON CONFLICT(oid) DO NOTHING RETURNING id";
+                         "ON CONFLICT(oid) DO NOTHING";
 
   QByteArray commitPathSQL = "INSERT OR IGNORE INTO commits_paths(path_id, "
                              "commit_id) VALUES(?1, ?2)";
 
   QByteArray findPathSQL = "SELECT id FROM paths WHERE path = ?1";
 
-  QByteArray pathSQL =
-      "INSERT INTO paths(path, file) VALUES(?1, ?2) RETURNING id";
+  QByteArray pathSQL = "INSERT INTO paths(path, file) VALUES(?1, ?2)";
 
   QByteArray ftsSQL = "INSERT INTO fts(rowid";
   for (const char *name : kFTSColumnNames)
@@ -125,7 +126,7 @@ IndexWriter::~IndexWriter() {
   sqlite3_finalize(mInsertPath);
 }
 
-qint64 IndexWriter::pathId(const QByteArray &path, QByteArrayList &inserted) {
+qint64 IndexWriter::pathId(const QByteArray &path) {
   auto it = mPathIds.constFind(path);
   if (it != mPathIds.constEnd())
     return *it;
@@ -147,12 +148,10 @@ qint64 IndexWriter::pathId(const QByteArray &path, QByteArrayList &inserted) {
     sqlite3_bind_text(mInsertPath, 2, file.constData(), file.size(),
                       SQLITE_STATIC);
     rc = sqlite3_step(mInsertPath);
-    if (rc == SQLITE_ROW) {
-      id = sqlite3_column_int64(mInsertPath, 0);
-      inserted.append(path);
-    } else {
+    if (rc == SQLITE_DONE)
+      id = sqlite3_last_insert_rowid(mDB.get());
+    else
       qWarning() << "Failed to insert path:" << sqlite3_errmsg(mDB.get());
-    }
     sqlite3_reset(mInsertPath);
   }
 
@@ -162,16 +161,15 @@ qint64 IndexWriter::pathId(const QByteArray &path, QByteArrayList &inserted) {
 }
 
 bool IndexWriter::write(const CommitDocument &doc) {
-  // A commit's rows are written together or not at all, since a commit row
-  // without its FTS row would be skipped as already indexed on later runs.
-  sqlite3_exec(mDB.get(), "SAVEPOINT doc", nullptr, nullptr, nullptr);
-  QByteArrayList insertedPaths;
-  auto rollback = [this, &insertedPaths] {
-    sqlite3_exec(mDB.get(), "ROLLBACK TO doc; RELEASE doc", nullptr, nullptr,
-                 nullptr);
-    // Those path rows are gone again, so their cached ids are invalid.
-    for (const QByteArray &path : insertedPaths)
-      mPathIds.remove(path);
+  // A commit row without its FTS row would be skipped as already indexed on
+  // later runs, so a failed write rolls back the whole batch. A savepoint per
+  // commit would make FTS5 flush its pending terms to disk on every write.
+  if (mBatchFailed)
+    return false;
+
+  auto rollback = [this] {
+    rollbackBatch();
+    mBatchFailed = true;
     return false;
   };
 
@@ -183,16 +181,17 @@ bool IndexWriter::write(const CommitDocument &doc) {
   sqlite3_bind_text(mInsertCommit, 4, doc.email.constData(), doc.email.size(),
                     SQLITE_STATIC);
   int rc = sqlite3_step(mInsertCommit);
-  if (rc != SQLITE_ROW) {
-    // SQLITE_DONE without a row means the commit is already indexed.
-    if (rc != SQLITE_DONE)
-      qWarning() << "Failed to insert commit:" << sqlite3_errmsg(mDB.get());
-    sqlite3_reset(mInsertCommit);
+  sqlite3_int64 id = sqlite3_last_insert_rowid(mDB.get());
+  bool inserted = sqlite3_changes(mDB.get()) > 0;
+  sqlite3_reset(mInsertCommit);
+  if (rc != SQLITE_DONE) {
+    qWarning() << "Failed to insert commit:" << sqlite3_errmsg(mDB.get());
     return rollback();
   }
 
-  sqlite3_int64 id = sqlite3_column_int64(mInsertCommit, 0);
-  sqlite3_reset(mInsertCommit);
+  // No new row means the commit is already indexed.
+  if (!inserted)
+    return false;
 
   // Insert FTS data
   sqlite3_bind_int64(mInsertFTS, 1, id);
@@ -210,7 +209,7 @@ bool IndexWriter::write(const CommitDocument &doc) {
 
   // Link the commit to the paths it touches
   for (const QByteArray &path : doc.paths) {
-    qint64 pathRowId = pathId(path, insertedPaths);
+    qint64 pathRowId = pathId(path);
     if (pathRowId < 0)
       return rollback();
 
@@ -224,7 +223,6 @@ bool IndexWriter::write(const CommitDocument &doc) {
       return rollback();
   }
 
-  sqlite3_exec(mDB.get(), "RELEASE doc", nullptr, nullptr, nullptr);
   return true;
 }
 
@@ -233,15 +231,26 @@ bool IndexWriter::beginBatch() {
                       nullptr) == SQLITE_OK;
 }
 
+void IndexWriter::rollbackBatch() {
+  // The batch's commits aren't recorded as indexed, so the next run indexes
+  // them again.
+  sqlite3_exec(mDB.get(), "ROLLBACK", nullptr, nullptr, nullptr);
+  // Paths inserted during the batch are gone again too.
+  mPathIds.clear();
+}
+
 bool IndexWriter::commitBatch() {
+  // A failed write already rolled the batch back.
+  if (mBatchFailed) {
+    mBatchFailed = false;
+    return false;
+  }
+
   if (sqlite3_exec(mDB.get(), "COMMIT", nullptr, nullptr, nullptr) !=
       SQLITE_OK) {
     qWarning() << "Failed to commit index batch:" << sqlite3_errmsg(mDB.get());
-    // Drop the batch so the next one starts a new transaction. Its commits
-    // aren't recorded as indexed, so the next run indexes them again.
-    sqlite3_exec(mDB.get(), "ROLLBACK", nullptr, nullptr, nullptr);
-    // Paths inserted during the batch are gone again too.
-    mPathIds.clear();
+    // Drop the batch so the next one starts a new transaction.
+    rollbackBatch();
     return false;
   }
 
