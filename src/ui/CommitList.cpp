@@ -2152,7 +2152,10 @@ void CommitList::dispatchSelectedDiff(const QString &file, bool spontaneous) {
               emit diffSelected(diff, file, spontaneous);
           });
 
-  watcher->setFuture(QtConcurrent::run([first, last, range, ignoreWhitespace] {
+  // Resolve the repository here, since its registry isn't thread-safe.
+  git::Repository repo = first.repo();
+  watcher->setFuture(QtConcurrent::run([first, last, range, ignoreWhitespace,
+                                        repo] {
     git::Diff diff = range ? first.diff(last, -1, ignoreWhitespace)
                            : first.diff(git::Commit(), -1, ignoreWhitespace);
     diff.findSimilar();
