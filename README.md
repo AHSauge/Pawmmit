@@ -71,12 +71,13 @@ Dependencies
   * Qt (>= 6.7) (Core5Compat and Linguist tools are required)
     * Debian (or DEB based distros): `apt install qt6-base-dev qt6-tools-dev qt6-l10n-tools libqt6core5compat6-dev`
     * Fedora (RPM based distros): `dnf install qt6-qtbase-devel qt6-qttools-devel qt6-linguist qt6-qt5compat-devel`
+* Optionally installed dependencies (system package is chosen over bundling):
   * libgit2 (>= 1.9)
+    * NOTE: The bundled version is based on libgit2 v2.0.0-rc.1 with several performance patches for **substantially** better performance. Read more about this [here](docs/libgit2.md).
     * macOS: `brew install libgit2`
     * Windows: `vcpkg install libgit2[ssh]`
     * Debian (or DEB based distros): `apt install libgit2-dev`
     * Fedora (RPM based distros): `dnf install libgit2-devel`
-* Optionally installed dependencies (system package is chosen over bundling):
   * libssh2
   * hunspell (>= 1.7)
   * cmark (library + the `cmark` command-line tool)
@@ -97,7 +98,7 @@ How to Build
     meson setup build
     meson compile -C build
 
-For an optimized build pass `--buildtype=release` to `meson setup`. If Qt is in
+For an optimized build pass `--buildtype=release` and `-Dbundle_libgit2=enabled` to `meson setup`. If Qt is in
 a non-standard location, put its `bin` directory on `PATH` or set
 `PKG_CONFIG_PATH` / `CMAKE_PREFIX_PATH` so Meson can find it.
 
