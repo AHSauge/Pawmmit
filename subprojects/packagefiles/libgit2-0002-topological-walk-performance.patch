@@ -1,5 +1,5 @@
 diff --git a/src/libgit2/commit_graph.c b/src/libgit2/commit_graph.c
-index 956c7dbb3..801a314ee 100644
+index 1961559..caf2c59 100644
 --- a/src/libgit2/commit_graph.c
 +++ b/src/libgit2/commit_graph.c
 @@ -19,7 +19,6 @@
@@ -11,7 +11,7 @@ index 956c7dbb3..801a314ee 100644
  #define COMMIT_GRAPH_SIGNATURE 0x43475048 /* "CGPH" */
  #define COMMIT_GRAPH_VERSION 1
 diff --git a/src/libgit2/commit_graph.h b/src/libgit2/commit_graph.h
-index 119670851..dcdfbd791 100644
+index df6e261..ef59270 100644
 --- a/src/libgit2/commit_graph.h
 +++ b/src/libgit2/commit_graph.h
 @@ -19,6 +19,8 @@
@@ -24,7 +24,7 @@ index 119670851..dcdfbd791 100644
   * A commit-graph file.
   *
 diff --git a/src/libgit2/commit_list.c b/src/libgit2/commit_list.c
-index 7f00c483f..793b93d10 100644
+index 2a80cb0..28f7b29 100644
 --- a/src/libgit2/commit_list.c
 +++ b/src/libgit2/commit_list.c
 @@ -12,22 +12,37 @@
@@ -71,18 +71,18 @@ index 7f00c483f..793b93d10 100644
  
  int git_commit_list_time_cmp(const void *a, const void *b)
 diff --git a/src/libgit2/commit_list.h b/src/libgit2/commit_list.h
-index e2dbd2aae..7e7c4f065 100644
+index 052ebb2..9ca2d88 100644
 --- a/src/libgit2/commit_list.h
 +++ b/src/libgit2/commit_list.h
-@@ -32,6 +32,7 @@ typedef struct git_commit_list_node {
- 			 topo_delay:1,
+@@ -34,6 +34,7 @@ typedef struct git_commit_list_node {
  			 parsed:1,
  			 added:1,
+ 			 in_graph:1,
 +			 discovered:1,
  			 flags : FLAG_BITS;
  
  	uint16_t in_degree;
-@@ -46,6 +47,7 @@ typedef struct git_commit_list {
+@@ -48,6 +49,7 @@ typedef struct git_commit_list {
  } git_commit_list;
  
  git_commit_list_node *git_commit_list_alloc_node(git_revwalk *walk);
@@ -91,24 +91,10 @@ index e2dbd2aae..7e7c4f065 100644
  int git_commit_list_time_cmp(const void *a, const void *b);
  void git_commit_list_free(git_commit_list **list_p);
 diff --git a/src/libgit2/revwalk.c b/src/libgit2/revwalk.c
-index a67fa3c2b..1e28009bc 100644
+index 0fb907d..c719978 100644
 --- a/src/libgit2/revwalk.c
 +++ b/src/libgit2/revwalk.c
-@@ -673,13 +673,6 @@ static int limit_list(git_commit_list **out, git_revwalk *walk, git_commit_list
- 			break;
- 		}
- 
--		/* Use bloom filter if available */
--		if (walk->pathspec_cache && check_bloom_filter(walk, commit) == 0)
--			continue;
--		
--		if (walk->pathspec && !include_path(walk, commit))
--			continue;
--
- 		if (walk->hide_cb && walk->hide_cb(&commit->oid, walk->hide_cb_payload))
- 			continue;
- 
-@@ -802,6 +795,192 @@ cleanup:
+@@ -806,6 +806,192 @@ cleanup:
  	return error;
  }
  
@@ -301,7 +287,7 @@ index a67fa3c2b..1e28009bc 100644
  static int prepare_walk(git_revwalk *walk)
  {
  	int error = 0;
-@@ -845,28 +1024,14 @@ static int prepare_walk(git_revwalk *walk)
+@@ -849,28 +1035,14 @@ static int prepare_walk(git_revwalk *walk)
  		}
  	}
  
@@ -334,35 +320,7 @@ index a67fa3c2b..1e28009bc 100644
  	}
  
  	if (walk->sorting & GIT_SORT_REVERSE) {
-@@ -973,7 +1138,18 @@ int git_revwalk_next(git_oid *oid, git_revwalk *walk)
- 			return error;
- 	}
- 
--	error = walk->get_next(&next, walk);
-+	/*
-+	 * Filter commits by path on output to allow user code aborting the walk
-+	 * early to be cheap
-+	 */
-+	while ((error = walk->get_next(&next, walk)) == 0 && walk->pathspec) {
-+		/* Use bloom filter if available to skip the tree diff */
-+		bool maybe_touched = !walk->pathspec_cache ||
-+			check_bloom_filter(walk, next) != 0;
-+
-+		if (maybe_touched && include_path(walk, next))
-+			break;
-+	}
- 
- 	if (error == GIT_ITEROVER) {
- 		git_revwalk_reset(walk);
-@@ -1019,7 +1195,6 @@ int git_revwalk_pathspec(git_revwalk *walk, git_pathspec *pathspec) {
- 				/* Discard the return value since git_bloom_filter__cache_new cleans up the error cases for us*/
- 				(void)git_bloom_filter__cache_new(&walk->pathspec_cache, pathspec, walk->pathspec_cgfile);
- 		}
--		walk->limited = 1;
- 	}
- 	/* Reset previously set pathspec */ 
- 	else if (walk->pathspec) {
-@@ -1046,10 +1221,13 @@ int git_revwalk_reset(git_revwalk *walk)
+@@ -1051,10 +1223,13 @@ int git_revwalk_reset(git_revwalk *walk)
  		commit->topo_delay = 0;
  		commit->uninteresting = 0;
  		commit->added = 0;
@@ -377,13 +335,13 @@ index a67fa3c2b..1e28009bc 100644
  	git_commit_list_free(&walk->iterator_rand);
  	git_commit_list_free(&walk->iterator_reverse);
 diff --git a/src/libgit2/revwalk.h b/src/libgit2/revwalk.h
-index ccbe3de30..617fc188d 100644
+index a5567c9..600d61a 100644
 --- a/src/libgit2/revwalk.h
 +++ b/src/libgit2/revwalk.h
-@@ -52,6 +52,10 @@ struct git_revwalk {
+@@ -51,6 +51,10 @@ struct git_revwalk {
+ 	git_pathspec *pathspec;
  	bool pathspec_wildcard;
  	git_bloom_filter_cache *pathspec_cache;
- 	git_commit_graph_file *pathspec_cgfile;
 +
 +	/* speed-up with generation number v1 */
 +	git_pqueue topo_queue;
