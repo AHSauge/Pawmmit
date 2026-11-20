@@ -36,7 +36,7 @@ public:
   bool push(const Commit &commit);
   bool push(const Reference &ref);
 
-  // Only return commits that touch the given path; this can't be undone.
+  // Only return commits that touch the given path; an empty path clears it.
   bool setPathspec(const QString &pathspec);
 
   Commit next() const;

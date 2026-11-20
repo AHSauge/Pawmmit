@@ -36,7 +36,10 @@ struct RevWalk::Data {
   // Borrowed by the walk, so it must outlive it.
   git_pathspec *pathspec = nullptr;
 #else
-  QString path;
+  // Built once in setPathspec(); diffopts points into path via pathData.
+  QByteArray path;
+  char *pathData = nullptr;
+  git_diff_options diffopts = GIT_DIFF_OPTIONS_INIT;
 #endif
 };
 
@@ -144,37 +147,32 @@ bool RevWalk::setPathspec(const QString &pathspec) {
   git_pathspec_free(d->pathspec);
   d->pathspec = ps;
 #else
-  d->path = pathspec;
+  d->path = pathspec.toUtf8();
+  d->pathData = d->path.data();
+  git_diff_options_init(&d->diffopts, GIT_DIFF_OPTIONS_VERSION);
+  d->diffopts.notify_cb = notify;
+  d->diffopts.pathspec.count = 1;
+  d->diffopts.pathspec.strings = &d->pathData;
+  if (!pathspec.contains(QRegularExpression("[*?]")))
+    d->diffopts.flags |= GIT_DIFF_DISABLE_PATHSPEC_MATCH;
 #endif
   return true;
 }
 
 Commit RevWalk::next() const {
-#if !LIBGIT2_VERSION_CHECK(2, 0, 0)
-  // libgit2 only filters the walk itself from 2.0, so filter here.
-  QString path = d ? d->path : QString();
-  QByteArray buffer = path.toUtf8();
-  char *data = buffer.data();
-
-  git_diff_options diffopts = GIT_DIFF_OPTIONS_INIT;
-  diffopts.notify_cb = notify;
-  diffopts.pathspec.count = 1;
-  diffopts.pathspec.strings = &data;
-  if (!path.contains(QRegularExpression("[*?]")))
-    diffopts.flags |= GIT_DIFF_DISABLE_PATHSPEC_MATCH;
-#endif
-
-  Id id;
-  while ((id = nextID()) && id.isValid()) {
+  git_oid id;
+  int error;
+  while (!(error = git_revwalk_next(&id, walk()))) {
     git_commit *commit = nullptr;
-    if (git_commit_lookup(&commit, git_revwalk_repository(walk()), id)) {
+    if (git_commit_lookup(&commit, git_revwalk_repository(walk()), &id)) {
       // A commit that can't be read ends the walk early.
       mFinished = false;
       return Commit();
     }
 
 #if !LIBGIT2_VERSION_CHECK(2, 0, 0)
-    if (!path.isEmpty() && !touches(commit, &diffopts)) {
+    // libgit2 only filters the walk itself from 2.0, so filter here.
+    if (!d->path.isEmpty() && !touches(commit, &d->diffopts)) {
       git_commit_free(commit);
       continue;
     }
@@ -182,15 +180,17 @@ Commit RevWalk::next() const {
 
     return Commit(commit);
   }
+
+  mFinished = (error == GIT_ITEROVER);
   return Commit();
 }
 
 Id RevWalk::nextID() const {
   git_oid id;
-  int error;
-  while (!(error = git_revwalk_next(&id, walk()))) {
+  int error = git_revwalk_next(&id, walk());
+  if (!error)
     return Id(id);
-  }
+
   mFinished = (error == GIT_ITEROVER);
   return Id();
 }
