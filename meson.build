@@ -150,6 +150,14 @@ if not libgit2_dep.found()
         ]
     endif
 
+    # Read the source directory from the wrap so a version bump only edits one file.
+    libgit2_dir = ''
+    foreach line : fs.read('subprojects/libgit2.wrap').split('\n')
+        if line.startswith('directory')
+            libgit2_dir = line.split('=')[1].strip()
+        endif
+    endforeach
+
     # The CMake target also exports libgit2's private include dirs, whose
     # src/util/process.h shadows MSVC's own, so only the public headers are used.
     # GIT_STATIC stops those headers declaring the API as dllimport on Windows.
@@ -161,9 +169,8 @@ if not libgit2_dep.found()
             ),
         ]
         + libgit2_sys_deps,
-        # Must match the directory in subprojects/libgit2.wrap.
         include_directories: include_directories(
-            'subprojects/libgit2-2.0.0-rc.1/include',
+            'subprojects' / libgit2_dir / 'include',
         ),
         compile_args: '-DGIT_STATIC',
     )
