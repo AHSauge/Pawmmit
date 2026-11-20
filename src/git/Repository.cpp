@@ -610,14 +610,18 @@ Commit Repository::lookupCommit(const QString &prefix) const {
   QByteArray hex = prefix.toUtf8();
   git_oid id;
 #if LIBGIT2_VERSION_CHECK(2, 0, 0)
-  git_oid_from_prefix(&id, hex.constData(), hex.size(), oidType());
+  int error = git_oid_from_prefix(&id, hex.constData(), hex.size(), oidType());
 #else
-  git_oid_fromstrn(&id, hex.constData(), hex.size());
+  int error = git_oid_fromstrn(&id, hex.constData(), hex.size());
 #endif
 
-  git_commit *commit = nullptr;
-  git_commit_lookup_prefix(&commit, d->repo, &id, prefix.length());
-  return Commit(commit);
+  if (error) {
+    return Commit();
+  } else {
+    git_commit *commit = nullptr;
+    git_commit_lookup_prefix(&commit, d->repo, &id, prefix.length());
+    return Commit(commit);
+  }
 }
 
 Commit Repository::lookupCommit(const Id &id) const {
