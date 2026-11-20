@@ -504,7 +504,7 @@ void DiffView::fetchMore(int fetchWidgets) {
                                         name, path, submodule, widget());
       file->setStageState(state);
       mFileWidgetLayout->addWidget(file);
-      addedWidgets += file->hunks().count();
+      addedWidgets += qMax(1, file->hunks().count());
 
       mFiles.append(file);
 
