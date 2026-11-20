@@ -78,18 +78,6 @@ modules:
           - autoreconf -fiv
         dest-filename: autogen.sh
 
-  # libgit2 is built directly with CMake here, like libssh2 above (see
-  # meson.build). lua/hunspell/cmark come from Meson wraps instead, seeded
-  # into packagecache below since this sandbox has no network mid-build.
-  - name: libgit2
-    buildsystem: cmake-ninja
-    builddir: true
-    config-opts: [-DCMAKE_BUILD_TYPE=Release, -DBUILD_TESTS=OFF, -DBUILD_CLI=OFF, -DBUILD_EXAMPLES=OFF, -DUSE_SSH=ON]
-    sources:
-      - type: archive
-        url: https://github.com/libgit2/libgit2/archive/refs/tags/v1.9.1.tar.gz
-        sha256: 14cab3014b2b7ad75970ff4548e83615f74d719afe00aa479b4a889c1e13fc00
-
   - name: Pawmmit
     buildsystem: meson
     config-opts: ["--buildtype=release", "-Dflatpak=true", "-Dbundled=true", "-Denable_update_over_gui=false", "-Dtests=false"]
@@ -100,6 +88,11 @@ modules:
         branch: main
       # Pre-seeds subprojects/packagecache/ since this sandbox has no network
       # mid-build; keep hashes in sync with subprojects/*.wrap.
+      - type: file
+        url: https://github.com/libgit2/libgit2/archive/refs/tags/v2.0.0-rc.1.tar.gz
+        sha256: c8b3af8b6b1aa70d83da5dee39142df2b9959087b4dd2a302e6edfea354dd1b2
+        dest: subprojects/packagecache
+        dest-filename: libgit2-2.0.0-rc.1.tar.gz
       - type: file
         url: https://downloads.sourceforge.net/project/scintilla/scintilla/5.6.7/scintilla567.tgz
         sha256: 19e4476706750056f86ca70974810e4a5b08e73477e13f7d9fae78243606f6a7

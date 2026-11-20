@@ -73,7 +73,7 @@ Dependencies
     * Fedora (RPM based distros): `dnf install qt6-qtbase-devel qt6-qttools-devel qt6-linguist qt6-qt5compat-devel`
 * Optionally installed dependencies (system package is chosen over bundling):
   * libgit2 (>= 1.9)
-    * NOTE: The bundled version is based on libgit2 v2.0.0-rc.1 with several performance patches for **substantially** better performance. Read more about this [here](docs/libgit2.md).
+    * NOTE: The bundled version is based on libgit2 v2.0.0-rc.1 with several performance patches for **substantially** better performance, and is therefore **strongly** recommended. Read more about this [here](docs/libgit2.md).
     * macOS: `brew install libgit2`
     * Windows: `vcpkg install libgit2[ssh]`
     * Debian (or DEB based distros): `apt install libgit2-dev`
