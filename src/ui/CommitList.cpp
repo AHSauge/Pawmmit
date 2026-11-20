@@ -641,7 +641,7 @@ private:
         }
       }
 
-      if (result.walker.isValid() && !ctx.pathspec.isEmpty())
+      if (result.walker.isValid())
         result.walker.setPathspec(ctx.pathspec);
     }
 

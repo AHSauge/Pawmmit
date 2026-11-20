@@ -135,7 +135,8 @@ bool RevWalk::setPathspec(const QString &pathspec) {
   git_strarray paths = {&data, 1};
 
   git_pathspec *ps = nullptr;
-  if (git_pathspec_new(&ps, &paths) || git_revwalk_pathspec(walk(), ps)) {
+  if ((pathspec.isEmpty() == false && git_pathspec_new(&ps, &paths)) ||
+      git_revwalk_pathspec(walk(), ps)) {
     git_pathspec_free(ps);
     return false;
   }
