@@ -414,6 +414,7 @@ jobs:
         run: |
           meson setup build \
             -Dci_tests=true \
+            -Dbundle_libgit2=disabled \
             --wrap-mode=nofallback \
             --force-fallback-for=lexilla,scintilla,scintillua,lpeg,zip
 
