@@ -7,6 +7,7 @@
 #include "ui/TreeView.h"
 #include "watcher/RepositoryWatcher.h"
 #include "git/Index.h"
+#include "git/Signature.h"
 
 #include <memory>
 #include <QSignalSpy>
@@ -61,6 +62,8 @@ private slots:
   void refreshDoesNotRetrigger();
   void refreshDoesNotStealFocus();
   void refreshKeepsCommittedFileSelection();
+  void externalEditKeepsCommitSelection();
+  void refreshKeepsSelectionBeyondFirstPage();
   void cleanupTestCase();
 
 private:
@@ -171,6 +174,90 @@ void TestRepoViewAutoRefresh::refreshKeepsCommittedFileSelection() {
 
   QVERIFY2(!unstagedFiles->selectionModel()->selectedIndexes().isEmpty(),
            "refresh lost the selection in the committed files list");
+}
+
+void TestRepoViewAutoRefresh::externalEditKeepsCommitSelection() {
+  settle();
+
+  // Date the parent after its child, as clock skew does.
+  QString name = "skewed.txt";
+  QDateTime now = QDateTime::currentDateTime();
+  for (const QDateTime &date : {now.addSecs(3600), now}) {
+    QVERIFY(writeFile(mRepo->workdir().filePath(name)));
+    mRepo->index().setStaged({name}, true);
+    git::Signature sig = mRepo->signature("Test", "test@example.com", date);
+    QVERIFY(mRepo->commit(sig, sig, "skewed"));
+  }
+  git::Commit parent = mRepo->head().target().parents().first();
+  settle();
+
+  auto *commits = mView->findChild<CommitList *>();
+  QVERIFY(commits);
+  QTRY_VERIFY_WITH_TIMEOUT(!commits->isLoading(), 10000);
+
+  // Click the row, rows being: uncommitted changes, child, parent.
+  QModelIndex row = commits->model()->index(2, 0);
+  QCOMPARE(row.data(CommitList::Role::CommitRole).value<git::Commit>(), parent);
+  commits->selectionModel()->select(row, QItemSelectionModel::ClearAndSelect);
+
+  mSpy->clear();
+  QVERIFY(writeFile(mRepo->workdir().filePath(name)));
+  QVERIFY(mSpy->wait(kSignalMs));
+  QTRY_VERIFY_WITH_TIMEOUT(!commits->isLoading(), 10000);
+
+  QCOMPARE(commits->selectedRange(), parent.id().toString());
+}
+
+void TestRepoViewAutoRefresh::refreshKeepsSelectionBeyondFirstPage() {
+  settle();
+
+  // Descendants always come first, so dating the target ahead of them puts
+  // it past the first page and newer than every row above it.
+  QString name = "pages.txt";
+  QDateTime now = QDateTime::currentDateTime();
+  QVERIFY(writeFile(mRepo->workdir().filePath(name)));
+  mRepo->index().setStaged({name}, true);
+  git::Signature newer =
+      mRepo->signature("Test", "test@example.com", now.addSecs(3600));
+  git::Commit target = mRepo->commit(newer, newer, "target");
+  QVERIFY(target.isValid());
+
+  git::Signature sig = mRepo->signature("Test", "test@example.com", now);
+  for (int i = 0; i < 100; ++i) {
+    QVERIFY(writeFile(mRepo->workdir().filePath(name)));
+    mRepo->index().setStaged({name}, true);
+    QVERIFY(mRepo->commit(sig, sig, "descendant"));
+  }
+
+  auto *commits = mView->findChild<CommitList *>();
+  QVERIFY(commits);
+  settle();
+  QTRY_VERIFY_WITH_TIMEOUT(!commits->isLoading(), 10000);
+
+  // Scroll down to the target and click it.
+  QAbstractItemModel *model = commits->model();
+  int initialRows = model->rowCount();
+  QModelIndex row;
+  for (int i = 0; !row.isValid(); ++i) {
+    if (i == model->rowCount()) {
+      QVERIFY(model->canFetchMore(QModelIndex()));
+      model->fetchMore(QModelIndex());
+    }
+
+    QModelIndex index = model->index(i, 0);
+    if (index.data(CommitList::Role::CommitRole).value<git::Commit>() == target)
+      row = index;
+  }
+  QVERIFY(row.row() >= initialRows);
+  commits->selectionModel()->select(row, QItemSelectionModel::ClearAndSelect);
+
+  // Refresh like F5 does; the refresh() helper reselects the first commit.
+  QSignalSpy status(mView, &RepoView::statusChanged);
+  mView->refresh();
+  QVERIFY(status.wait(kSignalMs));
+  QTRY_VERIFY_WITH_TIMEOUT(!commits->isLoading(), 10000);
+
+  QCOMPARE(commits->selectedRange(), target.id().toString());
 }
 
 void TestRepoViewAutoRefresh::cleanupTestCase() {

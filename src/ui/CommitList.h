@@ -136,6 +136,9 @@ private:
 
   QString mSelectedRange;
 
+  // Rows loaded before the reset, so the stored range can be found again.
+  int mSelectedRows = 0;
+
   // Whether the current selection is just the automatic fallback rather
   // than a deliberate user pick
   bool mSelectionIsDefault{false};

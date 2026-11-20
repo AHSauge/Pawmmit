@@ -1633,6 +1633,9 @@ void CommitList::setModel(QAbstractItemModel *model) {
 
   storeSelection();
 
+  // Row counts of the previous model don't apply to the new one.
+  mSelectedRows = 0;
+
   // Destroy the previous selection model.
   delete selectionModel();
 
@@ -1991,6 +1994,7 @@ void CommitList::storeSelection() {
   // selection (selectFirstCommit(), triggered via statusFinished), which
   // picks up whatever the new default is
   mSelectedRange = mSelectionIsDefault ? QString() : selectedRange();
+  mSelectedRows = model() ? model()->rowCount() : 0;
   DebugRefresh("Selected Range: " << mSelectedRange);
   Debug(mSelectedRange);
 }
@@ -1998,6 +2002,15 @@ void CommitList::storeSelection() {
 void CommitList::restoreSelection() {
   // Restore selection.
   DebugRefresh(mSelectedRange);
+
+  // The range was within the rows loaded before the reset, whatever the sort.
+  if (mRestoreSelection && !mSelectedRange.isEmpty()) {
+    QAbstractItemModel *model = this->model();
+    while (model->rowCount() < mSelectedRows &&
+           model->canFetchMore(QModelIndex()))
+      model->fetchMore(QModelIndex());
+  }
+
   // Restoring the same range after a reset doesn't need a fresh diff: the
   // commit(s) are immutable, so whatever was already displayed still applies.
   if (!mRestoreSelection ||
@@ -2058,15 +2071,16 @@ QModelIndex CommitList::findCommit(const git::Commit &commit) {
     if (git::Commit tmp = index.data(CommitRole).value<git::Commit>()) {
       if (tmp == commit)
         return index;
-
-      // Cut off search if we find an older commit.
-      if (tmp.committer().date() < date)
-        return QModelIndex();
     }
 
-    // Load more commits.
-    if (i == model->rowCount() - 1 && model->canFetchMore(QModelIndex()))
+    // Load more commits, unless the loaded ones are already older.
+    if (i == model->rowCount() - 1 && model->canFetchMore(QModelIndex())) {
+      git::Commit tmp = index.data(CommitRole).value<git::Commit>();
+      if (tmp.isValid() && tmp.committer().date() < date)
+        return QModelIndex();
+
       model->fetchMore(QModelIndex());
+    }
   }
 
   return QModelIndex();
