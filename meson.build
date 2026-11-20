@@ -91,6 +91,10 @@ hunspell_dep = dependency('hunspell', version: '>=1.7')
 lexilla_dep = dependency('lexilla')
 sqlite_dep = dependency('sqlite3', version: '>=3.43')
 
+# The bundled libgit2's CMake build can only find a system libssh2, so there's
+# no wrap fallback; looking it up first gives a clear error if it's missing.
+libssh2_dep = dependency('libssh2')
+
 # vcpkg ships no .pc file, so Windows resolves libgit2 via CMake's own exported
 # target, which libgit2 names libgit2::libgit2package.
 bundle_libgit2 = get_option('bundle_libgit2')
@@ -164,8 +168,6 @@ if not libgit2_dep.found()
         compile_args: '-DGIT_STATIC',
     )
 endif
-
-libssh2_dep = dependency('libssh2')
 
 luajit_dep = dependency('luajit', version: '>=2.1', required: get_option('luajit'))
 if luajit_dep.found()

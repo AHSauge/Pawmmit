@@ -150,8 +150,8 @@ jobs:
           arch: ${{ matrix.env.msvc_arch }}
 
       # Dependencies with a wrap fallback build from source if missing, so CI
-      # doesn't install them. libssh2 is the exception: libgit2's CMake build
-      # looks for it itself and can't see Meson's libssh2 wrap. appstream
+      # doesn't install them. libssh2 has no wrap, since libgit2's CMake build
+      # can only find a system copy. appstream
       # provides appstreamcli, required on Linux for AppStream metadata generation.
       - name: Install dependencies (Linux)
         if: matrix.env.name == 'linux'
