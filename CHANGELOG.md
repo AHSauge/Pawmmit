@@ -1,3 +1,18 @@
+Version 0.3.0
+-------------
+Released: 2026-11-21
+
+Features:
+ * Replace custom FTS index with SQLite FTS5
+ * Add option to use libgit2 v2.0
+
+Bugfix:
+ * Fix intermittent issue on Windows related to the cleanup in init_repo test case
+ * Fix various issues related to libgit2 usage
+ * Fix sub-optimal use of revwalk
+ * Fix an issue with diff taking a long time with many renames occurring
+ * Keep commit selection on refresh
+
 Version 0.2.0
 -------------
 Released: 2026-10-10
