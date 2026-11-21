@@ -230,7 +230,7 @@ public:
 
   void fetchMore(const QModelIndex &parent) {
     FetchResult fetched =
-        fetchRows(mWalker, mParents, mRows, mPathspec, mGraphVisible,
+        fetchRows(mWalker, mParents, mLoadedIDs, mPathspec, mGraphVisible,
                   mRefsFilter, Application::theme()->branchTopologyEdges());
 
     // Update the model.
@@ -394,6 +394,7 @@ private:
   struct ResetResult {
     QList<Parent> parents;
     QList<Row> rows;
+    QSet<git::Id> loadedIDs;
     git::RevWalk walker;
 
     // Whether this particular reset was triggered by the status check
@@ -414,22 +415,6 @@ private:
     }
 
     return -1;
-  }
-
-  static bool contains(const git::Commit &commit,
-                       const QList<Row> &existingRows,
-                       const QList<Row> &newRows) {
-    for (const Row &row : existingRows) {
-      if (row.commit == commit)
-        return true;
-    }
-
-    for (const Row &row : newRows) {
-      if (row.commit == commit)
-        return true;
-    }
-
-    return false;
   }
 
   // The commit and parents parameters represent the current row.
@@ -527,7 +512,7 @@ private:
   // 'this' state) so it can run on a background thread as well as
   // synchronously from fetchMore().
   static FetchResult fetchRows(git::RevWalk &walker, QList<Parent> &parents,
-                               const QList<Row> &existingRows,
+                               QSet<git::Id> &loadedIDs,
                                const QString &pathspec, bool graphVisible,
                                CommitList::RefsFilter refsFilter,
                                const QList<QColor> &edgeColors) {
@@ -550,8 +535,7 @@ private:
       QList<git::Commit> replacements;
       for (const git::Commit &parent : commit.parents()) {
         // FIXME: Mark commits that point to existing parent?
-        if (indexOf(parents, parent) < 0 &&
-            !contains(parent, existingRows, result.rows))
+        if (indexOf(parents, parent) < 0 && !loadedIDs.contains(parent.id()))
           replacements.append(parent);
         if (refsFilter == CommitList::RefsFilter::SelectedRefIgnoreMerge) {
           break;
@@ -576,6 +560,7 @@ private:
         row = columns(commit, rowParents, parents, root);
 
       result.rows.append(Row(commit, row));
+      loadedIDs.insert(commit.id());
       DebugRefresh("Append commit: " << commit.shortId());
 
       // Bail out.
@@ -646,9 +631,9 @@ private:
     }
 
     if (result.walker.isValid()) {
-      FetchResult fetched =
-          fetchRows(result.walker, result.parents, result.rows, ctx.pathspec,
-                    ctx.graphVisible, ctx.refsFilter, ctx.edgeColors);
+      FetchResult fetched = fetchRows(
+          result.walker, result.parents, result.loadedIDs, ctx.pathspec,
+          ctx.graphVisible, ctx.refsFilter, ctx.edgeColors);
       result.rows.append(fetched.rows);
       if (fetched.exhausted)
         result.walker = git::RevWalk();
@@ -684,6 +669,7 @@ private:
     beginResetModel();
     mParents = std::move(result.parents);
     mRows = std::move(result.rows);
+    mLoadedIDs = std::move(result.loadedIDs);
     mWalker = std::move(result.walker);
     DebugRefresh("");
     endResetModel();
@@ -705,6 +691,7 @@ private:
 
   QList<Row> mRows;
   QList<Parent> mParents;
+  QSet<git::Id> mLoadedIDs;
 
   // walker settings
   bool mSuppressResetWalker{false};
