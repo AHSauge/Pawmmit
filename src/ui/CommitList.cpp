@@ -59,6 +59,10 @@ const QString kPathspecFmt = "pathspec:%1";
 // FIXME: Use 'core.abbrev' config instead?
 const int kShortIdSize = 7;
 
+// Color indexes outside the edge palette.
+constexpr quint8 kTaintedColorIndex = 0xFE;
+constexpr quint8 kNoColorIndex = 0xFF;
+
 enum GraphSegment {
   Dot,
   Top,
@@ -70,6 +74,26 @@ enum GraphSegment {
   RightIn,
   RightOut
 };
+
+// One graph segment of a row
+struct GraphSegmentData {
+  quint16 column;
+  quint8 type;
+  quint8 color;
+};
+
+// The theme's edge colours without duplicates, in theme order
+QList<QColor> uniqueEdgeColors() {
+  QList<QColor> colors;
+  QSet<QString> names;
+  for (const QColor &color : Application::theme()->branchTopologyEdges()) {
+    if (!names.contains(color.name())) {
+      names.insert(color.name());
+      colors.append(color);
+    }
+  }
+  return colors;
+}
 
 class DiffCallbacks : public git::Diff::Callbacks {
 public:
@@ -231,7 +255,7 @@ public:
   void fetchMore(const QModelIndex &parent) {
     FetchResult fetched =
         fetchRows(mWalker, mParents, mLoadedIDs, mPathspec, mGraphVisible,
-                  mRefsFilter, Application::theme()->branchTopologyEdges());
+                  mRefsFilter, uniqueEdgeColors());
 
     // Update the model.
     if (!fetched.rows.isEmpty()) {
@@ -309,27 +333,7 @@ public:
         return status ? QVariant() : QVariant::fromValue(row.commit);
 
       case CommitList::Role::GraphRole: {
-        QVariantList columns;
-        for (const Column &column : row.columns) {
-          QVariantList segments;
-          for (const Segment &segment : column)
-            segments.append(segment.segment);
-          columns.append(QVariant(segments));
-        }
-
-        return columns;
-      }
-
-      case CommitList::Role::GraphColorRole: {
-        QVariantList columns;
-        for (const Column &column : row.columns) {
-          QVariantList segments;
-          for (const Segment &segment : column)
-            segments.append(segment.color);
-          columns.append(QVariant(segments));
-        }
-
-        return columns;
+        return QVariant::fromValue(row.graph);
       }
     }
 
@@ -342,34 +346,24 @@ signals:
 
 private:
   struct Parent {
-    Parent(const git::Commit &commit, const QColor &color, bool tainted = false)
+    Parent(const git::Commit &commit, const quint8 color, bool tainted = false)
         : commit(commit), color(color), tainted(tainted) {}
 
-    QColor taintedColor(const git::Commit &commit = git::Commit()) const {
-      return (tainted && this->commit != commit) ? kTaintedColor : color;
+    quint8 taintedColor(const git::Commit &commit = git::Commit()) const {
+      return (tainted && this->commit != commit) ? kTaintedColorIndex : color;
     }
 
     git::Commit commit;
-    QColor color;
+    quint8 color;
     bool tainted;
   };
 
-  struct Segment {
-    Segment(GraphSegment segment, QColor color)
-        : segment(segment), color(color) {}
-
-    GraphSegment segment;
-    QColor color;
-  };
-
-  using Column = QList<Segment>;
-
   struct Row {
-    Row(const git::Commit &commit, const QVector<Column> &columns)
-        : commit(commit), columns(columns) {}
+    Row(const git::Commit &commit, const QVector<GraphSegmentData> &graph)
+        : commit(commit), graph(graph) {}
 
     git::Commit commit;
-    QVector<Column> columns;
+    QVector<GraphSegmentData> graph;
   };
 
   // Everything the background thread needs to rebuild the walker and the
@@ -419,11 +413,12 @@ private:
 
   // The commit and parents parameters represent the current row.
   // The nextParents parameter represents the next row after this one.
-  static QVector<Column> columns(const git::Commit &commit,
-                                 const QList<Parent> &parents,
-                                 const QList<Parent> &nextParents, bool root) {
+  static QVector<GraphSegmentData> columns(const git::Commit &commit,
+                                           const QList<Parent> &parents,
+                                           const QList<Parent> &nextParents,
+                                           bool root) {
     int count = parents.size();
-    QVector<Column> columns(count);
+    QVector<GraphSegmentData> graph;
 
     // Build a map to speed up the look-up
     QHash<git::Id, int> nextIndex;
@@ -434,7 +429,7 @@ private:
     // Add incoming paths.
     int incoming = root ? count - 1 : count;
     for (int i = 0; i < incoming; ++i)
-      columns[i] << Segment(Top, parents.at(i).taintedColor());
+      graph.append({quint16(i), quint8(Top), parents.at(i).taintedColor()});
 
     // Add outgoing paths.
     for (int i = 0; i < count; ++i) {
@@ -456,28 +451,26 @@ private:
 
         // Handle multiple commits that share the same parent.
         bool single = (successors.size() == 1);
-        const QColor &color =
+        const quint8 color =
             single ? parent.taintedColor(commit) : nextParents.at(index).color;
 
         if (index < i) {
           // out to the left
-          columns[index] << Segment(RightIn, color);
+          graph.append({quint16(index), quint8(RightIn), color});
           for (int j = index + 1; j < i; ++j)
-            columns[j] << Segment(Cross, color);
-          columns[i] << Segment(LeftOut, color);
+            graph.append({quint16(j), quint8(Cross), color});
+          graph.append({quint16(i), quint8(LeftOut), color});
 
         } else if (index > i) {
           // out to the right
-          columns[i] << Segment(RightOut, color);
+          graph.append({quint16(i), quint8(RightOut), color});
           for (int j = i + 1; j < index; ++j)
-            columns[j] << Segment(Cross, color);
-          if (index == columns.size())
-            columns.append(Column());
-          columns[index] << Segment(LeftIn, color);
+            graph.append({quint16(j), quint8(Cross), color});
+          graph.append({quint16(index), quint8(LeftIn), color});
 
         } else { // index == i
           // out the bottom
-          columns[index] << Segment(Bottom, color);
+          graph.append({quint16(index), quint8(Bottom), color});
         }
       }
     }
@@ -486,31 +479,31 @@ private:
     for (int i = 0; i < count; ++i) {
       const Parent &parent = parents.at(i);
       bool dot = (parent.commit == commit);
-      columns[i] << Segment(dot ? Dot : Middle, parent.taintedColor());
+      graph.append(
+          {quint16(i), quint8(dot ? Dot : Middle), parent.taintedColor()});
     }
 
-    return columns;
+    // Group by column for painting, keeping the draw order within each
+    std::stable_sort(graph.begin(), graph.end(),
+                     [](const GraphSegmentData &a, const GraphSegmentData &b) {
+                       return a.column < b.column;
+                     });
+
+    return graph;
   }
 
-  static QColor nextColor(const QList<Parent> &parents,
-                          const QList<QColor> &colors) {
-    // Get the first unused (or least used) color.
-    QMap<QString, int> counts;
+  static quint8 nextColor(const QList<Parent> &parents, int colorCount) {
+    // Get the first least used color
+    QVector<int> counts(colorCount, 0);
     for (const Parent &parent : parents)
-      counts[parent.color.name()]++;
+      counts[parent.color]++;
 
-    int count = 0;
-    forever {
-      for (const QColor &color : colors) {
-        if (counts.value(color.name()) == count)
-          return color;
-      }
-
-      ++count;
+    int best = 0;
+    for (int i = 1; i < colorCount; ++i) {
+      if (counts[i] < counts[best])
+        best = i;
     }
-
-    Q_UNREACHABLE();
-    return QColor();
+    return best;
   }
 
   // Walk at most one page of commits, updating parents in place and
@@ -530,7 +523,7 @@ private:
       bool root = false;
       if (indexOf(parents, commit) < 0) {
         root = true;
-        parents.append(Parent(commit, nextColor(parents, edgeColors)));
+        parents.append(Parent(commit, nextColor(parents, edgeColors.size())));
       }
 
       // Calculate graph columns.
@@ -556,12 +549,13 @@ private:
           git::Commit replacement = replacements.takeFirst();
           parents.insert(index, Parent(replacement, parent.color));
           for (const git::Commit &replacement : replacements)
-            parents.append(Parent(replacement, nextColor(parents, edgeColors)));
+            parents.append(
+                Parent(replacement, nextColor(parents, edgeColors.size())));
         }
       }
 
       // Add graph row.
-      QVector<Column> row;
+      QVector<GraphSegmentData> row;
       if (graphVisible && pathspec.isEmpty())
         row = columns(commit, rowParents, parents, root);
 
@@ -590,11 +584,13 @@ private:
     bool head = (!ctx.ref.isValid() || ctx.ref.isHead());
     bool valid = (!ctx.statusCheckFinished || ctx.statusDiff.isValid());
     if (ctx.showCleanStatus && head && valid && ctx.pathspec.isEmpty()) {
-      QVector<Column> row;
+      QVector<GraphSegmentData> row;
       if (ctx.graphVisible && ctx.ref.isValid() && ctx.statusCheckFinished) {
-        row.append({Segment(Bottom, kTaintedColor), Segment(Dot, QColor())});
-        result.parents.append(Parent(
-            ctx.ref.target(), nextColor(result.parents, ctx.edgeColors), true));
+        row.append({0, quint8(Bottom), kTaintedColorIndex});
+        row.append({0, quint8(Dot), kNoColorIndex});
+        result.parents.append(
+            Parent(ctx.ref.target(),
+                   nextColor(result.parents, ctx.edgeColors.size()), true));
       }
       result.rows.append(Row(git::Commit(), row)); // Uncommitted changes
     }
@@ -663,7 +659,7 @@ private:
                      mRepo,
                      status(),
                      mStatus.isFinished(),
-                     Application::theme()->branchTopologyEdges(),
+                     uniqueEdgeColors(),
                      emitStatusFinishedAfter};
 
     emit loadingChanged(true);
@@ -821,10 +817,12 @@ public:
 
     // Draw graph.
     painter->save();
-    QVariantList columns = index.data(CommitList::Role::GraphRole).toList();
-    QVariantList colorColumns =
-        index.data(CommitList::Role::GraphColorRole).toList();
-    for (int i = 0; i < columns.size(); ++i) {
+    const auto graph = index.data(CommitList::Role::GraphRole)
+                           .value<QVector<GraphSegmentData>>();
+    const QList<QColor> edgeColors = uniqueEdgeColors();
+    int columnCount = graph.isEmpty() ? 0 : graph.last().column + 1;
+    qsizetype segmentIndex = 0;
+    for (int i = 0; i < columnCount; ++i) {
       int x = rect.x();
       int y = rect.y();
       int w = opt.fontMetrics.ascent();
@@ -846,18 +844,21 @@ public:
       int y4 = y + h_2 + h_4;
       int y5 = y + h;
 
-      QVariantList segments = columns.at(i).toList();
-      QVariantList colors = colorColumns.at(i).toList();
-      for (int j = 0; j < segments.size(); ++j) {
-        QColor color = colors.at(j).value<QColor>();
+      for (; segmentIndex < graph.size() && graph.at(segmentIndex).column == i;
+           ++segmentIndex) {
+        const GraphSegmentData &segment = graph.at(segmentIndex);
+        QColor color = segment.color == kTaintedColorIndex ? kTaintedColor
+                       : segment.color == kNoColorIndex
+                           ? QColor()
+                           : edgeColors.value(segment.color);
         QPen pen(color, 2);
-        if (color == kTaintedColor) {
+        if (segment.color == kTaintedColorIndex) {
           pen.setStyle(Qt::DashLine);
           pen.setDashPattern({2, 2});
         }
 
         painter->setPen(pen);
-        switch (segments.at(j).toInt()) {
+        switch (segment.type) {
           case Dot:
             painter->setPen(dot);
             painter->drawEllipse(QPoint(x1, y2), r, r);
