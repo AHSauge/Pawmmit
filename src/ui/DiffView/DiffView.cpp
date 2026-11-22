@@ -182,7 +182,7 @@ void DiffView::setDiff(const git::Diff &diff) {
       QPushButton *button =
           new QPushButton(QIcon(":/file.png"), tr("Add New File"));
       button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-      button->setStyleSheet("color: #484848");
+      button->setForegroundRole(QPalette::ButtonText);
       button->setIconSize(QSize(32, 32));
       button->setFlat(true);
 
@@ -195,7 +195,7 @@ void DiffView::setDiff(const git::Diff &diff) {
 
       QLabel *label =
           new QLabel(tr("Or drag files here to copy into the repository"));
-      label->setStyleSheet("color: #696969");
+      label->setForegroundRole(QPalette::PlaceholderText);
       label->setAlignment(Qt::AlignHCenter);
 
       QFont labelFont = label->font();
