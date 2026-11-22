@@ -308,6 +308,15 @@ void CustomTheme::polish(QPalette &palette) const {
   setPaletteColors(palette, QPalette::HighlightedText,
                    widget.value("highlighted_text"));
 
+  // Derive placeholder text from the theme's text, so it never inherits a
+  // colour meant for the opposite scheme (light vs dark mode)
+  for (auto group :
+       {QPalette::Active, QPalette::Inactive, QPalette::Disabled}) {
+    QColor placeholder = palette.color(group, QPalette::Text);
+    placeholder.setAlpha(128);
+    palette.setColor(group, QPalette::PlaceholderText, placeholder);
+  }
+
   QVariantMap window = mMap.value("window").toMap();
   setPaletteColors(palette, QPalette::WindowText, window.value("text"));
   setPaletteColors(palette, QPalette::Window, window.value("background"));
