@@ -48,6 +48,7 @@
 #include <QTextLayout>
 #include <QtConcurrent>
 #include <functional>
+#include <limits>
 
 namespace {
 
@@ -119,7 +120,7 @@ public:
   // Commits a reset should load again, within the rows loaded before it
   struct KeepLoaded {
     int rows = 0;
-    QList<git::Id> ids;
+    QList<git::Commit> commits;
   };
 
   CommitModel(const git::Repository &repo, QObject *parent = nullptr)
@@ -397,6 +398,25 @@ private:
     bool emitStatusFinished;
 
     KeepLoaded keepLoaded;
+
+    // Whether the walk is the same as the previous reset's, so kept commits
+    // can only have moved down by the number of new commits
+    bool sameWalk;
+  };
+
+  // The settings that decide which commits a walk returns, and in which order
+  struct WalkSettings {
+    QString ref;
+    QString pathspec;
+    bool graphVisible = true;
+    bool sortDate = true;
+    CommitList::RefsFilter refsFilter = CommitList::RefsFilter::AllRefs;
+
+    bool operator==(const WalkSettings &rhs) const {
+      return ref == rhs.ref && pathspec == rhs.pathspec &&
+             graphVisible == rhs.graphVisible && sortDate == rhs.sortDate &&
+             refsFilter == rhs.refsFilter;
+    }
   };
 
   struct ResetResult {
@@ -610,6 +630,7 @@ private:
     }
 
     // Begin walking commits.
+    QList<git::Commit> tips;
     if (ctx.ref.isValid()) {
       int sort = GIT_SORT_NONE;
       if (ctx.graphVisible) {
@@ -623,22 +644,32 @@ private:
       result.walker = ctx.ref.walker(
           sort,
           ctx.refsFilter == CommitList::RefsFilter::SelectedRefIgnoreMerge);
+      tips.append(ctx.ref.target());
+
+      // Push a ref, remembering where the walk starts.
+      auto push = [&](const git::Reference &ref) {
+        if (git::Commit commit = ref.target()) {
+          result.walker.push(commit);
+          tips.append(commit);
+        }
+      };
+
       if (ctx.ref.isLocalBranch()) {
         // Add the upstream branch.
         if (git::Branch upstream = git::Branch(ctx.ref).upstream())
-          result.walker.push(upstream);
+          push(upstream);
       }
 
       if (ctx.ref.isHead()) {
         // Add merge head.
         if (git::Reference mergeHead = ctx.repo.lookupRef("MERGE_HEAD"))
-          result.walker.push(mergeHead);
+          push(mergeHead);
       }
 
       if (ctx.refsFilter == CommitList::RefsFilter::AllRefs) {
         for (const git::Reference &ref : ctx.repo.refs()) {
           if (!ref.isStash())
-            result.walker.push(ref);
+            push(ref);
         }
       }
 
@@ -646,6 +677,15 @@ private:
         result.walker.setPathspec(ctx.pathspec);
     }
 
+    // A plain walk returns every commit reachable from its tips, and when it's
+    // unchanged, kept commits can only have moved down by the new commits
+    bool plainWalk =
+        ctx.pathspec.isEmpty() &&
+        ctx.refsFilter != CommitList::RefsFilter::SelectedRefIgnoreMerge;
+    bool canExtend = ctx.sameWalk && plainWalk;
+
+    QList<git::Commit> wait = ctx.keepLoaded.commits;
+    int maxRows = ctx.keepLoaded.rows;
     while (result.walker.isValid()) {
       FetchResult fetched = fetchRows(
           result.walker, result.parents, result.loadedIDs, ctx.pathspec,
@@ -654,14 +694,28 @@ private:
       if (fetched.exhausted)
         result.walker = git::RevWalk();
 
-      // Dates can't bound the search, so keep loading until the kept commits
-      // are found or the rows loaded before are reached.
-      const QList<git::Id> &ids = ctx.keepLoaded.ids;
-      if (result.rows.size() >= ctx.keepLoaded.rows ||
-          std::all_of(ids.begin(), ids.end(), [&](const git::Id &id) {
-            return result.loadedIDs.contains(id);
-          }))
+      // Dates can't bound the search, so load until the commits are found
+      wait.removeIf([&](const git::Commit &commit) {
+        return result.loadedIDs.contains(commit.id());
+      });
+      if (wait.isEmpty())
         break;
+
+      if (result.rows.size() >= maxRows) {
+        if (!canExtend)
+          break;
+
+        // Past the old rows, load further only for commits still reachable.
+        // This check walks most of the history, so it only runs when needed
+        canExtend = false;
+        wait.removeIf([&](const git::Commit &commit) {
+          return !commit.isAncestorOfAny(tips);
+        });
+        if (wait.isEmpty())
+          break;
+
+        maxRows = std::numeric_limits<int>::max();
+      }
     }
 
     result.emitStatusFinished = ctx.emitStatusFinished;
@@ -673,6 +727,11 @@ private:
   // until the background computation finishes and applyResetResult() swaps
   // the new data in.
   void dispatchResetWalker(bool emitStatusFinishedAfter) {
+    WalkSettings walk{mRef.isValid() ? mRef.qualifiedName() : QString(),
+                      mPathspec, mGraphVisible, mSortDate, mRefsFilter};
+    bool sameWalk = (walk == mLastWalk);
+    mLastWalk = walk;
+
     ResetContext ctx{mRef,
                      mPathspec,
                      mGraphVisible,
@@ -684,7 +743,8 @@ private:
                      mStatus.isFinished(),
                      uniqueEdgeColors(),
                      emitStatusFinishedAfter,
-                     mKeepLoaded ? mKeepLoaded() : KeepLoaded()};
+                     mKeepLoaded ? mKeepLoaded() : KeepLoaded(),
+                     sameWalk};
 
     emit loadingChanged(true);
     mReset.setFuture(QtConcurrent::run([ctx] { return computeReset(ctx); }));
@@ -720,6 +780,7 @@ private:
   QSet<git::Id> mLoadedIDs;
 
   std::function<KeepLoaded()> mKeepLoaded;
+  WalkSettings mLastWalk;
 
   // walker settings
   bool mSuppressResetWalker{false};
@@ -1387,9 +1448,8 @@ CommitList::CommitList(Index *index, QWidget *parent)
     if (this->model() != mModel || !mRestoreSelection || mSelectionIsDefault)
       return keep;
 
-    for (const git::Commit &commit : selectedCommits())
-      keep.ids.append(commit.id());
-    if (!keep.ids.isEmpty())
+    keep.commits = selectedCommits();
+    if (!keep.commits.isEmpty())
       keep.rows = mModel->rowCount();
     return keep;
   });

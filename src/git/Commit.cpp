@@ -265,6 +265,21 @@ bool Commit::isAncestorOf(const Commit &commit) const {
                                  id()) == 1;
 }
 
+bool Commit::isAncestorOfAny(const QList<Commit> &commits) const {
+  if (!isValid())
+    return false;
+
+  QVector<git_oid> ids;
+  ids.reserve(commits.size());
+  for (const Commit &commit : commits) {
+    if (commit.isValid())
+      ids.append(*git_commit_id(commit));
+  }
+
+  return git_graph_reachable_from_any(git_object_owner(d.get()), id(),
+                                      ids.constData(), ids.size()) == 1;
+}
+
 bool Commit::revert() const {
   Repository repo = this->repo();
   int state = repo.state();
