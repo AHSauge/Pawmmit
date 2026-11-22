@@ -74,6 +74,9 @@ public:
   // True if this commit is the given commit or reachable from it.
   bool isAncestorOf(const Commit &commit) const;
 
+  // True if this commit is one of the given commits or reachable from one.
+  bool isAncestorOfAny(const QList<Commit> &commits) const;
+
   // Revert this commit in the index and workdir.
   bool revert() const;
 

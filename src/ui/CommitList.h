@@ -28,7 +28,7 @@ class CommitList : public QListView {
   Q_OBJECT
 
 public:
-  enum Role { DiffRole = Qt::UserRole, CommitRole, GraphRole, GraphColorRole };
+  enum Role { DiffRole = Qt::UserRole, CommitRole, GraphRole };
   enum class RefsFilter {
     AllRefs,
     SelectedRef,
@@ -135,9 +135,6 @@ private:
   bool mRestoreSelection{true};
 
   QString mSelectedRange;
-
-  // Rows loaded before the reset, so the stored range can be found again.
-  int mSelectedRows = 0;
 
   // Whether the current selection is just the automatic fallback rather
   // than a deliberate user pick

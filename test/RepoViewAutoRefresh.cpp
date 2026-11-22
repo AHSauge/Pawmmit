@@ -64,6 +64,7 @@ private slots:
   void refreshKeepsCommittedFileSelection();
   void externalEditKeepsCommitSelection();
   void refreshKeepsSelectionBeyondFirstPage();
+  void refreshKeepsSelectionPushedDownByNewCommits();
   void cleanupTestCase();
 
 private:
@@ -252,6 +253,64 @@ void TestRepoViewAutoRefresh::refreshKeepsSelectionBeyondFirstPage() {
   commits->selectionModel()->select(row, QItemSelectionModel::ClearAndSelect);
 
   // Refresh like F5 does; the refresh() helper reselects the first commit.
+  QSignalSpy status(mView, &RepoView::statusChanged);
+  mView->refresh();
+  QVERIFY(status.wait(kSignalMs));
+  QTRY_VERIFY_WITH_TIMEOUT(!commits->isLoading(), 10000);
+
+  QCOMPARE(commits->selectedRange(), target.id().toString());
+}
+
+void TestRepoViewAutoRefresh::refreshKeepsSelectionPushedDownByNewCommits() {
+  settle();
+
+  // As above, the target is newer than the rows above it, so its date can't
+  // tell how far down to look for it.
+  QString name = "pushed.txt";
+  QDateTime now = QDateTime::currentDateTime();
+  QVERIFY(writeFile(mRepo->workdir().filePath(name)));
+  mRepo->index().setStaged({name}, true);
+  git::Signature newer =
+      mRepo->signature("Test", "test@example.com", now.addSecs(7200));
+  git::Commit target = mRepo->commit(newer, newer, "target");
+  QVERIFY(target.isValid());
+
+  git::Signature sig = mRepo->signature("Test", "test@example.com", now);
+  auto commitDescendants = [&](int count) {
+    for (int i = 0; i < count; ++i) {
+      if (!writeFile(mRepo->workdir().filePath(name)))
+        return false;
+      mRepo->index().setStaged({name}, true);
+      if (!mRepo->commit(sig, sig, "descendant").isValid())
+        return false;
+    }
+    return true;
+  };
+  QVERIFY(commitDescendants(100));
+
+  auto *commits = mView->findChild<CommitList *>();
+  QVERIFY(commits);
+  settle();
+  QTRY_VERIFY_WITH_TIMEOUT(!commits->isLoading(), 10000);
+
+  // Scroll down to the target and click it.
+  QAbstractItemModel *model = commits->model();
+  QModelIndex row;
+  for (int i = 0; !row.isValid(); ++i) {
+    if (i == model->rowCount()) {
+      QVERIFY(model->canFetchMore(QModelIndex()));
+      model->fetchMore(QModelIndex());
+    }
+
+    QModelIndex index = model->index(i, 0);
+    if (index.data(CommitList::Role::CommitRole).value<git::Commit>() == target)
+      row = index;
+  }
+  commits->selectionModel()->select(row, QItemSelectionModel::ClearAndSelect);
+
+  // New commits move the target past the rows that were loaded.
+  QVERIFY(commitDescendants(model->rowCount() - row.row() + 70));
+
   QSignalSpy status(mView, &RepoView::statusChanged);
   mView->refresh();
   QVERIFY(status.wait(kSignalMs));

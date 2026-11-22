@@ -47,6 +47,8 @@
 #include <QStyledItemDelegate>
 #include <QTextLayout>
 #include <QtConcurrent>
+#include <functional>
+#include <limits>
 
 namespace {
 
@@ -59,6 +61,10 @@ const QString kPathspecFmt = "pathspec:%1";
 // FIXME: Use 'core.abbrev' config instead?
 const int kShortIdSize = 7;
 
+// Color indexes outside the edge palette.
+constexpr quint8 kTaintedColorIndex = 0xFE;
+constexpr quint8 kNoColorIndex = 0xFF;
+
 enum GraphSegment {
   Dot,
   Top,
@@ -70,6 +76,26 @@ enum GraphSegment {
   RightIn,
   RightOut
 };
+
+// One graph segment of a row
+struct GraphSegmentData {
+  quint16 column;
+  quint8 type;
+  quint8 color;
+};
+
+// The theme's edge colours without duplicates, in theme order
+QList<QColor> uniqueEdgeColors() {
+  QList<QColor> colors;
+  QSet<QString> names;
+  for (const QColor &color : Application::theme()->branchTopologyEdges()) {
+    if (!names.contains(color.name())) {
+      names.insert(color.name());
+      colors.append(color);
+    }
+  }
+  return colors;
+}
 
 class DiffCallbacks : public git::Diff::Callbacks {
 public:
@@ -91,6 +117,12 @@ class CommitModel : public QAbstractListModel {
   Q_OBJECT
 
 public:
+  // Commits a reset should load again, within the rows loaded before it
+  struct KeepLoaded {
+    int rows = 0;
+    QList<git::Commit> commits;
+  };
+
   CommitModel(const git::Repository &repo, QObject *parent = nullptr)
       : QAbstractListModel(parent), mRepo(repo) {
     // Connect progress timer.
@@ -180,6 +212,11 @@ public:
     resetWalker();
   }
 
+  // Asked at each reset which commits must be loaded again
+  void setKeepLoaded(std::function<KeepLoaded()> keepLoaded) {
+    mKeepLoaded = std::move(keepLoaded);
+  }
+
   void suppressResetWalker(bool suppress) { mSuppressResetWalker = suppress; }
 
   bool isResetWalkerSuppressed() { return mSuppressResetWalker; }
@@ -230,8 +267,8 @@ public:
 
   void fetchMore(const QModelIndex &parent) {
     FetchResult fetched =
-        fetchRows(mWalker, mParents, mRows, mPathspec, mGraphVisible,
-                  mRefsFilter, Application::theme()->branchTopologyEdges());
+        fetchRows(mWalker, mParents, mLoadedIDs, mPathspec, mGraphVisible,
+                  mRefsFilter, uniqueEdgeColors());
 
     // Update the model.
     if (!fetched.rows.isEmpty()) {
@@ -309,27 +346,7 @@ public:
         return status ? QVariant() : QVariant::fromValue(row.commit);
 
       case CommitList::Role::GraphRole: {
-        QVariantList columns;
-        for (const Column &column : row.columns) {
-          QVariantList segments;
-          for (const Segment &segment : column)
-            segments.append(segment.segment);
-          columns.append(QVariant(segments));
-        }
-
-        return columns;
-      }
-
-      case CommitList::Role::GraphColorRole: {
-        QVariantList columns;
-        for (const Column &column : row.columns) {
-          QVariantList segments;
-          for (const Segment &segment : column)
-            segments.append(segment.color);
-          columns.append(QVariant(segments));
-        }
-
-        return columns;
+        return QVariant::fromValue(row.graph);
       }
     }
 
@@ -342,34 +359,24 @@ signals:
 
 private:
   struct Parent {
-    Parent(const git::Commit &commit, const QColor &color, bool tainted = false)
+    Parent(const git::Commit &commit, const quint8 color, bool tainted = false)
         : commit(commit), color(color), tainted(tainted) {}
 
-    QColor taintedColor(const git::Commit &commit = git::Commit()) const {
-      return (tainted && this->commit != commit) ? kTaintedColor : color;
+    quint8 taintedColor(const git::Commit &commit = git::Commit()) const {
+      return (tainted && this->commit != commit) ? kTaintedColorIndex : color;
     }
 
     git::Commit commit;
-    QColor color;
+    quint8 color;
     bool tainted;
   };
 
-  struct Segment {
-    Segment(GraphSegment segment, QColor color)
-        : segment(segment), color(color) {}
-
-    GraphSegment segment;
-    QColor color;
-  };
-
-  using Column = QList<Segment>;
-
   struct Row {
-    Row(const git::Commit &commit, const QVector<Column> &columns)
-        : commit(commit), columns(columns) {}
+    Row(const git::Commit &commit, const QVector<GraphSegmentData> &graph)
+        : commit(commit), graph(graph) {}
 
     git::Commit commit;
-    QVector<Column> columns;
+    QVector<GraphSegmentData> graph;
   };
 
   // Everything the background thread needs to rebuild the walker and the
@@ -389,11 +396,33 @@ private:
 
     // Carried straight through to ResetResult; see its field for why.
     bool emitStatusFinished;
+
+    KeepLoaded keepLoaded;
+
+    // Whether the walk is the same as the previous reset's, so kept commits
+    // can only have moved down by the number of new commits
+    bool sameWalk;
+  };
+
+  // The settings that decide which commits a walk returns, and in which order
+  struct WalkSettings {
+    QString ref;
+    QString pathspec;
+    bool graphVisible = true;
+    bool sortDate = true;
+    CommitList::RefsFilter refsFilter = CommitList::RefsFilter::AllRefs;
+
+    bool operator==(const WalkSettings &rhs) const {
+      return ref == rhs.ref && pathspec == rhs.pathspec &&
+             graphVisible == rhs.graphVisible && sortDate == rhs.sortDate &&
+             refsFilter == rhs.refsFilter;
+    }
   };
 
   struct ResetResult {
     QList<Parent> parents;
     QList<Row> rows;
+    QSet<git::Id> loadedIDs;
     git::RevWalk walker;
 
     // Whether this particular reset was triggered by the status check
@@ -416,34 +445,25 @@ private:
     return -1;
   }
 
-  static bool contains(const git::Commit &commit,
-                       const QList<Row> &existingRows,
-                       const QList<Row> &newRows) {
-    for (const Row &row : existingRows) {
-      if (row.commit == commit)
-        return true;
-    }
-
-    for (const Row &row : newRows) {
-      if (row.commit == commit)
-        return true;
-    }
-
-    return false;
-  }
-
   // The commit and parents parameters represent the current row.
   // The nextParents parameter represents the next row after this one.
-  static QVector<Column> columns(const git::Commit &commit,
-                                 const QList<Parent> &parents,
-                                 const QList<Parent> &nextParents, bool root) {
+  static QVector<GraphSegmentData> columns(const git::Commit &commit,
+                                           const QList<Parent> &parents,
+                                           const QList<Parent> &nextParents,
+                                           bool root) {
     int count = parents.size();
-    QVector<Column> columns(count);
+    QVector<GraphSegmentData> graph;
+
+    // Build a map to speed up the look-up
+    QHash<git::Id, int> nextIndex;
+    nextIndex.reserve(nextParents.size());
+    for (int i = nextParents.size() - 1; i >= 0; --i)
+      nextIndex.insert(nextParents.at(i).commit.id(), i);
 
     // Add incoming paths.
     int incoming = root ? count - 1 : count;
     for (int i = 0; i < incoming; ++i)
-      columns[i] << Segment(Top, parents.at(i).taintedColor());
+      graph.append({quint16(i), quint8(Top), parents.at(i).taintedColor()});
 
     // Add outgoing paths.
     for (int i = 0; i < count; ++i) {
@@ -459,34 +479,32 @@ private:
       // Add a path to each successor.
       for (const git::Commit &successor : successors) {
         // Find index of parent in next row.
-        int index = indexOf(nextParents, successor);
+        int index = nextIndex.value(successor.id(), -1);
         if (index < 0)
           continue;
 
         // Handle multiple commits that share the same parent.
         bool single = (successors.size() == 1);
-        const QColor &color =
+        const quint8 color =
             single ? parent.taintedColor(commit) : nextParents.at(index).color;
 
         if (index < i) {
           // out to the left
-          columns[index] << Segment(RightIn, color);
+          graph.append({quint16(index), quint8(RightIn), color});
           for (int j = index + 1; j < i; ++j)
-            columns[j] << Segment(Cross, color);
-          columns[i] << Segment(LeftOut, color);
+            graph.append({quint16(j), quint8(Cross), color});
+          graph.append({quint16(i), quint8(LeftOut), color});
 
         } else if (index > i) {
           // out to the right
-          columns[i] << Segment(RightOut, color);
+          graph.append({quint16(i), quint8(RightOut), color});
           for (int j = i + 1; j < index; ++j)
-            columns[j] << Segment(Cross, color);
-          if (index == columns.size())
-            columns.append(Column());
-          columns[index] << Segment(LeftIn, color);
+            graph.append({quint16(j), quint8(Cross), color});
+          graph.append({quint16(index), quint8(LeftIn), color});
 
         } else { // index == i
           // out the bottom
-          columns[index] << Segment(Bottom, color);
+          graph.append({quint16(index), quint8(Bottom), color});
         }
       }
     }
@@ -495,31 +513,31 @@ private:
     for (int i = 0; i < count; ++i) {
       const Parent &parent = parents.at(i);
       bool dot = (parent.commit == commit);
-      columns[i] << Segment(dot ? Dot : Middle, parent.taintedColor());
+      graph.append(
+          {quint16(i), quint8(dot ? Dot : Middle), parent.taintedColor()});
     }
 
-    return columns;
+    // Group by column for painting, keeping the draw order within each
+    std::stable_sort(graph.begin(), graph.end(),
+                     [](const GraphSegmentData &a, const GraphSegmentData &b) {
+                       return a.column < b.column;
+                     });
+
+    return graph;
   }
 
-  static QColor nextColor(const QList<Parent> &parents,
-                          const QList<QColor> &colors) {
-    // Get the first unused (or least used) color.
-    QMap<QString, int> counts;
+  static quint8 nextColor(const QList<Parent> &parents, int colorCount) {
+    // Get the first least used color
+    QVector<int> counts(colorCount, 0);
     for (const Parent &parent : parents)
-      counts[parent.color.name()]++;
+      counts[parent.color]++;
 
-    int count = 0;
-    forever {
-      for (const QColor &color : colors) {
-        if (counts.value(color.name()) == count)
-          return color;
-      }
-
-      ++count;
+    int best = 0;
+    for (int i = 1; i < colorCount; ++i) {
+      if (counts[i] < counts[best])
+        best = i;
     }
-
-    Q_UNREACHABLE();
-    return QColor();
+    return best;
   }
 
   // Walk at most one page of commits, updating parents in place and
@@ -527,7 +545,7 @@ private:
   // 'this' state) so it can run on a background thread as well as
   // synchronously from fetchMore().
   static FetchResult fetchRows(git::RevWalk &walker, QList<Parent> &parents,
-                               const QList<Row> &existingRows,
+                               QSet<git::Id> &loadedIDs,
                                const QString &pathspec, bool graphVisible,
                                CommitList::RefsFilter refsFilter,
                                const QList<QColor> &edgeColors) {
@@ -539,7 +557,7 @@ private:
       bool root = false;
       if (indexOf(parents, commit) < 0) {
         root = true;
-        parents.append(Parent(commit, nextColor(parents, edgeColors)));
+        parents.append(Parent(commit, nextColor(parents, edgeColors.size())));
       }
 
       // Calculate graph columns.
@@ -550,8 +568,7 @@ private:
       QList<git::Commit> replacements;
       for (const git::Commit &parent : commit.parents()) {
         // FIXME: Mark commits that point to existing parent?
-        if (indexOf(parents, parent) < 0 &&
-            !contains(parent, existingRows, result.rows))
+        if (indexOf(parents, parent) < 0 && !loadedIDs.contains(parent.id()))
           replacements.append(parent);
         if (refsFilter == CommitList::RefsFilter::SelectedRefIgnoreMerge) {
           break;
@@ -566,16 +583,18 @@ private:
           git::Commit replacement = replacements.takeFirst();
           parents.insert(index, Parent(replacement, parent.color));
           for (const git::Commit &replacement : replacements)
-            parents.append(Parent(replacement, nextColor(parents, edgeColors)));
+            parents.append(
+                Parent(replacement, nextColor(parents, edgeColors.size())));
         }
       }
 
       // Add graph row.
-      QVector<Column> row;
+      QVector<GraphSegmentData> row;
       if (graphVisible && pathspec.isEmpty())
         row = columns(commit, rowParents, parents, root);
 
       result.rows.append(Row(commit, row));
+      loadedIDs.insert(commit.id());
       DebugRefresh("Append commit: " << commit.shortId());
 
       // Bail out.
@@ -599,16 +618,19 @@ private:
     bool head = (!ctx.ref.isValid() || ctx.ref.isHead());
     bool valid = (!ctx.statusCheckFinished || ctx.statusDiff.isValid());
     if (ctx.showCleanStatus && head && valid && ctx.pathspec.isEmpty()) {
-      QVector<Column> row;
+      QVector<GraphSegmentData> row;
       if (ctx.graphVisible && ctx.ref.isValid() && ctx.statusCheckFinished) {
-        row.append({Segment(Bottom, kTaintedColor), Segment(Dot, QColor())});
-        result.parents.append(Parent(
-            ctx.ref.target(), nextColor(result.parents, ctx.edgeColors), true));
+        row.append({0, quint8(Bottom), kTaintedColorIndex});
+        row.append({0, quint8(Dot), kNoColorIndex});
+        result.parents.append(
+            Parent(ctx.ref.target(),
+                   nextColor(result.parents, ctx.edgeColors.size()), true));
       }
       result.rows.append(Row(git::Commit(), row)); // Uncommitted changes
     }
 
     // Begin walking commits.
+    QList<git::Commit> tips;
     if (ctx.ref.isValid()) {
       int sort = GIT_SORT_NONE;
       if (ctx.graphVisible) {
@@ -622,22 +644,32 @@ private:
       result.walker = ctx.ref.walker(
           sort,
           ctx.refsFilter == CommitList::RefsFilter::SelectedRefIgnoreMerge);
+      tips.append(ctx.ref.target());
+
+      // Push a ref, remembering where the walk starts.
+      auto push = [&](const git::Reference &ref) {
+        if (git::Commit commit = ref.target()) {
+          result.walker.push(commit);
+          tips.append(commit);
+        }
+      };
+
       if (ctx.ref.isLocalBranch()) {
         // Add the upstream branch.
         if (git::Branch upstream = git::Branch(ctx.ref).upstream())
-          result.walker.push(upstream);
+          push(upstream);
       }
 
       if (ctx.ref.isHead()) {
         // Add merge head.
         if (git::Reference mergeHead = ctx.repo.lookupRef("MERGE_HEAD"))
-          result.walker.push(mergeHead);
+          push(mergeHead);
       }
 
       if (ctx.refsFilter == CommitList::RefsFilter::AllRefs) {
         for (const git::Reference &ref : ctx.repo.refs()) {
           if (!ref.isStash())
-            result.walker.push(ref);
+            push(ref);
         }
       }
 
@@ -645,13 +677,45 @@ private:
         result.walker.setPathspec(ctx.pathspec);
     }
 
-    if (result.walker.isValid()) {
-      FetchResult fetched =
-          fetchRows(result.walker, result.parents, result.rows, ctx.pathspec,
-                    ctx.graphVisible, ctx.refsFilter, ctx.edgeColors);
+    // A plain walk returns every commit reachable from its tips, and when it's
+    // unchanged, kept commits can only have moved down by the new commits
+    bool plainWalk =
+        ctx.pathspec.isEmpty() &&
+        ctx.refsFilter != CommitList::RefsFilter::SelectedRefIgnoreMerge;
+    bool canExtend = ctx.sameWalk && plainWalk;
+
+    QList<git::Commit> wait = ctx.keepLoaded.commits;
+    int maxRows = ctx.keepLoaded.rows;
+    while (result.walker.isValid()) {
+      FetchResult fetched = fetchRows(
+          result.walker, result.parents, result.loadedIDs, ctx.pathspec,
+          ctx.graphVisible, ctx.refsFilter, ctx.edgeColors);
       result.rows.append(fetched.rows);
       if (fetched.exhausted)
         result.walker = git::RevWalk();
+
+      // Dates can't bound the search, so load until the commits are found
+      wait.removeIf([&](const git::Commit &commit) {
+        return result.loadedIDs.contains(commit.id());
+      });
+      if (wait.isEmpty())
+        break;
+
+      if (result.rows.size() >= maxRows) {
+        if (!canExtend)
+          break;
+
+        // Past the old rows, load further only for commits still reachable.
+        // This check walks most of the history, so it only runs when needed
+        canExtend = false;
+        wait.removeIf([&](const git::Commit &commit) {
+          return !commit.isAncestorOfAny(tips);
+        });
+        if (wait.isEmpty())
+          break;
+
+        maxRows = std::numeric_limits<int>::max();
+      }
     }
 
     result.emitStatusFinished = ctx.emitStatusFinished;
@@ -663,6 +727,11 @@ private:
   // until the background computation finishes and applyResetResult() swaps
   // the new data in.
   void dispatchResetWalker(bool emitStatusFinishedAfter) {
+    WalkSettings walk{mRef.isValid() ? mRef.qualifiedName() : QString(),
+                      mPathspec, mGraphVisible, mSortDate, mRefsFilter};
+    bool sameWalk = (walk == mLastWalk);
+    mLastWalk = walk;
+
     ResetContext ctx{mRef,
                      mPathspec,
                      mGraphVisible,
@@ -672,8 +741,10 @@ private:
                      mRepo,
                      status(),
                      mStatus.isFinished(),
-                     Application::theme()->branchTopologyEdges(),
-                     emitStatusFinishedAfter};
+                     uniqueEdgeColors(),
+                     emitStatusFinishedAfter,
+                     mKeepLoaded ? mKeepLoaded() : KeepLoaded(),
+                     sameWalk};
 
     emit loadingChanged(true);
     mReset.setFuture(QtConcurrent::run([ctx] { return computeReset(ctx); }));
@@ -684,6 +755,7 @@ private:
     beginResetModel();
     mParents = std::move(result.parents);
     mRows = std::move(result.rows);
+    mLoadedIDs = std::move(result.loadedIDs);
     mWalker = std::move(result.walker);
     DebugRefresh("");
     endResetModel();
@@ -705,6 +777,10 @@ private:
 
   QList<Row> mRows;
   QList<Parent> mParents;
+  QSet<git::Id> mLoadedIDs;
+
+  std::function<KeepLoaded()> mKeepLoaded;
+  WalkSettings mLastWalk;
 
   // walker settings
   bool mSuppressResetWalker{false};
@@ -828,10 +904,12 @@ public:
 
     // Draw graph.
     painter->save();
-    QVariantList columns = index.data(CommitList::Role::GraphRole).toList();
-    QVariantList colorColumns =
-        index.data(CommitList::Role::GraphColorRole).toList();
-    for (int i = 0; i < columns.size(); ++i) {
+    const auto graph = index.data(CommitList::Role::GraphRole)
+                           .value<QVector<GraphSegmentData>>();
+    const QList<QColor> edgeColors = uniqueEdgeColors();
+    int columnCount = graph.isEmpty() ? 0 : graph.last().column + 1;
+    qsizetype segmentIndex = 0;
+    for (int i = 0; i < columnCount; ++i) {
       int x = rect.x();
       int y = rect.y();
       int w = opt.fontMetrics.ascent();
@@ -853,18 +931,21 @@ public:
       int y4 = y + h_2 + h_4;
       int y5 = y + h;
 
-      QVariantList segments = columns.at(i).toList();
-      QVariantList colors = colorColumns.at(i).toList();
-      for (int j = 0; j < segments.size(); ++j) {
-        QColor color = colors.at(j).value<QColor>();
+      for (; segmentIndex < graph.size() && graph.at(segmentIndex).column == i;
+           ++segmentIndex) {
+        const GraphSegmentData &segment = graph.at(segmentIndex);
+        QColor color = segment.color == kTaintedColorIndex ? kTaintedColor
+                       : segment.color == kNoColorIndex
+                           ? QColor()
+                           : edgeColors.value(segment.color);
         QPen pen(color, 2);
-        if (color == kTaintedColor) {
+        if (segment.color == kTaintedColorIndex) {
           pen.setStyle(Qt::DashLine);
           pen.setDashPattern({2, 2});
         }
 
         painter->setPen(pen);
-        switch (segments.at(j).toInt()) {
+        switch (segment.type) {
           case Dot:
             painter->setPen(dot);
             painter->drawEllipse(QPoint(x1, y2), r, r);
@@ -1361,6 +1442,17 @@ CommitList::CommitList(Index *index, QWidget *parent)
           &CommitList::restoreSelection);
 
   CommitModel *model = static_cast<CommitModel *>(mModel);
+  model->setKeepLoaded([this] {
+    // Same conditions under which restoreSelection() restores the range.
+    CommitModel::KeepLoaded keep;
+    if (this->model() != mModel || !mRestoreSelection || mSelectionIsDefault)
+      return keep;
+
+    keep.commits = selectedCommits();
+    if (!keep.commits.isEmpty())
+      keep.rows = mModel->rowCount();
+    return keep;
+  });
   connect(model, &CommitModel::statusFinished, [this](bool visible) {
     mRestoreSelection = true; // Reset to default
 
@@ -1632,9 +1724,6 @@ void CommitList::setModel(QAbstractItemModel *model) {
     return;
 
   storeSelection();
-
-  // Row counts of the previous model don't apply to the new one.
-  mSelectedRows = 0;
 
   // Destroy the previous selection model.
   delete selectionModel();
@@ -1994,7 +2083,6 @@ void CommitList::storeSelection() {
   // selection (selectFirstCommit(), triggered via statusFinished), which
   // picks up whatever the new default is
   mSelectedRange = mSelectionIsDefault ? QString() : selectedRange();
-  mSelectedRows = model() ? model()->rowCount() : 0;
   DebugRefresh("Selected Range: " << mSelectedRange);
   Debug(mSelectedRange);
 }
@@ -2003,14 +2091,7 @@ void CommitList::restoreSelection() {
   // Restore selection.
   DebugRefresh(mSelectedRange);
 
-  // The range was within the rows loaded before the reset, whatever the sort.
-  if (mRestoreSelection && !mSelectedRange.isEmpty()) {
-    QAbstractItemModel *model = this->model();
-    while (model->rowCount() < mSelectedRows &&
-           model->canFetchMore(QModelIndex()))
-      model->fetchMore(QModelIndex());
-  }
-
+  // The reset has already loaded the rows needed to find the range again.
   // Restoring the same range after a reset doesn't need a fresh diff: the
   // commit(s) are immutable, so whatever was already displayed still applies.
   if (!mRestoreSelection ||
