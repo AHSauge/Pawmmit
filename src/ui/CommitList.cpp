@@ -47,6 +47,7 @@
 #include <QStyledItemDelegate>
 #include <QTextLayout>
 #include <QtConcurrent>
+#include <functional>
 
 namespace {
 
@@ -115,6 +116,12 @@ class CommitModel : public QAbstractListModel {
   Q_OBJECT
 
 public:
+  // Commits a reset should load again, within the rows loaded before it
+  struct KeepLoaded {
+    int rows = 0;
+    QList<git::Id> ids;
+  };
+
   CommitModel(const git::Repository &repo, QObject *parent = nullptr)
       : QAbstractListModel(parent), mRepo(repo) {
     // Connect progress timer.
@@ -202,6 +209,11 @@ public:
 
     mPathspec = pathspec;
     resetWalker();
+  }
+
+  // Asked at each reset which commits must be loaded again
+  void setKeepLoaded(std::function<KeepLoaded()> keepLoaded) {
+    mKeepLoaded = std::move(keepLoaded);
   }
 
   void suppressResetWalker(bool suppress) { mSuppressResetWalker = suppress; }
@@ -383,6 +395,8 @@ private:
 
     // Carried straight through to ResetResult; see its field for why.
     bool emitStatusFinished;
+
+    KeepLoaded keepLoaded;
   };
 
   struct ResetResult {
@@ -632,13 +646,22 @@ private:
         result.walker.setPathspec(ctx.pathspec);
     }
 
-    if (result.walker.isValid()) {
+    while (result.walker.isValid()) {
       FetchResult fetched = fetchRows(
           result.walker, result.parents, result.loadedIDs, ctx.pathspec,
           ctx.graphVisible, ctx.refsFilter, ctx.edgeColors);
       result.rows.append(fetched.rows);
       if (fetched.exhausted)
         result.walker = git::RevWalk();
+
+      // Dates can't bound the search, so keep loading until the kept commits
+      // are found or the rows loaded before are reached.
+      const QList<git::Id> &ids = ctx.keepLoaded.ids;
+      if (result.rows.size() >= ctx.keepLoaded.rows ||
+          std::all_of(ids.begin(), ids.end(), [&](const git::Id &id) {
+            return result.loadedIDs.contains(id);
+          }))
+        break;
     }
 
     result.emitStatusFinished = ctx.emitStatusFinished;
@@ -660,7 +683,8 @@ private:
                      status(),
                      mStatus.isFinished(),
                      uniqueEdgeColors(),
-                     emitStatusFinishedAfter};
+                     emitStatusFinishedAfter,
+                     mKeepLoaded ? mKeepLoaded() : KeepLoaded()};
 
     emit loadingChanged(true);
     mReset.setFuture(QtConcurrent::run([ctx] { return computeReset(ctx); }));
@@ -694,6 +718,8 @@ private:
   QList<Row> mRows;
   QList<Parent> mParents;
   QSet<git::Id> mLoadedIDs;
+
+  std::function<KeepLoaded()> mKeepLoaded;
 
   // walker settings
   bool mSuppressResetWalker{false};
@@ -1355,6 +1381,18 @@ CommitList::CommitList(Index *index, QWidget *parent)
           &CommitList::restoreSelection);
 
   CommitModel *model = static_cast<CommitModel *>(mModel);
+  model->setKeepLoaded([this] {
+    // Same conditions under which restoreSelection() restores the range.
+    CommitModel::KeepLoaded keep;
+    if (this->model() != mModel || !mRestoreSelection || mSelectionIsDefault)
+      return keep;
+
+    for (const git::Commit &commit : selectedCommits())
+      keep.ids.append(commit.id());
+    if (!keep.ids.isEmpty())
+      keep.rows = mModel->rowCount();
+    return keep;
+  });
   connect(model, &CommitModel::statusFinished, [this](bool visible) {
     mRestoreSelection = true; // Reset to default
 
@@ -1626,9 +1664,6 @@ void CommitList::setModel(QAbstractItemModel *model) {
     return;
 
   storeSelection();
-
-  // Row counts of the previous model don't apply to the new one.
-  mSelectedRows = 0;
 
   // Destroy the previous selection model.
   delete selectionModel();
@@ -1988,7 +2023,6 @@ void CommitList::storeSelection() {
   // selection (selectFirstCommit(), triggered via statusFinished), which
   // picks up whatever the new default is
   mSelectedRange = mSelectionIsDefault ? QString() : selectedRange();
-  mSelectedRows = model() ? model()->rowCount() : 0;
   DebugRefresh("Selected Range: " << mSelectedRange);
   Debug(mSelectedRange);
 }
@@ -1997,14 +2031,7 @@ void CommitList::restoreSelection() {
   // Restore selection.
   DebugRefresh(mSelectedRange);
 
-  // The range was within the rows loaded before the reset, whatever the sort.
-  if (mRestoreSelection && !mSelectedRange.isEmpty()) {
-    QAbstractItemModel *model = this->model();
-    while (model->rowCount() < mSelectedRows &&
-           model->canFetchMore(QModelIndex()))
-      model->fetchMore(QModelIndex());
-  }
-
+  // The reset has already loaded the rows needed to find the range again.
   // Restoring the same range after a reset doesn't need a fresh diff: the
   // commit(s) are immutable, so whatever was already displayed still applies.
   if (!mRestoreSelection ||
