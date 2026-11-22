@@ -425,6 +425,12 @@ private:
     int count = parents.size();
     QVector<Column> columns(count);
 
+    // Build a map to speed up the look-up
+    QHash<git::Id, int> nextIndex;
+    nextIndex.reserve(nextParents.size());
+    for (int i = nextParents.size() - 1; i >= 0; --i)
+      nextIndex.insert(nextParents.at(i).commit.id(), i);
+
     // Add incoming paths.
     int incoming = root ? count - 1 : count;
     for (int i = 0; i < incoming; ++i)
@@ -444,7 +450,7 @@ private:
       // Add a path to each successor.
       for (const git::Commit &successor : successors) {
         // Find index of parent in next row.
-        int index = indexOf(nextParents, successor);
+        int index = nextIndex.value(successor.id(), -1);
         if (index < 0)
           continue;
 
