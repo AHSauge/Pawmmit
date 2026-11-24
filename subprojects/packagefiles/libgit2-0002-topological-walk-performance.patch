@@ -91,10 +91,64 @@ index 052ebb2..9ca2d88 100644
  int git_commit_list_time_cmp(const void *a, const void *b);
  void git_commit_list_free(git_commit_list **list_p);
 diff --git a/src/libgit2/revwalk.c b/src/libgit2/revwalk.c
-index 0fb907d..c719978 100644
+index 0fb907d..63eb91c 100644
 --- a/src/libgit2/revwalk.c
 +++ b/src/libgit2/revwalk.c
-@@ -806,6 +806,192 @@ cleanup:
+@@ -293,11 +293,18 @@ static int revwalk_enqueue_unsorted(git_revwalk *walk, git_commit_list_node *com
+ 	return git_commit_list_insert(commit, &walk->iterator_rand) ? 0 : -1;
+ }
+ 
++static int add_parents_to_list(git_revwalk *walk, git_commit_list_node *commit, git_commit_list **list);
++
+ static int revwalk_next_timesort(git_commit_list_node **object_out, git_revwalk *walk)
+ {
+ 	git_commit_list_node *next;
++	int error;
+ 
+ 	while ((next = git_pqueue_pop(&walk->iterator_time)) != NULL) {
++		/* A NULL list makes add_parents_to_list() push onto iterator_time */
++		if (!walk->limited && (error = add_parents_to_list(walk, next, NULL)) < 0)
++			return error;
++
+ 		/* Some commits might become uninteresting after being added to the list */
+ 		if (!next->uninteresting) {
+ 			*object_out = next;
+@@ -379,6 +386,14 @@ static void mark_parents_uninteresting(git_commit_list_node *commit)
+ 	}
+ }
+ 
++static int insert_parent(git_revwalk *walk, git_commit_list_node *p, git_commit_list **list)
++{
++	if (!list)
++		return git_pqueue_insert(&walk->iterator_time, p);
++
++	return git_commit_list_insert_by_date(p, list) ? 0 : -1;
++}
++
+ static int add_parents_to_list(git_revwalk *walk, git_commit_list_node *commit, git_commit_list **list)
+ {
+ 	unsigned short i;
+@@ -410,7 +425,8 @@ static int add_parents_to_list(git_revwalk *walk, git_commit_list_node *commit,
+ 				mark_parents_uninteresting(p);
+ 
+ 			p->seen = 1;
+-			git_commit_list_insert_by_date(p, list);
++			if ((error = insert_parent(walk, p, list)) < 0)
++				return error;
+ 		}
+ 
+ 		return 0;
+@@ -432,7 +448,8 @@ static int add_parents_to_list(git_revwalk *walk, git_commit_list_node *commit,
+ 
+ 		if (!p->seen) {
+ 			p->seen = 1;
+-			git_commit_list_insert_by_date(p, list);
++			if ((error = insert_parent(walk, p, list)) < 0)
++				return error;
+ 		}
+ 
+ 		if (walk->first_parent)
+@@ -806,6 +823,192 @@ cleanup:
  	return error;
  }
  
@@ -287,7 +341,7 @@ index 0fb907d..c719978 100644
  static int prepare_walk(git_revwalk *walk)
  {
  	int error = 0;
-@@ -849,28 +1035,14 @@ static int prepare_walk(git_revwalk *walk)
+@@ -849,28 +1052,14 @@ static int prepare_walk(git_revwalk *walk)
  		}
  	}
  
@@ -320,7 +374,16 @@ index 0fb907d..c719978 100644
  	}
  
  	if (walk->sorting & GIT_SORT_REVERSE) {
-@@ -1051,10 +1223,13 @@ int git_revwalk_reset(git_revwalk *walk)
+@@ -952,7 +1141,7 @@ int git_revwalk_sorting(git_revwalk *walk, unsigned int sort_mode)
+ 		walk->enqueue = &revwalk_enqueue_unsorted;
+ 	}
+ 
+-	if (walk->sorting != GIT_SORT_NONE)
++	if (walk->sorting & GIT_SORT_TOPOLOGICAL)
+ 		walk->limited = 1;
+ 
+ 	return 0;
+@@ -1051,10 +1240,13 @@ int git_revwalk_reset(git_revwalk *walk)
  		commit->topo_delay = 0;
  		commit->uninteresting = 0;
  		commit->added = 0;
