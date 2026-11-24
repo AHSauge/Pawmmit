@@ -15,12 +15,41 @@
 #include "conf/Settings.h"
 #include <QDir>
 #include <QPainter>
+#include <QPainterPath>
 #include <QProxyStyle>
+#include <QRegularExpression>
 #include <QStandardPaths>
 #include <QStyleOptionButton>
 #include <stdexcept>
 
+#if defined(Q_OS_WIN)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <QWindow>
+#include <windows.h>
+#include <dwmapi.h>
+#endif
+
 namespace {
+
+// Palette roles standing in for style sheet tokens a theme doesn't define.
+const QMap<QString, QString> kTokenFallbacks = {
+    {"chrome", "palette(window)"},
+    {"sidebar", "palette(window)"},
+    {"content", "palette(base)"},
+    {"subtle", "palette(alternate-base)"},
+    {"hunk_header", "palette(alternate-base)"},
+    {"hover", "palette(dark)"},
+    {"divider", "palette(dark)"},
+    {"control_border", "palette(shadow)"},
+    {"text", "palette(text)"},
+    {"text_secondary", "palette(bright-text)"},
+    {"text_muted", "palette(mid)"},
+    {"accent", "palette(highlight)"},
+    {"accent_subtle", "palette(highlight)"},
+    {"accent_text", "palette(link)"},
+    {"on_accent", "palette(highlighted-text)"}};
 
 void setPaletteColors(QPalette &palette, QPalette::ColorRole role,
                       const QVariant &variant) {
@@ -58,18 +87,49 @@ public:
                      QPainter *painter, const QWidget *widget) const override {
     switch (elem) {
       case PE_IndicatorCheckBox: {
-        QStyleOptionButton button;
-        button.QStyleOption::operator=(*option);
-
         QVariantMap checkbox = mTheme->checkbox();
-        button.palette.setColor(QPalette::Text, Qt::white);
-        setPaletteColors(button.palette, QPalette::Base,
-                         checkbox.value("fill"));
-        setPaletteColors(button.palette, QPalette::Window,
-                         checkbox.value("outline"));
-        setPaletteColors(button.palette, QPalette::Text,
-                         checkbox.value("text"));
-        baseStyle()->drawPrimitive(elem, &button, painter, widget);
+        QColor fill = checkbox.value("fill").value<QColor>();
+        QColor outline = checkbox.value("outline").value<QColor>();
+        QColor mark = checkbox.value("text").value<QColor>();
+        QColor checked = checkbox.value("checked").value<QColor>();
+        if (!checked.isValid())
+          checked = option->palette.color(QPalette::Highlight);
+
+        bool on = option->state & State_On;
+        bool partial = option->state & State_NoChange;
+        bool hover = option->state & State_MouseOver;
+
+        qreal side = qMin(option->rect.width(), option->rect.height()) - 2;
+        QRectF box(0, 0, side, side);
+        box.moveCenter(QRectF(option->rect).center());
+        box.adjust(0.5, 0.5, -0.5, -0.5);
+
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing);
+        if (!(option->state & State_Enabled))
+          painter->setOpacity(0.5);
+
+        painter->setPen(QPen(on || partial || hover ? checked : outline, 1));
+        painter->setBrush(on || partial ? checked : fill);
+        painter->drawRoundedRect(box, 3, 3);
+
+        QPen pen(mark, qMax(1.5, side / 8));
+        pen.setCapStyle(Qt::RoundCap);
+        pen.setJoinStyle(Qt::RoundJoin);
+        painter->setPen(pen);
+        painter->setBrush(Qt::NoBrush);
+        qreal x = box.left(), y = box.top(), w = box.width();
+        if (on) {
+          QPainterPath path;
+          path.moveTo(x + w * 0.26, y + w * 0.52);
+          path.lineTo(x + w * 0.43, y + w * 0.69);
+          path.lineTo(x + w * 0.75, y + w * 0.33);
+          painter->drawPath(path);
+        } else if (partial) {
+          painter->drawLine(QPointF(x + w * 0.28, y + w * 0.5),
+                            QPointF(x + w * 0.72, y + w * 0.5));
+        }
+        painter->restore();
         break;
       }
 
@@ -117,18 +177,126 @@ QStyle *CustomTheme::style() const { return new CustomStyle(this); }
 
 QString CustomTheme::styleSheet() const {
   QString text = "QLineEdit {"
-                 "  border: 1px solid palette(shadow)"
+                 "  border: 1px solid @control_border;"
+                 "  border-radius: 5px;"
+                 "  padding: 2px 4px;"
+                 "  background: @content"
+                 "}"
+                 "QLineEdit:focus {"
+                 "  border-color: @accent"
                  "}"
 
+                 "QToolButton {"
+                 "  border: none;"
+                 "  border-radius: 5px"
+                 "}"
                  "QToolButton:hover {"
-                 "  background: palette(dark)"
+                 "  background: @hover"
                  "}"
                  "QToolButton:pressed {"
                  "  background: %1"
                  "}"
 
+                 "QScrollBar:vertical {"
+                 "  background: transparent;"
+                 "  width: 10px;"
+                 "  margin: 0"
+                 "}"
+                 "QScrollBar:horizontal {"
+                 "  background: transparent;"
+                 "  height: 10px;"
+                 "  margin: 0"
+                 "}"
+                 "QScrollBar::handle {"
+                 "  background: @control_border;"
+                 "  border-radius: 3px;"
+                 "  margin: 2px"
+                 "}"
+                 "QScrollBar::handle:hover {"
+                 "  background: @text_muted"
+                 "}"
+                 "QScrollBar::handle:vertical {"
+                 "  min-height: 32px"
+                 "}"
+                 "QScrollBar::handle:horizontal {"
+                 "  min-width: 32px"
+                 "}"
+                 "QScrollBar::add-line, QScrollBar::sub-line {"
+                 "  width: 0;"
+                 "  height: 0"
+                 "}"
+                 "QScrollBar::add-page, QScrollBar::sub-page {"
+                 "  background: none"
+                 "}"
+
+                 "QStatusBar {"
+                 "  background: @chrome;"
+                 "  border-top: 1px solid @divider;"
+                 "  color: @text_secondary"
+                 "}"
+                 "QStatusBar::item {"
+                 "  border: none"
+                 "}"
+
+                 "QPushButton {"
+                 "  border: 1px solid @control_border;"
+                 "  border-radius: 5px;"
+                 "  padding: 3px 12px;"
+                 "  background: palette(button);"
+                 "  color: palette(button-text)"
+                 "}"
+                 "QPushButton:hover {"
+                 "  background: @hover"
+                 "}"
+                 "QPushButton:pressed {"
+                 "  background: %1"
+                 "}"
+                 "QPushButton:checked {"
+                 "  background: @accent_subtle;"
+                 "  border-color: @accent;"
+                 "  color: @accent_text"
+                 "}"
+                 "QPushButton:default {"
+                 "  border-color: @accent"
+                 "}"
+                 "QPushButton#CommitButton:enabled,"
+                 "QPushButton#CommitButton:enabled:hover {"
+                 "  background: @accent;"
+                 "  border-color: @accent;"
+                 "  color: @on_accent;"
+                 "  font-weight: 600"
+                 "}"
+                 "QPushButton:disabled {"
+                 "  color: @text_muted;"
+                 "  border-color: @divider"
+                 "}"
+
+                 "_FileWidget--Header {"
+                 "  background: @subtle;"
+                 "  border-bottom: 1px solid @divider"
+                 "}"
+                 "#HunkHeader {"
+                 "  background: @hunk_header"
+                 "}"
+
+                 "SideBar QTreeView, SideBar Footer {"
+                 "  background: @sidebar"
+                 "}"
+
+                 "ContentWidget TreeView {"
+                 "  border: 1px solid @divider"
+                 "}"
+
+                 "CommitList {"
+                 "  border: none;"
+                 "  border-top: 1px solid @divider;"
+                 "  border-right: 1px solid @divider"
+                 "}"
+
                  "DetailView QTextEdit {"
-                 "  border: 1px solid palette(shadow)"
+                 "  border: 1px solid @control_border;"
+                 "  border-radius: 6px;"
+                 "  background: @content"
                  "}"
                  "DetailView QTextEdit#MessageLabel {"
                  "  background: palette(window);"
@@ -136,20 +304,20 @@ QString CustomTheme::styleSheet() const {
                  "  color: palette(window-text)"
                  "}"
                  "DetailView .QFrame {"
-                 "  border-top: 1px solid palette(dark)"
+                 "  border-top: 1px solid @divider"
                  "}"
 
                  "DiffView {"
-                 "  background: palette(light)"
+                 "  background: @content"
                  "}"
                  "DiffView FileWidget {"
-                 "  background: palette(mid)"
+                 "  background: @content"
                  "}"
                  "DiffView HunkWidget {"
-                 "  border-top: 1px solid palette(light)"
+                 "  border-top: 1px solid @divider"
                  "}"
                  "DiffView HunkWidget QLabel {"
-                 "  color: palette(bright-text)"
+                 "  color: @text_muted"
                  "}"
 
                  "FindWidget {"
@@ -167,18 +335,16 @@ QString CustomTheme::styleSheet() const {
                  "}"
 
                  "Footer {"
-                 "  background: palette(button);"
-                 "  border: 1px solid palette(shadow);"
-                 "  border-top: none"
+                 "  background: @chrome;"
+                 "  border: none;"
+                 "  border-top: 1px solid @divider"
                  "}"
                  "Footer QToolButton {"
-                 "  border: 1px solid palette(shadow);"
-                 "  border-top: none;"
-                 "  border-left: none"
+                 "  border: none"
                  "}"
 
                  "LogView {"
-                 "  selection-background-color: palette(mid)"
+                 "  selection-background-color: @accent_subtle"
                  "}"
 
                  "MenuBar {"
@@ -198,20 +364,22 @@ QString CustomTheme::styleSheet() const {
 
                  "TabBar::tab {"
                  "  border: none;"
-                 "  border-right: 1px solid %5;"
+                 "  border-right: 1px solid @divider;"
                  "  background: %5;"
                  "  color: %6;"
                  "}"
                  "TabBar::tab:selected {"
                  "  background: %7;"
+                 "  color: @text"
                  "}"
 
                  "ToolBar {"
-                 "  border-top: none;"
-                 "  border-bottom: 1px solid palette(dark)"
+                 "  background: @chrome;"
+                 "  border: none;"
+                 "  border-bottom: 1px solid @divider"
                  "}"
                  "ToolBar QToolButton {"
-                 "  border: 1px solid palette(shadow)"
+                 "  border: none"
                  "}"
                  "ToolBar QToolButton:enabled:active:checked {"
                  "  background: %4"
@@ -225,8 +393,8 @@ QString CustomTheme::styleSheet() const {
 
                  "CommitDetail QToolButton,"
                  "HunkWidget QToolButton {"
-                 "  border: 1px solid palette(shadow);"
-                 "  border-radius: 4px"
+                 "  border: none;"
+                 "  border-radius: 5px"
                  "}"
 
                  "CommitToolBar QToolButton {"
@@ -284,11 +452,28 @@ QString CustomTheme::styleSheet() const {
   if (!fontValue.isEmpty())
     font += QString("font-style: %1;").arg(fontValue);
 
-  return text.arg(
+  text = text.arg(
       button.value("background").toMap().value("pressed").toString(),
       menubar.value("background").toString(), menubar.value("text").toString(),
       button.value("background").toMap().value("checked").toString(),
       tabbarBase, tabbarText, tabbarSelected, font);
+
+  // Replace @name tokens with the theme's value, or a palette fallback.
+  QVariantMap tokens = mMap.value("tokens").toMap();
+  static const QRegularExpression tokenRe("@([a-z_]+)");
+  QString resolved;
+  qsizetype last = 0;
+  QRegularExpressionMatchIterator it = tokenRe.globalMatch(text);
+  while (it.hasNext()) {
+    QRegularExpressionMatch match = it.next();
+    QString name = match.captured(1);
+    QString value = tokens.value(name).toString();
+    if (value.isEmpty())
+      value = kTokenFallbacks.value(name, match.captured(0));
+    resolved += text.mid(last, match.capturedStart() - last) + value;
+    last = match.capturedEnd();
+  }
+  return resolved + text.mid(last);
 }
 
 void CustomTheme::polish(QPalette &palette) const {
@@ -344,7 +529,16 @@ QColor CustomTheme::badge(BadgeRole role, BadgeState state) {
     case BadgeRole::Background:
       roleKey = "background";
       break;
+
+    case BadgeRole::Border:
+      roleKey = "border";
+      break;
   }
+
+  // Themes without badge borders draw the border in the background colour.
+  QVariantMap badge = mMap.value("badge").toMap();
+  if (role == BadgeRole::Border && !badge.contains(roleKey))
+    return this->badge(BadgeRole::Background, state);
 
   QString stateKey;
   switch (state) {
@@ -384,7 +578,6 @@ QColor CustomTheme::badge(BadgeRole role, BadgeState state) {
       break;
   }
 
-  QVariantMap badge = mMap.value("badge").toMap();
   QVariant variant = badge.value(roleKey);
   if (variant.canConvert<QColor>())
     return variant.value<QColor>();
@@ -435,6 +628,8 @@ QPalette CustomTheme::commitList() {
                    commitList.value("highlighted_text"));
   setPaletteColors(palette, QPalette::WindowText,
                    commitList.value("highlighted_bright_text"));
+  setPaletteColors(palette, QPalette::PlaceholderText,
+                   commitList.value("muted_text"));
   return palette;
 }
 
@@ -522,11 +717,39 @@ QVariantMap CustomTheme::editorStyleProperties() const {
   return mMap.value("property").toMap();
 }
 
-#ifndef Q_OS_MAC
+#if defined(Q_OS_WIN)
 void CustomTheme::polishWindow(QWindow *window) const {
-  Q_UNUSED(window)
+  QVariant variant = mMap.value("titlebar").toMap().value("background");
+  if (!variant.canConvert<QColor>())
+    return;
 
-  // FIXME: Change title bar color?
+  // Attribute ids are spelled out so older Windows SDKs still build.
+  const DWORD kUseImmersiveDarkMode = 20;
+  const DWORD kCaptionColor = 35;
+  const DWORD kTextColor = 36;
+
+  // Windows 10 ignores the caption and text colours; it still honours the
+  // dark mode flag.
+  HWND hwnd = reinterpret_cast<HWND>(window->winId());
+  QColor background = variant.value<QColor>();
+  BOOL dark = background.lightnessF() < 0.5;
+  DwmSetWindowAttribute(hwnd, kUseImmersiveDarkMode, &dark, sizeof(dark));
+
+  COLORREF caption =
+      RGB(background.red(), background.green(), background.blue());
+  DwmSetWindowAttribute(hwnd, kCaptionColor, &caption, sizeof(caption));
+
+  QVariant text = mMap.value("window").toMap().value("text");
+  if (text.canConvert<QColor>()) {
+    QColor color = text.value<QColor>();
+    COLORREF textColor = RGB(color.red(), color.green(), color.blue());
+    DwmSetWindowAttribute(hwnd, kTextColor, &textColor, sizeof(textColor));
+  }
+}
+#elif !defined(Q_OS_MAC)
+void CustomTheme::polishWindow(QWindow *window) const {
+  // The window manager draws the title bar here.
+  Q_UNUSED(window)
 }
 #endif
 

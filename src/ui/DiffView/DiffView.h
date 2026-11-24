@@ -38,18 +38,7 @@ const int kArrowMargin = 6;
 const QString kHunkFmt = "<h4>%1</h4>";
 
 const QString kStyleSheet = "DiffView {"
-                            "  border-image: url(:/sunken.png) 4 4 4 4;"
-                            "  border-left-width: 4;"
-                            "  border-top-width: 4;"
-                            "  padding-left: -4;"
-                            "  padding-top: -4"
-                            "}"
-                            "DiffView FileWidget {"
-                            "  background-clip: content;"
-                            "  border-image: url(:/shadow.png) 8 8 8 8;"
-                            "  border-width: 8;"
-                            "  padding-left: -2;"
-                            "  padding-top: -2"
+                            "  border: none"
                             "}";
 
 const QString kButtonStyleFmt = "QToolButton {"

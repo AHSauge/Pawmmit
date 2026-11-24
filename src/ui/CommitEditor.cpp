@@ -293,7 +293,10 @@ CommitEditor::CommitEditor(const git::Repository &repo, QWidget *parent)
             applyTemplate(t, files);
           });
 
-  QLabel *label = new QLabel(tr("<b>Commit Message:</b>"), this);
+  QLabel *label = new QLabel("<span style='font-weight: 600'>" +
+                                 tr("Commit Message:") + "</span>",
+                             this);
+  label->setForegroundRole(QPalette::BrightText);
 
   // Style and color setup for checks.
   mSpellError.setUnderlineColor(
@@ -502,6 +505,7 @@ CommitEditor::CommitEditor(const git::Repository &repo, QWidget *parent)
   connect(mUnstage, &QPushButton::clicked, this, &CommitEditor::unstage);
 
   mCommit = new QPushButton(tr("Commit"), this);
+  mCommit->setObjectName("CommitButton");
   mCommit->setDefault(true);
   new HotkeyToolTip(mCommit, mCommit->text(), Hotkeys::commit);
   connect(mCommit, &QPushButton::clicked, this, &CommitEditor::commit);

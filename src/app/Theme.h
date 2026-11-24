@@ -23,7 +23,7 @@ class QStyleOption;
 
 class Theme {
 public:
-  enum class BadgeRole { Foreground, Background };
+  enum class BadgeRole { Foreground, Background, Border };
 
   enum class BadgeState {
     Normal,

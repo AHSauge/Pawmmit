@@ -96,6 +96,9 @@ void Theme::polish(QPalette &palette) const {
 
 QColor Theme::badge(BadgeRole role, BadgeState state) {
   switch (role) {
+    case BadgeRole::Border:
+      return badge(BadgeRole::Background, state);
+
     case BadgeRole::Foreground:
       switch (state) {
         case BadgeState::Selected:

@@ -7,6 +7,7 @@
 #include "EditButton.h"
 #include "DiscardButton.h"
 #include "app/Application.h"
+#include "conf/Settings.h"
 
 #include "HunkTextEditor.h"
 
@@ -38,7 +39,12 @@ const QString noNewLineAtEndOfFile =
 
 _HunkWidget::HunkLabel::HunkLabel(const QString &name, bool submodule,
                                   QWidget *parent)
-    : QWidget(parent), mName(name) {}
+    : QWidget(parent), mName(name) {
+  // Use the editor font so the header lines up with the code below it.
+  Settings *settings = Settings::instance();
+  setFont(QFont(settings->value(Setting::Id::FontFamily).toString(),
+                settings->value(Setting::Id::FontSize).toInt()));
+}
 void _HunkWidget::HunkLabel::paintEvent(QPaintEvent *event) {
   QPainter painter(this);
   painter.setRenderHint(QPainter::Antialiasing);

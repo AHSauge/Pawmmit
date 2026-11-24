@@ -14,75 +14,105 @@
 --   key = { default = '<color>', disabled = '<color>' }
 --
 
+-- design tokens, referenced by the application style sheet as @<name>
+local t = {
+  chrome           = '#1E1C1B', -- menu bar, toolbar and status bar
+  sidebar          = '#181715', -- repository sidebar
+  content          = '#252322', -- lists, diffs and other content panes
+  subtle           = '#2D2B29', -- headers and gutters inside content panes
+  hover            = '#33312F', -- hovered flat buttons
+  divider          = '#3B3937', -- lines between panes
+  control_border   = '#4B4845', -- outlines of input fields
+  text             = '#DAD6D2',
+  text_secondary   = '#B9B5B1',
+  text_muted       = '#9F9B97',
+  accent           = '#6A4DD7',
+  accent_subtle    = '#464460', -- selected and toggled-on backgrounds
+  accent_text      = '#B2ACFE', -- accent colored text and links
+  on_accent        = '#FFFFFF', -- text on accent filled buttons
+  hunk_header      = '#2D2C37', -- diff hunk header band
+  tab              = '#181715', -- unselected repository tabs
+}
+theme['tokens'] = t
+
 -- generic colors used to render borders and separators
 -- { default, active, inactive, disabled }
 theme['palette']   = {
   -- These names correspond to a dark on light theme.
   -- The values should be inverted in light on dark themes.
-  light            = '#1E1F23', -- inverse of dark
-  midlight         = '#212226', -- inverse of middark
-  middark          = '#2D2E34', -- inverse of midlight
-  dark             = '#36373E', -- inverse of light
+  light            = t.content,
+  midlight         = t.subtle,
+  middark          = t.control_border,
+  dark             = t.divider,
 
-  -- This should always be a dark color.
-  shadow           = '#212226'
+  -- Used for widget borders and outlines.
+  shadow           = t.control_border
 }
 
 -- the colors of text entry, list view, and other widgets
 -- { default, active, inactive, disabled }
 theme['widget']    = {
-  text             = { default = '#E1E5F2', disabled = '#555B65' },
-  bright_text      = '#AAB2BE',
-  background       = '#212226',
-  alternate        = '#2D2E34', -- an alternate background color for list rows
-  highlight        = { active = '#2A82DA', inactive = '#1B5B9B' },
-  highlighted_text = { active = '#E1E5F2', inactive = '#E1E5F2' },
+  text             = { default = t.text, disabled = '#6E6A67' },
+  bright_text      = t.text_secondary,
+  background       = t.content,
+  alternate        = t.subtle, -- an alternate background color for list rows
+  highlight        = t.accent_subtle,
+  highlighted_text = t.text,
 }
 
 -- window colors
 -- { default, active, inactive, disabled }
 theme['window']    = {
-  text             = '#E1E5F2',
-  background       = '#2D2E34'
+  text             = t.text,
+  background       = t.chrome
 }
 
 -- button colors
 -- { default, active, inactive, disabled, checked, pressed }
 theme['button']    = {
-  text             = { default = '#E1E5F2', inactive = '#555B65', disabled = '#555B65' },
-  background       = { default = '#2D2E34', checked = '#2A82DA', pressed = '#2A82DA' }
+  text             = { default = t.text, disabled = '#6E6A67' },
+  background       = { default = t.subtle, checked = t.accent_subtle, pressed = t.hover }
 }
 
 -- commit list colors
 -- { default, active, inactive, disabled }
 theme['commits']   = {
-  text             = '#AAB2BE',
-  bright_text      = '#E1E5F2',
-  background       = '#2D2E34',
-  alternate        = '#2D2E34', -- an alternate background color for list rows
-  highlight        = { active = '#2A82DA', inactive = '#1B5B9B' },
-  highlighted_text = { active = '#A6CBF0', inactive = '#E1E5F2' },
-  highlighted_bright_text = { active = '#E1E5F2', inactive = '#9090A5' }
+  text             = t.text,
+  bright_text      = t.text,
+  background       = t.content,
+  alternate        = t.subtle, -- an alternate background color for list rows
+  highlight        = t.accent_subtle,
+  highlighted_text = t.text,
+  highlighted_bright_text = t.text,
+  muted_text       = t.text_muted -- commit id and date
 }
 
 -- status badge colors
 -- { normal, selected, conflicted, head, notification }
 theme['badge']     = {
   foreground       = {
-    normal         = '#E1E5F2',
-    selected       = '#2A82DA'
+    normal         = '#FFFFFF',
+    selected       = '#FFFFFF',
+    head           = '#FFFFFF',
+    conflicted     = '#FFFFFF',
+    notification   = '#FFFFFF',
+    modified       = '#E7B369',
+    added          = '#56D3D7',
+    deleted        = '#F6A97A',
+    untracked      = '#B2ACFE',
+    renamed        = '#8DB8FA'
   },
   background       = {
-    normal         = '#2A82DA', -- the default color
-    selected       = '#E1E5F2', -- the color when a list item is selected
-    conflicted     = '#DA2ADA', -- the color of conflicted items
-    head           = '#52A500', -- a bolder color to indicate the HEAD
-    notification   = '#8C2026',  -- the color of toolbar notifications badges
-    modified       = '#91973A', -- (yellow) the color of the badge when the file is modified
-    added          = '#394734', -- (green) the color of the badge when the file was newly added
-    deleted        = '#5E3638', -- (red) the color of the badge when the file was deleted
-	untracked	   = '#2A4944', -- (green blue) the color of the badge when the file is untracked
-	renamed		   = '#23455E'  -- (blue) the color of the badge when the file is renamed
+    normal         = '#2272D0', -- the default color
+    selected       = '#2272D0', -- the color when a list item is selected
+    conflicted     = '#B4232A', -- the color of conflicted items
+    head           = '#3B7F0B', -- a bolder color to indicate the HEAD
+    notification   = '#B4232A', -- the color of toolbar notifications badges
+    modified       = '#4A330F', -- (yellow) the color of the badge when the file is modified
+    added          = '#0F3A3B', -- (green) the color of the badge when the file was newly added
+    deleted        = '#4A2410', -- (red) the color of the badge when the file was deleted
+    untracked      = '#2F2A4A', -- (green blue) the color of the badge when the file is untracked
+    renamed        = '#1E3352'  -- (blue) the color of the badge when the file is renamed
   }
 }
 
@@ -114,9 +144,10 @@ theme['graph']     = {
 -- checkbox colors
 -- { default, active, inactive, disabled }
 theme['checkbox']  = {
-  text             = '#E1E5F2',
-  fill             = '#535359',
-  outline          = '#3C3C42'
+  text             = '#FFFFFF', -- check mark
+  fill             = t.content,
+  outline          = '#6E6A66',
+  checked          = t.accent
 }
 
 -- commit editor colors
@@ -127,15 +158,17 @@ theme['commiteditor'] = {
 }
 
 -- diff view colors
+-- Added and removed differ in hue (teal vs orange) and lightness, so they stay
+-- distinct with red-green colour blindness.
 theme['diff']      = {
-  addition         = '#394734', -- added lines
-  deletion         = '#5E3638', -- deleted lines
-  plus             = '#207A00', -- plus icon
-  minus            = '#BC0009', -- minus icon
+  addition         = '#023C3E', -- added lines
+  deletion         = '#492104', -- deleted lines
+  plus             = '#56D3D7', -- plus icon
+  minus            = '#F6A97A', -- minus icon
   ours             = '#000060', -- ours conflict lines
   theirs           = '#600060', -- theirs conflict lines
-  word_addition    = '#296812', -- added words
-  word_deletion    = '#781B20', -- deleted words
+  word_addition    = '#066264', -- added words
+  word_deletion    = '#7B3A02', -- deleted words
   note             = '#E1E5F2', -- note squiggle
   warning          = '#E8C080', -- warning background
   error            = '#7E494B'  -- error background
@@ -144,26 +177,26 @@ theme['diff']      = {
 -- link colors
 -- { default, active, inactive, disabled }
 theme['link']      = {
-  link             = '#2A82DA',
+  link             = t.accent_text,
   link_visited     = '#FF00FF'
 }
 
 -- menubar background color
 theme['menubar']   = {
-  text             = '#E1E5F2',
-  background       = '#212226'
+  text             = t.text,
+  background       = t.chrome
 }
 
--- tabbar background color (uncomment lines to customize)
+-- tabbar background color
 theme['tabbar']   = {
-  -- text             = theme['widget']['text'],
-  -- base             = theme['palette']['dark'],
-  -- selected         = theme['window']['background'],
+  text             = t.text_secondary,
+  base             = t.tab,
+  selected         = t.chrome, -- flows into the repository view below
 }
 
 -- remote comment colors
 theme['comment']   = {
-  background       = '#212228',
+  background       = t.content,
   body             = '#AAB2BE',
   author           = '#378BDD',
   timestamp        = '#E1E5F2'
@@ -176,7 +209,7 @@ theme['star']      = {
 
 -- titlebar background color (currently only supported on macOS)
 theme['titlebar']  = {
-  background       = '#36383D'
+  background       = t.chrome
 }
 
 -- popup tooltip colors
@@ -193,49 +226,49 @@ theme['tooltip']   = {
 --   $(style.name)
 -- http://www.scintilla.org/MyScintillaDoc.html#Styling
 
--- colors
-theme.property['color.red']          = '#994D4D'
-theme.property['color.yellow']       = '#99994D'
-theme.property['color.green']        = '#4D994D'
-theme.property['color.teal']         = '#4D9999'
-theme.property['color.purple']       = '#994D99'
-theme.property['color.orange']       = '#E6994D'
-theme.property['color.blue']         = '#4D99E6'
-theme.property['color.black']        = '#1A1A1A'
-theme.property['color.grey']         = '#808080'
-theme.property['color.white']        = '#E6E6E6'
+-- colors (readable on the diff line and word highlight colors as well)
+theme.property['color.red']          = '#F2727A'
+theme.property['color.yellow']       = '#F7C790'
+theme.property['color.green']        = '#87E4DE'
+theme.property['color.teal']         = '#87E4DE'
+theme.property['color.purple']       = '#CDCBFF'
+theme.property['color.orange']       = '#F7C790'
+theme.property['color.blue']         = '#9DDAFE'
+theme.property['color.pink']         = '#FDBADF'
+theme.property['color.black']        = t.text
+theme.property['color.grey']         = '#ADA9A5'
+theme.property['color.white']        = t.content
 
 -- styles
-theme.property['style.bracebad']     = 'fore:#CC8080'
-theme.property['style.bracelight']   = 'fore:#80CCFF'
-theme.property['style.calltip']      = 'fore:#AAB2BE,back:#333333'
-theme.property['style.class']        = 'fore:#F6E9D0'
-theme.property['style.comment']      = 'fore:#E2D9C9'
-theme.property['style.constant']     = 'fore:#E8C080'
+theme.property['style.bracebad']     = 'fore:$(color.red)'
+theme.property['style.bracelight']   = 'fore:$(color.blue),bold'
+theme.property['style.calltip']      = 'fore:' .. t.text_secondary .. ',back:' .. t.subtle
+theme.property['style.class']        = 'fore:$(color.teal)'
+theme.property['style.comment']      = 'fore:$(color.grey)'
+theme.property['style.constant']     = 'fore:$(color.pink)'
 theme.property['style.controlchar']  = '$(style.nothing)'
-theme.property['style.default']      = 'fore:#AAB2BE,back:#212228'
-theme.property['style.definition']   = 'fore:#F6E9D0'
-theme.property['style.embedded']     = '$(style.tag),back:#333333'
-theme.property['style.error']        = 'fore:#994D4D'
-theme.property['style.function']     = 'fore:#4D99E6'
+theme.property['style.default']      = 'fore:$(color.black),back:$(color.white)'
+theme.property['style.definition']   = 'fore:$(color.blue)'
+theme.property['style.embedded']     = '$(style.nothing)'
+theme.property['style.error']        = 'fore:$(color.red)'
+theme.property['style.function']     = 'fore:$(color.blue)'
 theme.property['style.identifier']   = '$(style.nothing)'
-theme.property['style.indentguide']  = 'fore:#333333,back:#333333'
-theme.property['style.keyword']      = 'fore:#53AFEC,bold'
-theme.property['style.label']        = 'fore:#E8C080'
-theme.property['style.linenumber']   = 'fore:#5F6672,back:#2A2B30'
+theme.property['style.indentguide']  = 'fore:' .. t.divider .. ',back:' .. t.divider
+theme.property['style.keyword']      = 'fore:$(color.purple)'
+theme.property['style.label']        = 'fore:$(color.purple)'
+theme.property['style.linenumber']   = 'fore:' .. t.text_muted .. ',back:' .. t.subtle
 theme.property['style.nothing']      = ''
-theme.property['style.number']       = 'fore:#4D99E6'
-theme.property['style.operator']     = 'fore:#CCCCCC,bold'
-theme.property['style.preprocessor'] = 'fore:#CC77DA,bold'
-theme.property['style.regex']        = 'fore:#80CC80'
-theme.property['style.string']       = 'fore:#93C37E'
-theme.property['style.tag']          = 'fore:#CCCCCC'
-theme.property['style.type']         = 'fore:#CC77DA'
-theme.property['style.variable']     = 'fore:#80CCFF'
+theme.property['style.number']       = 'fore:$(color.pink)'
+theme.property['style.operator']     = '$(style.nothing)'
+theme.property['style.preprocessor'] = 'fore:$(color.purple)'
+theme.property['style.regex']        = 'fore:$(color.orange)'
+theme.property['style.string']       = 'fore:$(color.orange)'
+theme.property['style.tag']          = 'fore:$(color.purple)'
+theme.property['style.type']         = 'fore:$(color.teal)'
+theme.property['style.variable']     = '$(style.nothing)'
 theme.property['style.whitespace']   = '$(style.nothing)'
 -- inline notice/banner colors (e.g. the "diff not loaded" placeholder)
 theme['notice']    = {
   background       = '#4A3B12',
   foreground       = '#FFE9A8'
 }
-

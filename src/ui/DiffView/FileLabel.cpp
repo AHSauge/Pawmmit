@@ -10,8 +10,8 @@ FileLabel::FileLabel(const QString &name, bool submodule, QWidget *parent)
   setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
 
   QFont font = this->font();
-  font.setBold(true);
-  font.setPointSize(font.pointSize() + 3);
+  font.setWeight(QFont::DemiBold);
+  font.setPointSize(font.pointSize() + 1);
   if (submodule) {
     font.setUnderline(true);
     setCursor(Qt::PointingHandCursor);
@@ -65,6 +65,17 @@ void FileLabel::paintEvent(QPaintEvent *event) {
   }
 
   QString name = fm.elidedText(mName, Qt::ElideLeft, rect.width());
+  int slash = name.lastIndexOf('/') + 1;
+  if (slash > 0 && name == mName) {
+    // Draw the directory part quieter than the file name.
+    QString dir = name.left(slash);
+    painter.save();
+    painter.setPen(palette().color(QPalette::BrightText));
+    painter.drawText(rect, Qt::AlignLeft | Qt::AlignVCenter, dir);
+    painter.restore();
+    rect.adjust(fm.horizontalAdvance(dir), 0, 0, 0);
+    name = name.mid(slash);
+  }
   painter.drawText(rect, Qt::AlignLeft | Qt::AlignVCenter, name);
 }
 

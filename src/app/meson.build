@@ -122,7 +122,7 @@ pawmmit_link_deps = [
 ]
 
 if is_win
-    pawmmit_link_deps += [cc.find_library('dbghelp')]
+    pawmmit_link_deps += [cc.find_library('dbghelp'), cc.find_library('dwmapi')]
 endif
 
 exe_kwargs = {}

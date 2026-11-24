@@ -167,10 +167,11 @@ void Badge::paint(QPainter *painter, const Label &label, const QRect &rect,
 
   const QColor fore = theme->badge(Theme::BadgeRole::Foreground, state);
   const QColor back = theme->badge(Theme::BadgeRole::Background, state);
+  const QColor border = theme->badge(Theme::BadgeRole::Border, state);
 
   painter->setBrush(back);
-  painter->setPen(Qt::NoPen);
-  painter->drawRoundedRect(rect, 4, 4);
+  painter->setPen(QPen(border, 1));
+  painter->drawRoundedRect(QRectF(rect).adjusted(0.5, 0.5, -0.5, -0.5), 4, 4);
 
   QFont font = painter->font();
   font.setBold(label.bold);

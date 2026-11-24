@@ -60,6 +60,7 @@ const QString kPathspecFmt = "pathspec:%1";
 // Use fixed short id size in compact mode.
 // FIXME: Use 'core.abbrev' config instead?
 const int kShortIdSize = 7;
+const int kMinAuthorWidth = 80;
 
 // Color indexes outside the edge palette.
 constexpr quint8 kTaintedColorIndex = 0xFE;
@@ -872,6 +873,10 @@ public:
     QPalette palette = Application::theme()->commitList();
     QColor text = palette.color(group, textRole);
     QColor bright = palette.color(group, brightRole);
+    // Muted text would be too faint on the selection, so selected rows use
+    // text.
+    QColor muted =
+        selected ? text : palette.color(group, QPalette::PlaceholderText);
     QColor highlight = palette.color(group, QPalette::Highlight);
 
     painter->save();
@@ -891,10 +896,6 @@ public:
 
     // Set default foreground color.
     painter->setPen(text);
-
-    // Use default pen color for dot.
-    QPen dot = painter->pen();
-    dot.setWidth(2);
 
     // Copy content rect.
     QRect rect = opt.rect;
@@ -947,8 +948,17 @@ public:
         painter->setPen(pen);
         switch (segment.type) {
           case Dot:
-            painter->setPen(dot);
+            // Fill with the lane colour, ringed in the row background.
+            if (color.isValid()) {
+              painter->setPen(QPen(
+                  selected ? highlight : palette.color(group, QPalette::Base),
+                  1.5));
+              painter->setBrush(color);
+            } else {
+              painter->setPen(QPen(muted, 2));
+            }
             painter->drawEllipse(QPoint(x1, y2), r, r);
+            painter->setBrush(Qt::NoBrush);
             break;
 
           case Top:
@@ -1060,6 +1070,7 @@ public:
           QRect commitRect = rect;
           commitRect.setX(commitRect.x() + commitRect.width() - idWidth);
           painter->save();
+          painter->setPen(muted);
           painter->drawText(commitRect, Qt::AlignLeft, id);
           painter->restore();
           rect.setWidth(rect.width() - idWidth - constants.hMargin);
@@ -1069,7 +1080,7 @@ public:
         if (showDate && rect.width() > minWidthDesc + timestampWidth + 8 &&
             totalWidth > minDisplayWidthDate) {
           painter->save();
-          painter->setPen(bright);
+          painter->setPen(muted);
           painter->drawText(rect, Qt::AlignRight, timestamp);
           painter->restore();
           rect.setWidth(rect.width() - timestampWidth - constants.hMargin);
@@ -1080,7 +1091,7 @@ public:
           QString name = commit.author().name() + "  ";
           painter->save();
           QFont bold = opt.font;
-          bold.setBold(true);
+          bold.setWeight(QFont::DemiBold);
           painter->setFont(bold);
           painter->drawText(rect, Qt::AlignRight, name);
           painter->restore();
@@ -1117,81 +1128,76 @@ public:
 
       } else {
 
-        // Draw Name.
-        QString name = "";
-        if (showAuthor) {
-          name = commit.author().name();
+        // First line: author, id and references, with the date on the right.
+        int right = rect.x() + rect.width();
+        if (showDate) {
           painter->save();
-          QFont bold = opt.font;
-          bold.setBold(true);
-          painter->setFont(bold);
-          painter->drawText(rect, Qt::AlignLeft, name);
+          painter->setPen(muted);
+          painter->drawText(rect, Qt::AlignRight, timestamp);
           painter->restore();
+          right -= timestampWidth + constants.hMargin;
         }
 
-        // Draw date.
-        if (showDate &&
-            rect.width() > fm.horizontalAdvance(name) + timestampWidth + 8) {
-          painter->save();
-          painter->setPen(bright);
-          if (showAuthor) {
-            painter->drawText(rect, Qt::AlignRight, timestamp);
-          } else {
-            painter->drawText(rect, Qt::AlignLeft, timestamp);
-          }
-          painter->restore();
-        }
-
-        // Draw id.
-        QString id = "";
-        if (showId) {
-          QRect idRect = rect;
-          if (showAuthor || showDate) {
-            idRect.setY(idRect.y() + constants.lineSpacing + constants.vMargin);
-          }
-          id = commit.shortId();
-          painter->save();
-          painter->drawText(idRect, Qt::AlignLeft, id);
-          painter->restore();
-        }
-
-        // Draw references.
+        QString id = showId ? commit.shortId() : QString();
+        int idWidth = showId ? fm.horizontalAdvance(id) + constants.hMargin : 0;
         QList<Badge::Label> refs = mRefs.value(commit.id());
-        if (!refs.isEmpty()) {
-          QRect refsRect = rect;
-          QString leftText = "";
+        int refsWidth =
+            refs.isEmpty() ? 0 : Badge::size(opt.font, refs).width();
 
-          if (showDate && showAuthor) {
-            refsRect.setY(refsRect.y() + constants.lineSpacing +
-                          constants.vMargin);
-            if (showId) {
-              leftText = id;
-            }
-          } else {
-            if (showDate) {
-              leftText = timestamp;
-            } else if (showAuthor) {
-              leftText = name;
-            } else if (showId) {
-              leftText = id;
-            }
-          }
-          refsRect.setX(refsRect.x() + fm.boundingRect(leftText).width() + 6);
-          Badge::paint(painter, refs, refsRect, &opt);
+        QFont bold = opt.font;
+        bold.setWeight(QFont::DemiBold);
+        const QFontMetrics boldFm(bold);
+        int nameWidth = boldFm.horizontalAdvance(commit.author().name());
+        int minNameWidth =
+            showAuthor ? qMin(nameWidth, kMinAuthorWidth) + constants.hMargin
+                       : 0;
+
+        // References that don't fit next to the author get a line of their
+        // own, and the message is then cut to one line.
+        bool refsOwnLine =
+            !refs.isEmpty() &&
+            rect.x() + minNameWidth + idWidth + refsWidth > right;
+        if (refsOwnLine)
+          refsWidth = 0;
+
+        int x = rect.x();
+        if (showAuthor && x < right) {
+          // The author name gives way to the references before they shrink.
+          int space = qMax(right - x - idWidth - refsWidth - constants.hMargin,
+                           qMin(nameWidth, kMinAuthorWidth));
+          QString name =
+              boldFm.elidedText(commit.author().name(), Qt::ElideRight, space);
+          painter->save();
+          painter->setFont(bold);
+          painter->drawText(QRect(x, rect.y(), right - x, rect.height()),
+                            Qt::AlignLeft, name);
+          painter->restore();
+          x += boldFm.horizontalAdvance(name) + constants.hMargin;
         }
 
-        int numOptional = 0;
-        if (showId)
-          ++numOptional;
-        if (showAuthor)
-          ++numOptional;
-        if (showDate)
-          ++numOptional;
-        if (numOptional > 1) {
-          rect.setY(rect.y() + constants.lineSpacing + constants.vMargin);
+        if (showId && x < right) {
+          painter->save();
+          painter->setPen(muted);
+          painter->drawText(QRect(x, rect.y(), right - x, rect.height()),
+                            Qt::AlignLeft, id);
+          painter->restore();
+          x += idWidth;
+        }
+
+        if (!refs.isEmpty() && !refsOwnLine && x < right) {
+          // Badges are a little taller than the text line; centre them on it.
+          QRect refsRect(x, rect.y() - 1, right - x, rect.height());
+          Badge::paint(painter, refs, refsRect, &opt, Qt::AlignLeft);
         }
 
         rect.setY(rect.y() + constants.lineSpacing + constants.vMargin);
+
+        if (refsOwnLine) {
+          QRect refsRect = rect;
+          refsRect.setY(rect.y() - 1);
+          Badge::paint(painter, refs, refsRect, &opt, Qt::AlignLeft);
+          rect.setY(rect.y() + constants.lineSpacing + constants.vMargin);
+        }
 
         // Divide remaining rectangle.
         star = rect;
@@ -1211,9 +1217,14 @@ public:
           int width = text.width();
           line.setLineWidth(width);
           int len = line.textLength();
-          painter->drawText(text, Qt::AlignLeft, msg.left(len));
+          if (refsOwnLine) {
+            painter->drawText(text, Qt::AlignLeft,
+                              fm.elidedText(msg, Qt::ElideRight, width));
+          } else {
+            painter->drawText(text, Qt::AlignLeft, msg.left(len));
+          }
 
-          if (len < msg.length()) {
+          if (!refsOwnLine && len < msg.length()) {
             text.setY(text.y() + constants.lineSpacing);
             QString elided = fm.elidedText(msg.mid(len), Qt::ElideRight, width);
             painter->drawText(text, Qt::AlignLeft, elided);
@@ -1277,7 +1288,7 @@ public:
 #endif
 
     // Draw separator line.
-    if (!compact && selected == nextSelected) {
+    if (!compact && selected && nextSelected) {
       painter->save();
       painter->setRenderHints(QPainter::Antialiasing, false);
       painter->setPen(selected ? text : opt.palette.color(QPalette::Dark));
@@ -1296,7 +1307,8 @@ public:
     LayoutConstants constants = layoutConstants(compact);
 
     int lineHeight = constants.lineSpacing + constants.vMargin;
-    return QSize(0, lineHeight * (compact ? 1 : 4));
+    return QSize(0,
+                 compact ? lineHeight : lineHeight * 3 + constants.vMargin * 2);
   }
 
   QRect decorationRect(const QStyleOptionViewItem &option,

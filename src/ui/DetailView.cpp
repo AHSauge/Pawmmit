@@ -61,10 +61,11 @@ const int kSize = 64;
 const char *kCacheKey = "cache_key";
 const QString kRangeFmt = "%1..%2";
 const QString kDateRangeFmt = "%1-%2";
-const QString kBoldFmt = "<b>%1</b>";
+const QString kBoldFmt = "<span style='font-weight: 600'>%1</span>";
 const QString kItalicFmt = "<i>%1</i>";
 const QString kLinkFmt = "<a href='%1'>%2</a>";
-const QString kAuthorFmt = "<b>%1 &lt;%2&gt;</b>";
+const QString kAuthorFmt =
+    "<span style='font-weight: 600; color: %1'>%2</span> %3";
 const QString kAltFmt = "<span style='color: %1'>%2</span>";
 const QString kUrl = "http://www.gravatar.com/avatar/%1?s=%2&d=mm";
 
@@ -122,9 +123,11 @@ public:
   AuthorCommitterDate(QWidget *parent = nullptr) : QWidget(parent) {
     mAuthor = new QLabel(this);
     mAuthor->setTextInteractionFlags(kTextFlags);
+    mAuthor->setForegroundRole(QPalette::BrightText);
 
     mCommitter = new QLabel(this);
     mCommitter->setTextInteractionFlags(kTextFlags);
+    mCommitter->setForegroundRole(QPalette::BrightText);
 
     mDate = new QLabel(this);
     mDate->setTextInteractionFlags(kTextFlags);
@@ -232,6 +235,16 @@ class CommitDetail : public QFrame {
 
 public:
   CommitDetail(QWidget *parent = nullptr) : QFrame(parent) {
+    // The commit summary leads the header as its title.
+    mTitle = new QLabel(this);
+    mTitle->setTextFormat(Qt::PlainText);
+    mTitle->setTextInteractionFlags(kTextFlags);
+    mTitle->setWordWrap(true);
+    QFont titleFont = mTitle->font();
+    titleFont.setWeight(QFont::DemiBold);
+    titleFont.setPointSizeF(titleFont.pointSizeF() + 2);
+    mTitle->setFont(titleFont);
+
     mAuthorCommitterDate = new AuthorCommitterDate(this);
 
     mHash = new QLabel(this);
@@ -256,6 +269,7 @@ public:
 
     QVBoxLayout *details = new QVBoxLayout;
     details->setSpacing(6);
+    details->addWidget(mTitle);
     details->addWidget(mAuthorCommitterDate); // line 1 + 2
     details->addLayout(line3);
     details->addStretch();
@@ -322,6 +336,8 @@ public:
 
   void setCommits(const QList<git::Commit> &commits) {
     // Clear fields.
+    mTitle->setText(QString());
+    mTitle->setVisible(false);
     mHash->setText(QString());
     mAuthorCommitterDate->setDate(QString());
     mAuthorCommitterDate->setAuthorCommitter(QString(), QString());
@@ -346,9 +362,12 @@ public:
 
       // Add names.
       QSet<QString> authors, committers;
+      QString textColor = QPalette().color(QPalette::Text).name();
       for (const git::Commit &commit : commits) {
-        authors.insert(kBoldFmt.arg(commit.author().name()));
-        committers.insert(kBoldFmt.arg(commit.committer().name()));
+        authors.insert(
+            kAuthorFmt.arg(textColor, commit.author().name(), QString()));
+        committers.insert(
+            kAuthorFmt.arg(textColor, commit.committer().name(), QString()));
       }
       QStringList author = authors.values();
       if (author.size() > 3)
@@ -391,21 +410,31 @@ public:
     }
 
     // Show commit details.
+    git::Commit commit = commits.first();
     mParents->setVisible(true);
-    mSeparator->setVisible(true);
-    mMessage->setVisible(true);
+
+    // The summary is the title, so the message area only shows the body.
+    mTitle->setText(commit.summary(git::Commit::SubstituteEmoji));
+    mTitle->setVisible(true);
+    QString body = commit.body(git::Commit::SubstituteEmoji).trimmed();
+    mSeparator->setVisible(!body.isEmpty());
+    mMessage->setVisible(!body.isEmpty());
 
     // Populate details.
-    git::Commit commit = commits.first();
     git::Signature author = commit.author();
     git::Signature committer = commit.committer();
     QDateTime date = commit.committer().date().toLocalTime();
     mHash->setText(brightText(tr("Id:")) + " " + commit.shortId());
     mAuthorCommitterDate->setDate(
         brightText(QLocale().toString(date, QLocale::LongFormat)));
+    // Quiet labels and email, with the name itself in the main text colour.
+    QString textColor = QPalette().color(QPalette::Text).name();
+    auto email = [](const git::Signature &signature) {
+      return "&lt;" + signature.email().toHtmlEscaped() + "&gt;";
+    };
     mAuthorCommitterDate->setAuthorCommitter(
-        kAuthorFmt.arg(author.name(), author.email()),
-        kAuthorFmt.arg(committer.name(), committer.email()));
+        kAuthorFmt.arg(textColor, author.name(), email(author)),
+        kAuthorFmt.arg(textColor, committer.name(), email(committer)));
 
     QStringList parents;
     for (const git::Commit &parent : commit.parents()) {
@@ -419,8 +448,7 @@ public:
     QString text = parents.isEmpty() ? initial : parents.join(", ");
     mParents->setText(brightText(tr("Parents:")) + " " + text);
 
-    QString msg = commit.message(git::Commit::SubstituteEmoji).trimmed();
-    mMessage->setPlainText(msg);
+    mMessage->setPlainText(body);
 
     const bool showAvatars =
         Settings::instance()->value(Setting::Id::ShowAvatars).toBool();
@@ -482,6 +510,7 @@ public:
 
 private:
   Badge *mRefs;
+  QLabel *mTitle;
   QLabel *mHash;
   QLabel *mParents;
   QLabel *mPicture;
@@ -666,7 +695,9 @@ QString DetailView::overrideEmail() const { return mOverrideEmail; }
 void DetailView::updateAuthor() {
   git::Config config = RepoView::parentView(this)->repo().gitConfig();
 
-  QString text = "<a href=\"changeAuthor\"><b>" + tr("Author:") + "</b></a> ";
+  // A quiet label, with the author itself as the link to change it.
+  QString text = brightText(tr("Author:")) +
+                 " <a href=\"changeAuthor\" style=\"text-decoration: none\">";
 
   if (mOverrideUser.isEmpty())
     text += config.value<QString>("user.name").toHtmlEscaped();
@@ -678,6 +709,8 @@ void DetailView::updateAuthor() {
         " &lt;" + config.value<QString>("user.email").toHtmlEscaped() + "&gt;";
   else
     text += " &lt;" + mOverrideEmail.toHtmlEscaped() + "&gt;";
+
+  text += "</a>";
 
   if (!mOverrideUser.isEmpty() || !mOverrideEmail.isEmpty())
     text += " (<a href=\"reset\">" + tr("reset") + "</a>)";
