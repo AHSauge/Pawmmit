@@ -1,0 +1,236 @@
+From 01a6e5999c432ec8e2b9b03dfa665d4d526cccbc Mon Sep 17 00:00:00 2001
+From: Alf Henrik Sauge <alf.henrik.sauge@gmail.com>
+Date: Wed, 25 Nov 2026 01:04:16 +0100
+Subject: [PATCH] revwalk: follow only the TREESAME parent of merges when
+ pathspec is set
+
+This mimics git log's default pruning
+---
+ src/libgit2/commit_list.h        |  2 +
+ src/libgit2/revwalk.c            | 83 ++++++++++++++++++++++++++++++--
+ tests/libgit2/revwalk/pathspec.c | 54 +++++++++++++++++++++
+ 3 files changed, 135 insertions(+), 4 deletions(-)
+
+diff --git a/src/libgit2/commit_list.h b/src/libgit2/commit_list.h
+index 9ca2d88ef..988d3477b 100644
+--- a/src/libgit2/commit_list.h
++++ b/src/libgit2/commit_list.h
+@@ -35,6 +35,8 @@ typedef struct git_commit_list_node {
+ 			 added:1,
+ 			 in_graph:1,
+ 			 discovered:1,
++			 path_checked:1,
++			 treesame:1,
+ 			 flags : FLAG_BITS;
+ 
+ 	uint16_t in_degree;
+diff --git a/src/libgit2/revwalk.c b/src/libgit2/revwalk.c
+index 2de3f0cb7..f9940999b 100644
+--- a/src/libgit2/revwalk.c
++++ b/src/libgit2/revwalk.c
+@@ -394,10 +394,12 @@ static int insert_parent(git_revwalk *walk, git_commit_list_node *p, git_commit_
+ 	return git_commit_list_insert_by_date(p, list) ? 0 : -1;
+ }
+ 
++static int merge_treesame_parent(git_revwalk *walk, git_commit_list_node *node);
++
+ static int add_parents_to_list(git_revwalk *walk, git_commit_list_node *commit, git_commit_list **list)
+ {
+ 	unsigned short i;
+-	int error;
++	int error, keep = -1;
+ 
+ 	if (commit->added)
+ 		return 0;
+@@ -437,9 +439,16 @@ static int add_parents_to_list(git_revwalk *walk, git_commit_list_node *commit,
+ 	 * interesting. Here we do want things like first-parent take
+ 	 * effect as this is what we'll be showing.
+ 	 */
++	if (walk->pathspec && !walk->first_parent && commit->out_degree > 1)
++		keep = merge_treesame_parent(walk, commit);
++
+ 	for (i = 0; i < commit->out_degree; i++) {
+ 		git_commit_list_node *p = commit->parents[i];
+ 
++		/* The path came from this parent, so skip the other branches */
++		if (keep >= 0 && (int)i != keep)
++			continue;
++
+ 		if ((error = git_commit_list_parse(walk, p)) < 0)
+ 			return error;
+ 
+@@ -605,6 +614,62 @@ static bool include_path_exact_parent(git_revwalk *walk, git_tree *commit_tree,
+ 	return false;
+ }
+ 
++static bool path_differs(git_revwalk *walk, git_tree *commit_tree, git_tree *parent_tree)
++{
++	git_diff_options diffopts = GIT_DIFF_OPTIONS_INIT;
++
++	if (!walk->pathspec_wildcard)
++		return include_path_exact_parent(walk, commit_tree, parent_tree);
++
++	if (walk->pathspec->prefix) {
++		diffopts.pathspec.strings = &walk->pathspec->prefix;
++		diffopts.pathspec.count = 1;
++	}
++
++	return include_path_delta(walk, commit_tree, parent_tree, &diffopts);
++}
++
++/*
++ * Returns the index of an interesting parent that the merge is TREESAME
++ * to, or -1. The result is recorded on the node for include_path.
++ */
++static int merge_treesame_parent(git_revwalk *walk, git_commit_list_node *node)
++{
++	git_commit *commit = NULL;
++	git_tree *commit_tree = NULL;
++	unsigned int i;
++	int keep = -1;
++
++	if (git_commit_lookup(&commit, walk->repo, &node->oid) < 0 ||
++	    git_commit_tree(&commit_tree, commit) < 0) {
++		git_commit_free(commit);
++		git_error_clear();
++		return -1;
++	}
++
++	for (i = 0; i < node->out_degree && keep < 0; i++) {
++		git_commit *parent = NULL;
++		git_tree *parent_tree = NULL;
++
++		if (git_commit_parent(&parent, commit, i) == 0 &&
++		    git_commit_tree(&parent_tree, parent) == 0 &&
++		    !path_differs(walk, commit_tree, parent_tree)) {
++			node->treesame = 1;
++
++			if (!node->parents[i]->uninteresting)
++				keep = (int)i;
++		}
++
++		git_tree_free(parent_tree);
++		git_commit_free(parent);
++	}
++
++	node->path_checked = 1;
++	git_tree_free(commit_tree);
++	git_commit_free(commit);
++	return keep;
++}
++
+ static bool include_path_exact(git_revwalk *walk, git_commit *commit, git_tree *commit_tree) {
+ 	unsigned int parents = git_commit_parentcount(commit);
+ 	if (parents == 0) {
+@@ -660,6 +725,9 @@ static bool include_path(git_revwalk *walk, git_commit_list_node *commit_node)
+ 	git_tree *commit_tree = NULL;
+ 	bool include = false;
+ 
++	if (commit_node->path_checked)
++		return !commit_node->treesame;
++
+ 	/* Use bloom filter if available */
+ 	if (walk->pathspec_cache && check_bloom_filter(walk, commit_node) == 0)
+ 		return false;
+@@ -837,19 +905,24 @@ static int add_to_topo_set(git_revwalk *walk, git_commit_list_node *commit)
+ static int count_parents(git_revwalk *walk, git_commit_list_node *commit)
+ {
+ 	unsigned short i;
+-	int error;
++	int error, keep = -1;
++
++	if (walk->pathspec && !walk->first_parent && commit->out_degree > 1)
++		keep = merge_treesame_parent(walk, commit);
+ 
+ 	for (i = 0; i < commit->out_degree; i++) {
+ 		git_commit_list_node *parent = commit->parents[i];
+ 
+ 		/*
+ 		 * Count the edge in all cases to ensure no parent is emitted before
+-		 * its children. Only follow the first parent when asked to.
++		 * its children. Only follow the first parent when asked to, or
++		 * the TREESAME parent of a merge when filtering on a path.
+ 		 * This potentially deviates from git, but retains prior libgit2 behaviour
+ 		 */
+ 		parent->in_degree++;
+ 
+-		if (walk->first_parent == 0 || i == 0) {
++		if ((walk->first_parent == 0 || i == 0) &&
++		    (keep < 0 || (int)i == keep)) {
+ 			if ((error = git_commit_list_parse(walk, parent)) < 0)
+ 				return error;
+ 
+@@ -1287,6 +1360,8 @@ int git_revwalk_reset(git_revwalk *walk)
+ 		commit->uninteresting = 0;
+ 		commit->added = 0;
+ 		commit->discovered = 0;
++		commit->path_checked = 0;
++		commit->treesame = 0;
+ 		commit->flags = 0;
+ 	}
+ 
+diff --git a/tests/libgit2/revwalk/pathspec.c b/tests/libgit2/revwalk/pathspec.c
+index 9db1b8d50..b7681af24 100644
+--- a/tests/libgit2/revwalk/pathspec.c
++++ b/tests/libgit2/revwalk/pathspec.c
+@@ -124,3 +124,57 @@ void test_revwalk_pathspec__no_commit_graph(void)
+ 	git_pathspec_free(ps);
+ 	git_repository_free(bare_repo);
+ }
++
++/*
++ * Merge bc7c5ac takes a.txt from its second parent aa06ecc, so the
++ * other parent's change in 63d671e is not part of the file's history.
++ *
++ * $ git log -- a.txt
++ */
++static const char *expected_simplified_str[] = {
++	"aa06ecca6c4ad6432ab9313e556ca92ba4bcf9e9",
++	"da237394e6132d20d30f175b9b73c8638fddddda",
++	"b99f7ac0b88909253d829554c14af488c3b0f3a5",
++};
++
++static void assert_simplified_history(char *path)
++{
++	git_repository *blame_repo;
++	git_revwalk *walk;
++	git_pathspec *ps = NULL;
++	git_oid id, expected;
++	int i, error;
++	git_strarray paths = { NULL, 1 };
++	paths.strings = &path;
++
++	cl_git_pass(git_repository_open(&blame_repo, cl_fixture("blametest.git")));
++	cl_git_pass(git_revwalk_new(&walk, blame_repo));
++	cl_git_pass(git_pathspec_new(&ps, &paths));
++	cl_git_pass(git_revwalk_pathspec(walk, ps));
++	cl_git_pass(git_revwalk_push_head(walk));
++
++	i = 0;
++	while ((error = git_revwalk_next(&id, walk)) == 0) {
++		cl_assert(i < 3);
++		git_oid_from_string(&expected, expected_simplified_str[i], GIT_OID_SHA1);
++		cl_assert_equal_oid(&expected, &id);
++		i++;
++	}
++
++	cl_assert_equal_i(i, 3);
++	cl_assert_equal_i(error, GIT_ITEROVER);
++
++	git_revwalk_free(walk);
++	git_pathspec_free(ps);
++	git_repository_free(blame_repo);
++}
++
++void test_revwalk_pathspec__exact_file_follows_treesame_parent(void)
++{
++	assert_simplified_history("a.txt");
++}
++
++void test_revwalk_pathspec__wildcard_follows_treesame_parent(void)
++{
++	assert_simplified_history("*a.txt");
++}
+-- 
+2.56.1
+
